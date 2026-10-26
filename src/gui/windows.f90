@@ -312,6 +312,7 @@ module windows
   type cp_state
      type(sys_ref) :: sys ! system the form is set up for
      type(field_ref) :: fref ! field to search
+     type(field_ref) :: req ! request: open on this field (uid 0 = none)
      type(cp_seed_ui), allocatable :: seed(:) ! the seeds
      ! advanced options: used only if the corresponding use_ is set
      logical :: use_gradeps = .false., use_cpeps = .false., use_nuceps = .false.
@@ -2501,6 +2502,9 @@ module windows
      module subroutine clear_cp_hover(w)
        class(window), intent(inout), target :: w
      end subroutine clear_cp_hover
+     module subroutine clear_cp_data(isys,ifield)
+       integer, intent(in) :: isys, ifield
+     end subroutine clear_cp_data
      module function form_coords(isys,xc) result(x)
        integer, intent(in) :: isys
        real*8, intent(in) :: xc(3)

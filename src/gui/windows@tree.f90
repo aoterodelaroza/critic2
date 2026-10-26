@@ -1174,6 +1174,36 @@ contains
             call igEndMenu()
          end if
 
+         ! critical points submenu (system)
+         if (iw_beginmenu("Critical Points")) then
+            ! the window, on the main view pointed at this system
+            if (iw_menuitem("Critical Points...",enabled=enabled)) then
+               call win(iwin_view)%select_view(isys)
+               call w%select_system_tree(isys)
+               iaux = stack_create_window(wintype_cp,.true.,idparent=iwin_view,orraise=-1)
+            end if
+            call iw_tooltip("Find the critical points of a field of this system and inspect them",ttshown)
+
+            ! clear the critical points of all the fields, destructive
+            ok = .false.
+            if (enabled_no_threads) then
+               do k = 0, sys(isys)%nf
+                  ok = field_has_cps(isys,k)
+                  if (ok) exit
+               end do
+            end if
+            if (iw_menuitem("Clear CP Data",enabled=ok,danger=.true.)) then
+               do k = 0, sys(isys)%nf
+                  call clear_cp_data(isys,k)
+               end do
+            end if
+            call iw_tooltip("Remove all the critical points of all the fields of this system except&
+               & the nuclei, with their bond paths and their checkpoint files (<field file>.chk_cps)",&
+               ttshown)
+
+            call igEndMenu()
+         end if
+
          ! new isosurface of the reference field: the new object defaults
          ! to the reference field, so pointing the view at this system
          ! before adding the representation is all that is needed
@@ -1459,7 +1489,6 @@ contains
 
          !! field settings !!
          call igSeparator()
-         ldum = iw_menuitem("[Settings]",enabled=.false.)
 
          ! interpolation mode and normalization (grids)
          if (sys(i)%f(k)%type == type_grid) then
@@ -1605,7 +1634,6 @@ contains
 
          !! load new field options !!
          call igSeparator()
-         ldum = iw_menuitem("[New field from this one]",enabled=.false.)
 
          ! grid calculation options
          if (sys(i)%f(k)%type == type_grid) then
@@ -1691,6 +1719,16 @@ contains
             call iw_tooltip("Load a new grid field as a resampling of this field",ttshown)
 
          end if
+
+         ! the critical points window, on this field (the main view
+         ! must show this system: the window follows the view)
+         if (iw_menuitem("Critical Points...",enabled=ok_system(i,sys_init))) then
+            call win(iwin_view)%select_view(i)
+            call w%select_system_tree(i)
+            iaux = stack_create_window(wintype_cp,.true.,idparent=iwin_view,orraise=-1)
+            call win(iaux)%cp%req%set(sys(i),k)
+         end if
+         call iw_tooltip("Find the critical points of this field and inspect them",ttshown)
 
          ! new isosurface object bound to this field
          if (iw_menuitem("New Isosurface",enabled=ok_system(i,sys_init))) then

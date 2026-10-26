@@ -111,7 +111,7 @@ contains
     logical :: doquit, goodsys, syschanged, tabopen, ok
     integer :: isys, iview, ihover(2), iu
     integer(c_int) :: flags
-    type(field_ref) :: fref
+    type(field_ref) :: fref, req
     character(kind=c_char,len=:), allocatable, target :: str1
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -123,7 +123,9 @@ contains
 
     ! initialize the form on the first pass
     if (w%firstpass) then
+       req = w%cp%req
        w%cp = cp_state()
+       w%cp%req = req
        w%errmsg = ""
     end if
 
@@ -149,6 +151,15 @@ contains
              w%cp%fref = fref
              w%cp%tfield = -1
           end if
+       end if
+
+       ! a requested field (the tree), if it is still there
+       if (w%cp%req%uid > 0) then
+          if (w%cp%req%ok(sys(isys))) then
+             w%cp%fref = w%cp%req
+             w%cp%tfield = -1
+          end if
+          w%cp%req = field_ref()
        end if
     end if
 
@@ -313,11 +324,10 @@ contains
     use fieldmod, only: cplist_backup
     class(window), intent(inout), target :: w
 
-    integer :: isys, ifield, iview, ncp0, kind, lu, ios
+    integer :: isys, ifield, iview, ncp0, kind
     type(auto_context) :: ctx
     type(cplist_backup) :: cpback
-    logical :: ok, changes, cancelled, lex
-    character(len=:), allocatable :: cpfile, errmsg
+    logical :: ok, changes, cancelled
 
     isys = w%cp%sys%get(sys_init)
     ifield = w%cp%fref%id
@@ -378,31 +388,7 @@ contains
     ! the checkpoint, unless disabled (not AUTO's CHK, which reads an
     ! existing checkpoint instead of searching)
     changes = (kind /= cpjob_export .and. kind /= cpjob_estimate)
-    if (ok .and. .not.w%cp%nochk .and. changes) then
-       cpfile = sys(isys)%f(ifield)%chk_cps_file()
-       if (len(cpfile) == 0) then
-          continue
-       elseif (sys(isys)%f(ifield)%ncp <= sys(isys)%c%nneq) then
-          ! only the nuclei are left: remove the checkpoint instead
-          inquire(file=cpfile,exist=lex)
-          if (lex) then
-             open(newunit=lu,file=cpfile,status="old",iostat=ios)
-             if (ios == 0) close(lu,status="delete",iostat=ios)
-             if (ios == 0) then
-                write (uout,'("* Checkpoint file removed: ",A/)') cpfile
-             else
-                write (uout,'("!! Warning !! Could not remove the checkpoint ",A)') cpfile
-             end if
-          end if
-       else
-          call sys(isys)%f(ifield)%write_chk_cps(cpfile,errmsg)
-          if (len_trim(errmsg) > 0) then
-             write (uout,'("!! Warning !! Could not write the checkpoint ",A,": ",A)') cpfile, errmsg
-          else
-             write (uout,'("* Critical points written to the checkpoint: ",A/)') cpfile
-          end if
-       end if
-    end if
+    if (ok .and. .not.w%cp%nochk .and. changes) call sync_chk_cps(isys,ifield)
 
     if (cancelled) then
        w%errmsg = "The " // merge("deletion","search  ",kind == cpjob_delete)
@@ -2235,6 +2221,66 @@ contains
     if (nsel > 0) call iw_text(string(nsel) // " selected",sameline=.true.)
 
   end subroutine draw_edit_section
+
+  !> Clear the critical points of field ifield of system isys (the
+  !> nuclei stay) and its checkpoint file; the views and windows
+  !> showing them are told. Nothing to do without critical points.
+  module subroutine clear_cp_data(isys,ifield)
+    use systems, only: sys, sysc, lastchange_cplist
+    use representations, only: field_has_cps
+    use tools_io, only: uout, string
+    integer, intent(in) :: isys, ifield
+
+    integer :: iu
+
+    if (.not.field_has_cps(isys,ifield)) return
+
+    ! all but the nuclei (as the Clear button of the window), and the
+    ! checkpoint goes with them
+    write (uout,'("* Clearing the critical points of field ",A," of system ",A," (GUI)"/)') &
+       string(ifield), string(isys)
+    call sys(isys)%f(ifield)%delete_cps((/(iu > sys(isys)%c%nneq, iu = 1, sys(isys)%f(ifield)%ncp)/))
+    call sync_chk_cps(isys,ifield)
+    call sysc(isys)%post_event(lastchange_cplist)
+
+  end subroutine clear_cp_data
+
+  !> Bring the checkpoint file of field ifield of system isys (<field
+  !> file>.chk_cps) in line with its list of critical points: written
+  !> with the list, or removed if only the nuclei are left. Nothing
+  !> is done for a field without a file. The outcome goes to the output.
+  subroutine sync_chk_cps(isys,ifield)
+    use systems, only: sys
+    use tools_io, only: uout
+    integer, intent(in) :: isys, ifield
+
+    character(len=:), allocatable :: cpfile, errmsg
+    logical :: lex
+    integer :: lu, ios
+
+    cpfile = sys(isys)%f(ifield)%chk_cps_file()
+    if (len(cpfile) == 0) return
+    if (sys(isys)%f(ifield)%ncp <= sys(isys)%c%nneq) then
+       ! only the nuclei are left: remove the checkpoint instead
+       inquire(file=cpfile,exist=lex)
+       if (.not.lex) return
+       open(newunit=lu,file=cpfile,status="old",iostat=ios)
+       if (ios == 0) close(lu,status="delete",iostat=ios)
+       if (ios == 0) then
+          write (uout,'("* Checkpoint file removed: ",A/)') cpfile
+       else
+          write (uout,'("!! Warning !! Could not remove the checkpoint ",A)') cpfile
+       end if
+    else
+       call sys(isys)%f(ifield)%write_chk_cps(cpfile,errmsg)
+       if (len_trim(errmsg) > 0) then
+          write (uout,'("!! Warning !! Could not write the checkpoint ",A,": ",A)') cpfile, errmsg
+       else
+          write (uout,'("* Critical points written to the checkpoint: ",A/)') cpfile
+       end if
+    end if
+
+  end subroutine sync_chk_cps
 
   !> Start a pick in view iview of the target kind (cppick_*; iseed =
   !> the seed, for a seed position). The point to add a CP from is a
