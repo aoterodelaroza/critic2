@@ -54,7 +54,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, syschanged, ok, ldum, dotrace, doest
+    logical :: doquit, goodsys, syschanged, ok, ldum, dotrace, doest, hastrace
     integer :: isys, iview, ifield, ihover(2), irep, iaux, itype
     integer, allocatable :: irow(:)
     type(field_ref) :: fref
@@ -97,6 +97,7 @@ contains
     end if
 
     ihover = 0
+    irep = 0
     if (goodsys) then
        ! the system and the field
        call iw_text("System",highlight=.true.)
@@ -249,9 +250,20 @@ contains
     ! the error message from the last operation
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
-    ! close button
-    call iw_setpos_bottomright(5,1)
-    if (iw_button("Close")) doquit = .true.
+    ! bottom row: clear all the traced gradient paths of the object
+    ! of this field in the view (irep, found above with the field),
+    ! close
+    hastrace = (irep > 0)
+    if (hastrace) hastrace = (win(iview)%sc%rep(irep)%gpaths%ntrace > 0)
+    call iw_setpos_bottomright(len("Clear") + len("Close"),2)
+    if (iw_button("Clear",danger=.true.,disabled=.not.hastrace)) then
+       call win(iview)%sc%rep(irep)%gpaths%drop_traces()
+       win(iview)%sc%forcebuildlists = .true.
+       call win(iview)%sc%undo_note("Clear gradient paths")
+    end if
+    call iw_tooltip("Remove all the traced gradient paths from the gradient paths object of&
+       & this field in the view (the bond paths stay)",ttshown,whendisabled=.true.)
+    if (iw_button("Close",sameline=.true.)) doquit = .true.
     if (iw_close_event(w%focused())) doquit = .true.
 
     if (doquit) then

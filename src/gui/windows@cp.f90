@@ -105,10 +105,11 @@ contains
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_begintabitem,&
        iw_setpos_bottomright
     use tools_io, only: string
+    use representations, only: field_has_cps
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, syschanged, tabopen
-    integer :: isys, iview, ihover(2)
+    logical :: doquit, goodsys, syschanged, tabopen, ok
+    integer :: isys, iview, ihover(2), iu
     integer(c_int) :: flags
     type(field_ref) :: fref
     character(kind=c_char,len=:), allocatable, target :: str1
@@ -219,9 +220,19 @@ contains
     ! the error message from the last operation
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
-    ! close button
-    call iw_setpos_bottomright(5,1)
-    if (iw_button("Close")) doquit = .true.
+    ! bottom row: clear all the critical points of the field except
+    ! the nuclei, close
+    ok = goodsys
+    if (ok) ok = field_has_cps(isys,w%cp%fref%id)
+    call iw_setpos_bottomright(len("Clear") + len("Close"),2)
+    if (iw_button("Clear",danger=.true.,disabled=.not.ok)) then
+       w%cp%pending_del = (/(iu > sys(isys)%c%nneq, iu = 1, sys(isys)%f(w%cp%fref%id)%ncp)/)
+       call request_job(w,iview,cpjob_delete)
+    end if
+    call iw_tooltip("Delete all the critical points of the field except the nuclei. This also&
+       & removes the checkpoint file of the field (<field file>.chk_cps), unless writing it is&
+       & disabled in the Run section of the Search tab",ttshown,whendisabled=.true.)
+    if (iw_button("Close",sameline=.true.)) doquit = .true.
     if (iw_close_event(w%focused())) doquit = .true.
 
     if (doquit) call w%end()
@@ -2203,7 +2214,7 @@ contains
     integer, intent(in) :: isys, iview
     logical, intent(inout) :: ttshown
 
-    integer :: nsel, nnuc, iu
+    integer :: nsel, nnuc
 
     ! the selection (the nuclei cannot be selected), and delete
     nnuc = sys(isys)%c%nneq
@@ -2221,15 +2232,6 @@ contains
     call iw_tooltip("Delete the selected critical points (the nuclei cannot be deleted) with all&
        & their copies in the cell, and trace the bond paths again. If only the nuclei are left,&
        & the checkpoint file of the field is removed",ttshown)
-    if (iw_button("Clear##cpclearlist",danger=.true.,sameline=.true.,&
-       disabled=(size(w%cp%sel) <= nnuc))) then
-       ! all the critical points except the nuclei
-       w%cp%pending_del = (/(iu > nnuc, iu = 1, size(w%cp%sel))/)
-       call request_job(w,iview,cpjob_delete)
-    end if
-    call iw_tooltip("Delete all the critical points except the nuclei. This also removes&
-       & the checkpoint file of the field (<field file>.chk_cps), unless writing it is&
-       & disabled in the advanced options of the Search tab",ttshown)
     if (nsel > 0) call iw_text(string(nsel) // " selected",sameline=.true.)
 
   end subroutine draw_edit_section

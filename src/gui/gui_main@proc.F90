@@ -1028,8 +1028,8 @@ contains
        call igEndMenu()
     end if
 
-    ! Tools -> Topology
-    if (iw_beginmenu("Topology",enabled=enabled)) then
+    ! Tools -> QTAIM
+    if (iw_beginmenu("QTAIM",enabled=enabled)) then
        ! critical points of a field (AUTO)
        if (iw_menuitem("Critical Points...")) &
           idum = stack_create_window(wintype_cp,.true.,idparent=idparent,orraise=-1)
