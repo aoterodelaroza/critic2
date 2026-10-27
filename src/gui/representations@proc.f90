@@ -353,6 +353,9 @@ contains
     ! Wigner-Seitz cell
     if (itype == 0 .or. itype == 21) then
        r%ws = rep_wscell()
+       ! one cell, at the origin
+       allocate(r%ws%pts(3,1))
+       r%ws%pts = 0d0
     end if
 
     ! initialize the styles
@@ -366,7 +369,7 @@ contains
     logical :: ok
 
     ok = reptype_is_atombased(r%type) .or. r%type == reptype_unitcell .or. r%type == reptype_symelem .or.&
-       r%type == reptype_cps .or. r%type == reptype_gpaths
+       r%type == reptype_cps .or. r%type == reptype_gpaths .or. r%type == reptype_wscell
     if (r%type == reptype_isosurface) ok = r%iso%per0_built
 
   end function representation_uses_periodicity
@@ -381,6 +384,68 @@ contains
        itype == reptype_labels .or. itype == reptype_polyhedra)
 
   end function reptype_is_atombased
+
+  !> The lattice points of system isys in the n(1) x n(2) x n(3)
+  !> displayed cells, borders included: the cell origins (lattice =
+  !> wslat_cell) or the cell origins plus the centering vectors
+  !> (wslat_primitive). Returns np points in ipt(:,1:np): the cell
+  !> (1:3) and the centering vector (4); the point is at ipt(1:3) +
+  !> c%cen(:,ipt(4)) (fractional).
+  module subroutine wscell_points(isys,lattice,n,np,ipt)
+    use systems, only: sys
+    integer, intent(in) :: isys
+    integer, intent(in) :: lattice
+    integer, intent(in) :: n(3)
+    integer, intent(out) :: np
+    integer, allocatable, intent(inout) :: ipt(:,:)
+
+    real*8, parameter :: eps = 1d-5 ! on the border (fractional)
+
+    integer :: i1, i2, i3, k, ncv
+    real*8 :: x(3)
+
+    if (allocated(ipt)) deallocate(ipt)
+    associate(c => sys(isys)%c)
+      ncv = 1
+      if (lattice == wslat_primitive) ncv = c%ncv
+      allocate(ipt(4,product(n+2)*ncv))
+      np = 0
+      do i1 = -1, n(1)
+         do i2 = -1, n(2)
+            do i3 = -1, n(3)
+               do k = 1, ncv
+                  x = (/i1,i2,i3/) + c%cen(:,k)
+                  if (any(x < -eps) .or. any(x > n + eps)) cycle
+                  np = np + 1
+                  ipt(:,np) = (/i1,i2,i3,k/)
+               end do
+            end do
+         end do
+      end do
+    end associate
+
+  end subroutine wscell_points
+
+  !> Whether the Wigner-Seitz cell object ws draws a cell at the
+  !> lattice point with fractional coordinates x.
+  module function wscell_isdrawn(ws,x) result(ok)
+    type(rep_wscell), intent(in) :: ws
+    real*8, intent(in) :: x(3)
+    logical :: ok
+
+    real*8, parameter :: eps = 1d-5
+    integer :: i
+
+    ok = .false.
+    if (.not.allocated(ws%pts)) return
+    do i = 1, size(ws%pts,2)
+       if (all(abs(ws%pts(:,i) - x) < eps)) then
+          ok = .true.
+          return
+       end if
+    end do
+
+  end function wscell_isdrawn
 
   !> The Wigner-Seitz cell of system isys around the origin lattice
   !> point: the lattice of the unit cell (lattice = wslat_cell, the
@@ -4041,52 +4106,88 @@ contains
     end subroutine check_lshown
 
     !> The faces (translucent, fan-triangulated from their centroid)
-    !> and the edges of the Wigner-Seitz cell, around the lattice point
-    !> at the origin shift.
+    !> and the edges of the Wigner-Seitz cells, at the selected lattice
+    !> points of the displayed cells plus the origin shift. A face or
+    !> an edge shared by two cells is drawn once.
     subroutine append_wscell()
-      integer :: nf, nv, jf, jv, ia, ib, ne
-      integer, allocatable :: nside(:), iside(:,:), iedge(:,:)
-      real*8, allocatable :: xv(:,:)
-      real*8 :: xcen(3)
+      integer :: nf, nv, jf, jv, ia, ib, np, ip, nsel, mf, me, k
+      integer, allocatable :: nside(:), iside(:,:), ipt(:,:)
+      real*8, allocatable :: xv(:,:), xsel(:,:), fcen(:,:), emid(:,:), eend(:,:,:)
+      integer, allocatable :: fcell(:), fidx(:)
+      logical, allocatable :: keep(:)
+      real*8 :: xo(3)
       complex*16, parameter :: dzero(3) = (0d0,0d0)
       type(dl_cylinder) :: dedge
 
       call wscell_geometry(r%id,r%ws%lattice,nf,nv,nside,iside,xv)
       if (nf <= 0) return
 
-      ! translate to the centering vector or the origin shift (a
-      ! centering vector gone with the geometry is the zero vector)
-      xcen = 0d0
-      if (r%ws%icen == 0) then
-         xcen = r%ws%origin
-      elseif (r%ws%icen <= c%ncv) then
-         xcen = c%cen(:,r%ws%icen)
-      end if
-      xv = xv + spread(c%x2c(xcen),2,nv)
-
-      ! faces and edges; each edge is shared by two faces, drawn once
-      dedge%r = real(r%ws%edge_rad,c_float)
-      dedge%rgb = r%ws%edge_rgb
-      allocate(iedge(2,sum(nside(1:nf))))
-      ne = 0
-      do jf = 1, nf
-         if (r%ws%showfaces .and. nside(jf) >= 3) &
-            xcen = sum(xv(:,iside(1:nside(jf),jf)),2) / nside(jf)
-         do jv = 1, nside(jf)
-            ia = iside(jv,jf)
-            ib = iside(mod(jv,nside(jf))+1,jf)
-            if (r%ws%showfaces .and. nside(jf) >= 3) &
-               call append_triangle(xcen,xv(:,ia),xv(:,ib),dzero,dzero,dzero,r%ws%rgb,r%ws%alpha)
-            if (r%ws%showedges) then
-               if (any(iedge(1,1:ne) == min(ia,ib) .and. iedge(2,1:ne) == max(ia,ib))) cycle
-               ne = ne + 1
-               iedge(:,ne) = (/min(ia,ib),max(ia,ib)/)
-               dedge%x1 = real(xv(:,ia),c_float)
-               dedge%x2 = real(xv(:,ib),c_float)
-               call dl_append(obj%cylflat,obj%ncylflat,dedge)
-            end if
-         end do
+      ! the selected lattice points of the displayed cells
+      call wscell_points(r%id,r%ws%lattice,disp%ncells(r%disp),np,ipt)
+      allocate(xsel(3,np))
+      nsel = 0
+      do ip = 1, np
+         xo = ipt(1:3,ip) + c%cen(:,ipt(4,ip))
+         if (.not.wscell_isdrawn(r%ws,xo)) cycle
+         nsel = nsel + 1
+         xsel(:,nsel) = c%x2c(xo + r%ws%origin)
       end do
+      if (nsel == 0) return
+
+      ! faces: identified by their centroid
+      if (r%ws%showfaces) then
+         allocate(fcen(3,nsel*nf),fcell(nsel*nf),fidx(nsel*nf))
+         mf = 0
+         do ip = 1, nsel
+            do jf = 1, nf
+               if (nside(jf) < 3) cycle
+               mf = mf + 1
+               fcen(:,mf) = sum(xv(:,iside(1:nside(jf),jf)),2) / nside(jf) + xsel(:,ip)
+               fcell(mf) = ip
+               fidx(mf) = jf
+            end do
+         end do
+         call unique_points(fcen,mf,keep)
+         do k = 1, mf
+            if (.not.keep(k)) cycle
+            ip = fcell(k)
+            jf = fidx(k)
+            do jv = 1, nside(jf)
+               ia = iside(jv,jf)
+               ib = iside(mod(jv,nside(jf))+1,jf)
+               call append_triangle(fcen(:,k),xv(:,ia)+xsel(:,ip),xv(:,ib)+xsel(:,ip),&
+                  dzero,dzero,dzero,r%ws%rgb,r%ws%alpha)
+            end do
+         end do
+      end if
+
+      ! edges: identified by their midpoint
+      if (r%ws%showedges) then
+         k = sum(nside(1:nf))
+         allocate(emid(3,nsel*k),eend(3,2,nsel*k))
+         me = 0
+         do ip = 1, nsel
+            do jf = 1, nf
+               do jv = 1, nside(jf)
+                  ia = iside(jv,jf)
+                  ib = iside(mod(jv,nside(jf))+1,jf)
+                  me = me + 1
+                  eend(:,1,me) = xv(:,ia) + xsel(:,ip)
+                  eend(:,2,me) = xv(:,ib) + xsel(:,ip)
+                  emid(:,me) = 0.5d0 * (eend(:,1,me) + eend(:,2,me))
+               end do
+            end do
+         end do
+         call unique_points(emid,me,keep)
+         dedge%r = real(r%ws%edge_rad,c_float)
+         dedge%rgb = r%ws%edge_rgb
+         do k = 1, me
+            if (.not.keep(k)) cycle
+            dedge%x1 = real(eend(:,1,k),c_float)
+            dedge%x2 = real(eend(:,2,k),c_float)
+            call dl_append(obj%cylflat,obj%ncylflat,dedge)
+         end do
+      end if
 
     end subroutine append_wscell
 
@@ -5079,6 +5180,48 @@ contains
     end do
 
   end subroutine vib_phasors
+
+  !> Mark the distinct points among x(:,1:m) (cartesian, bohr): keep(i)
+  !> is .true. for the first of every group of points closer than
+  !> eps in each coordinate, .false. for the others.
+  subroutine unique_points(x,m,keep)
+    use tools, only: mergesort
+    real*8, intent(in) :: x(:,:)
+    integer, intent(in) :: m
+    logical, allocatable, intent(inout) :: keep(:)
+
+    real*8, parameter :: eps = 1d-5
+    ! a generic direction: lattice-symmetric points rarely tie on it
+    real*8, parameter :: dir(3) = (/1d0,0.618d0,0.377d0/)
+    real*8, parameter :: epskey = eps * sum(dir)
+
+    integer :: i, j, ii, jj
+    integer, allocatable :: iord(:)
+    real*8, allocatable :: x1(:)
+
+    if (allocated(keep)) deallocate(keep)
+    allocate(keep(m),iord(m),x1(m))
+    if (m == 0) return
+    x1 = matmul(dir,x(:,1:m))
+    iord = (/(i,i=1,m)/)
+    call mergesort(x1,iord,1,m)
+
+    ! sorted by the projection on dir: a repeated point is among the
+    ! preceding points with the same projection
+    do ii = 1, m
+       i = iord(ii)
+       keep(i) = .true.
+       do jj = ii-1, 1, -1
+          j = iord(jj)
+          if (x1(i) - x1(j) > epskey) exit
+          if (keep(j) .and. all(abs(x(:,i) - x(:,j)) < eps)) then
+             keep(i) = .false.
+             exit
+          end if
+       end do
+    end do
+
+  end subroutine unique_points
 
   !> Move the traced gradient path group a into b (a is reset).
   subroutine move_trace(a,b)

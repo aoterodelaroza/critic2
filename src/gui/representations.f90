@@ -584,14 +584,14 @@ module representations
   !> Wigner-Seitz cell options (reptype_wscell; accessed as r%ws%...)
   type rep_wscell
      integer :: lattice = wslat_primitive ! lattice whose WS cell is drawn (wslat_*)
-     integer :: icen = 1 ! centering vector the cell is drawn around (0 = custom origin shift)
-     real*8 :: origin(3) = 0d0 ! point the cell is drawn around if icen = 0 (fractional)
+     real*8 :: origin(3) = 0d0 ! origin shift applied to all cells (fractional)
      logical :: showfaces = .true. ! draw the faces
      real(c_float) :: rgb(3) = wsface_rgb_def ! face color
      real*8 :: alpha = wsalpha_def ! face opacity (1 = opaque)
      logical :: showedges = .true. ! draw the edges
      real*8 :: edge_rad = wsedgerad_def ! edge cylinder radius (bohr)
      real(c_float) :: edge_rgb(3) = wsedge_rgb_def ! edge color
+     real*8, allocatable :: pts(:,:) ! lattice points with a cell drawn (fractional)
      ! face/vertex counts shown in the editor, and the lattice and
      ! system geometry revision they were calculated for (not saved)
      integer :: nf = 0, nv = 0
@@ -1469,6 +1469,8 @@ module representations
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
   public :: wscell_geometry
+  public :: wscell_points
+  public :: wscell_isdrawn
   public :: labels_row
   public :: cps_field
   public :: cps_field_default
@@ -1533,6 +1535,18 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
+     module subroutine wscell_points(isys,lattice,n,np,ipt)
+       integer, intent(in) :: isys
+       integer, intent(in) :: lattice
+       integer, intent(in) :: n(3)
+       integer, intent(out) :: np
+       integer, allocatable, intent(inout) :: ipt(:,:)
+     end subroutine wscell_points
+     module function wscell_isdrawn(ws,x) result(ok)
+       type(rep_wscell), intent(in) :: ws
+       real*8, intent(in) :: x(3)
+       logical :: ok
+     end function wscell_isdrawn
      module subroutine wscell_geometry(isys,lattice,nf,nv,nside,iside,xv)
        integer, intent(in) :: isys
        integer, intent(in) :: lattice

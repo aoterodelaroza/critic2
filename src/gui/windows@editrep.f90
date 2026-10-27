@@ -1274,9 +1274,10 @@ contains
   !> Draw the editrep window, Wigner-Seitz cell options. Returns
   !> true if the scene needs to be rendered again.
   module function draw_editrep_wscell(w,ttshown) result(changed)
-    use representations, only: wscell_geometry
+    use representations, only: wscell_geometry, wscell_points, wscell_isdrawn
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_separatortext, iw_combo_simple
+       iw_separatortext, iw_combo_simple, iw_table_column, iw_table_headers_row, iw_calcwidth,&
+       iw_calcheight
     use systems, only: sys, sysc
     use tools_io, only: string
     use param, only: bohrtoa
@@ -1285,10 +1286,14 @@ contains
     logical :: changed
 
     logical :: ch
-    integer :: i, icen0, isel
-    character(len=:,kind=c_char), allocatable :: str
-    integer, allocatable :: nside(:), iside(:,:)
-    real*8, allocatable :: xv(:,:)
+    integer :: i, iview, np, ncol
+    character(kind=c_char,len=:), allocatable, target :: str1
+    integer, allocatable :: nside(:), iside(:,:), ipt(:,:)
+    real*8, allocatable :: xv(:,:), xpt(:,:), xkeep(:,:)
+    logical, allocatable :: shown(:), listed(:)
+    logical :: chpts
+    integer(c_int) :: flags
+    type(ImVec2) :: sz
 
     ! initialize
     changed = .false.
@@ -1314,43 +1319,81 @@ contains
           &or the lattice of the unit cell and its centering vectors (the same for a primitive cell)",ttshown)
        changed = changed .or. ch
 
-       ! the centering vector the cell is drawn around, or an arbitrary origin
+       ! the lattice points of the displayed cells, and whether they have a cell
+       iview = w%anchor_view()
+       np = 0
+       if (iview > 0) &
+          call wscell_points(w%isys,w%rep%ws%lattice,win(iview)%sc%disp%ncells(w%rep%disp),np,ipt)
+       allocate(shown(np),xpt(3,np))
        associate(c => sys(w%isys)%c)
-         if (w%rep%ws%icen > c%ncv) w%rep%ws%icen = 1
-         icen0 = w%rep%ws%icen
-         ! combo entries: the centering vectors, then Custom (icen = 0)
-         str = ""
-         do i = 1, c%ncv
-            str = str // "(" // frac_string(c%cen(1,i)) // ", " // frac_string(c%cen(2,i)) // ", " //&
-               frac_string(c%cen(3,i)) // ")" // c_null_char
+         do i = 1, np
+            xpt(:,i) = ipt(1:3,i) + c%cen(:,ipt(4,i))
+            shown(i) = wscell_isdrawn(w%rep%ws,xpt(:,i))
          end do
-         str = str // "Custom" // c_null_char
-         isel = w%rep%ws%icen - 1
-         if (w%rep%ws%icen == 0) isel = c%ncv
-         call iw_text("Center",alignframe=.true.)
-         call iw_combo_simple("##wscenter",str,isel,changed=ch,sameline=.true.)
-         call iw_tooltip("Point the Wigner-Seitz cell is drawn around: one of the centering vectors &
-            &of the cell, or a custom origin shift",ttshown)
-         if (ch) then
-            w%rep%ws%icen = isel + 1
-            if (isel == c%ncv) w%rep%ws%icen = 0
-         end if
-         changed = changed .or. ch
-
-         ! the origin shift starts at the centering vector picked before
-         if (ch .and. w%rep%ws%icen == 0 .and. icen0 > 0) w%rep%ws%origin = c%cen(:,icen0)
        end associate
+       if (np > 0) then
+          call iw_text("Cells at " // string(count(shown)) // " of " // string(np) // " lattice points")
+          chpts = .false.
 
-       if (w%rep%ws%icen == 0) then
-          call iw_text("Origin shift (fractional)",alignframe=.true.)
-          ch = iw_dragfloat_real8("##originws",x3=w%rep%ws%origin,speed=0.001d0,decimal=5,sameline=.true.)
-          call iw_tooltip("Point the Wigner-Seitz cell is drawn around",ttshown)
-          changed = changed .or. ch
+          flags = ImGuiTableFlags_None
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_RowBg)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          str1 = "##tablewspoints" // c_null_char
+          sz%x = iw_calcwidth(30,2)
+          sz%y = iw_calcheight(min(8,np+1),0,.false.)
+          if (igBeginTable(c_loc(str1),2,flags,sz,0._c_float)) then
+             ncol = -1
+             call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+             call iw_table_column("Lattice point",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+             call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+
+             do i = 1, np
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+
+                ! shown
+                if (igTableSetColumnIndex(0_c_int)) then
+                   ch = iw_checkbox("##wsptshown" // string(i),shown(i))
+                   call iw_tooltip("Draw a Wigner-Seitz cell around this lattice point",ttshown)
+                   chpts = chpts .or. ch
+                end if
+
+                ! position
+                if (igTableSetColumnIndex(1_c_int)) &
+                   call iw_text("(" // frac_string(xpt(1,i)) // ", " // frac_string(xpt(2,i)) // ", " //&
+                      frac_string(xpt(3,i)) // ")",alignframe=.true.)
+             end do
+             call igEndTable()
+          end if
+          ch = showhide_buttons(shown,"wspts","Wigner-Seitz cells",ttshown)
+          chpts = chpts .or. ch
+
+          ! the cells drawn are the lattice points checked in the table,
+          ! plus the stored points not in it (outside the displayed cells
+          ! or not lattice points of the current lattice), kept for later
+          if (chpts) then
+             if (.not.allocated(w%rep%ws%pts)) allocate(w%rep%ws%pts(3,0))
+             allocate(listed(size(w%rep%ws%pts,2)))
+             do i = 1, size(w%rep%ws%pts,2)
+                listed(i) = any(all(abs(xpt - spread(w%rep%ws%pts(:,i),2,np)) < 1d-5,1))
+             end do
+             xkeep = w%rep%ws%pts(:,pack((/(i,i=1,size(listed))/),.not.listed))
+             w%rep%ws%pts = reshape((/xkeep,xpt(:,pack((/(i,i=1,np)/),shown))/),&
+                (/3,size(xkeep,2)+count(shown)/))
+             changed = .true.
+          end if
        end if
 
        if (w%rep%ws%nf > 0) &
           call iw_text("Faces: " // string(w%rep%ws%nf) // ", vertices: " // string(w%rep%ws%nv) //&
              ", edges: " // string(w%rep%ws%nf+w%rep%ws%nv-2))
+
+       call iw_text("Origin shift (fractional)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##originws",x3=w%rep%ws%origin,speed=0.001d0,decimal=5,sameline=.true.)
+       call iw_tooltip("Shift applied to all the Wigner-Seitz cells (fractional)",ttshown)
+       changed = changed .or. ch
     end if
 
     !! faces

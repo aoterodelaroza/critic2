@@ -155,7 +155,6 @@ contains
          call io%obj(p,'wscell',q,found)
          if (.not.found) return
          call io%x(q,'lattice',r%ws%lattice,wslat_cell,wslat_primitive)
-         call io%x(q,'icen',r%ws%icen,0)
          call io%x(q,'origin',r%ws%origin)
          call io%x(q,'showfaces',r%ws%showfaces)
          call io%x(q,'rgb',r%ws%rgb)
@@ -163,6 +162,15 @@ contains
          call io%x(q,'showedges',r%ws%showedges)
          call io%x(q,'edge_rad',r%ws%edge_rad,lo=0d0)
          call io%x(q,'edge_rgb',r%ws%edge_rgb)
+         n = 0
+         if (allocated(r%ws%pts)) n = size(r%ws%pts,2)
+         call io%x(q,'npts',n,0)
+         if (io%reading) then
+            if (allocated(r%ws%pts)) deallocate(r%ws%pts)
+            allocate(r%ws%pts(3,n))
+            r%ws%pts = 0d0
+         end if
+         if (n > 0) call io%x(q,'pts',r%ws%pts)
 
       case (reptype_axes)
          call io%obj(p,'axes',q,found)
