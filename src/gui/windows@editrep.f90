@@ -1277,7 +1277,7 @@ contains
     use representations, only: wscell_geometry
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
        iw_separatortext, iw_combo_simple
-    use systems, only: sysc
+    use systems, only: sys, sysc
     use tools_io, only: string
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -1285,6 +1285,8 @@ contains
     logical :: changed
 
     logical :: ch
+    integer :: i, icen0, isel
+    character(len=:,kind=c_char), allocatable :: str
     integer, allocatable :: nside(:), iside(:,:)
     real*8, allocatable :: xv(:,:)
 
@@ -1312,10 +1314,39 @@ contains
           &or the lattice of the unit cell and its centering vectors (the same for a primitive cell)",ttshown)
        changed = changed .or. ch
 
-       call iw_text("Origin shift (fractional)",alignframe=.true.)
-       ch = iw_dragfloat_real8("##originws",x3=w%rep%ws%origin,speed=0.001d0,decimal=5,sameline=.true.)
-       call iw_tooltip("Lattice point the Wigner-Seitz cell is drawn around",ttshown)
-       changed = changed .or. ch
+       ! the centering vector the cell is drawn around, or an arbitrary origin
+       associate(c => sys(w%isys)%c)
+         if (w%rep%ws%icen > c%ncv) w%rep%ws%icen = 1
+         icen0 = w%rep%ws%icen
+         ! combo entries: the centering vectors, then Custom (icen = 0)
+         str = ""
+         do i = 1, c%ncv
+            str = str // "(" // frac_string(c%cen(1,i)) // ", " // frac_string(c%cen(2,i)) // ", " //&
+               frac_string(c%cen(3,i)) // ")" // c_null_char
+         end do
+         str = str // "Custom" // c_null_char
+         isel = w%rep%ws%icen - 1
+         if (w%rep%ws%icen == 0) isel = c%ncv
+         call iw_text("Center",alignframe=.true.)
+         call iw_combo_simple("##wscenter",str,isel,changed=ch,sameline=.true.)
+         call iw_tooltip("Point the Wigner-Seitz cell is drawn around: one of the centering vectors &
+            &of the cell, or a custom origin shift",ttshown)
+         if (ch) then
+            w%rep%ws%icen = isel + 1
+            if (isel == c%ncv) w%rep%ws%icen = 0
+         end if
+         changed = changed .or. ch
+
+         ! the origin shift starts at the centering vector picked before
+         if (ch .and. w%rep%ws%icen == 0 .and. icen0 > 0) w%rep%ws%origin = c%cen(:,icen0)
+       end associate
+
+       if (w%rep%ws%icen == 0) then
+          call iw_text("Origin shift (fractional)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##originws",x3=w%rep%ws%origin,speed=0.001d0,decimal=5,sameline=.true.)
+          call iw_tooltip("Point the Wigner-Seitz cell is drawn around",ttshown)
+          changed = changed .or. ch
+       end if
 
        if (w%rep%ws%nf > 0) &
           call iw_text("Faces: " // string(w%rep%ws%nf) // ", vertices: " // string(w%rep%ws%nv) //&
@@ -6934,6 +6965,26 @@ contains
 
   !> The tooltip for atom tool itool (objtool_kind0 + atomtool_*) in the
   !> toolbar. The keys are those bound in the object editing mode.
+  !> A fractional coordinate as a short fraction (1/2, 2/3, 0).
+  function frac_string(x) result(str)
+    use tools_math, only: rational_approx
+    use tools_io, only: string
+    real*8, intent(in) :: x
+    character(len=:), allocatable :: str
+
+    integer*8 :: q, r
+
+    call rational_approx(x,q,r,1d-4)
+    if (q == 0) then
+       str = "0"
+    elseif (r == 1) then
+       str = string(int(q))
+    else
+       str = string(int(q)) // "/" // string(int(r))
+    end if
+
+  end function frac_string
+
   function atom_tool_hint(itool) result(str)
     use keybindings, only: BIND_OBJEDIT_DRAW
     integer, intent(in) :: itool

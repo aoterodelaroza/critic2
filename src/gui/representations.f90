@@ -584,7 +584,8 @@ module representations
   !> Wigner-Seitz cell options (reptype_wscell; accessed as r%ws%...)
   type rep_wscell
      integer :: lattice = wslat_primitive ! lattice whose WS cell is drawn (wslat_*)
-     real*8 :: origin(3) = 0d0 ! lattice point the cell is drawn around (fractional)
+     integer :: icen = 1 ! centering vector the cell is drawn around (0 = custom origin shift)
+     real*8 :: origin(3) = 0d0 ! point the cell is drawn around if icen = 0 (fractional)
      logical :: showfaces = .true. ! draw the faces
      real(c_float) :: rgb(3) = wsface_rgb_def ! face color
      real*8 :: alpha = wsalpha_def ! face opacity (1 = opaque)

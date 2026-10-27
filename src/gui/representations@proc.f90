@@ -4054,8 +4054,15 @@ contains
       call wscell_geometry(r%id,r%ws%lattice,nf,nv,nside,iside,xv)
       if (nf <= 0) return
 
-      ! translate to the lattice point
-      xv = xv + spread(c%x2c(r%ws%origin),2,nv)
+      ! translate to the centering vector or the origin shift (a
+      ! centering vector gone with the geometry is the zero vector)
+      xcen = 0d0
+      if (r%ws%icen == 0) then
+         xcen = r%ws%origin
+      elseif (r%ws%icen <= c%ncv) then
+         xcen = c%cen(:,r%ws%icen)
+      end if
+      xv = xv + spread(c%x2c(xcen),2,nv)
 
       ! faces and edges; each edge is shared by two faces, drawn once
       dedge%r = real(r%ws%edge_rad,c_float)

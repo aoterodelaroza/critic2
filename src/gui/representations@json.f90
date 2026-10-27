@@ -155,6 +155,7 @@ contains
          call io%obj(p,'wscell',q,found)
          if (.not.found) return
          call io%x(q,'lattice',r%ws%lattice,wslat_cell,wslat_primitive)
+         call io%x(q,'icen',r%ws%icen,0)
          call io%x(q,'origin',r%ws%origin)
          call io%x(q,'showfaces',r%ws%showfaces)
          call io%x(q,'rgb',r%ws%rgb)
