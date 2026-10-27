@@ -68,7 +68,8 @@ contains
     use representations, only: representation, reptype_atoms, reptype_bonds, reptype_labels,&
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
        reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
-       reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar, reptype_slice, field_has_cps
+       reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar, reptype_slice, field_has_cps,&
+       reptype_wscell
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sysc, sys_init, ok_system
@@ -140,6 +141,9 @@ contains
           changed = changed .or. ch
        elseif (w%rep%type == reptype_unitcell) then
           ch = w%draw_editrep_unitcell(ttshown)
+          changed = changed .or. ch
+       elseif (w%rep%type == reptype_wscell) then
+          ch = w%draw_editrep_wscell(ttshown)
           changed = changed .or. ch
        elseif (w%rep%type == reptype_axes) then
           ch = w%draw_editrep_axes(ttshown)
@@ -1266,6 +1270,103 @@ contains
     end if
 
   end function draw_editrep_unitcell
+
+  !> Draw the editrep window, Wigner-Seitz cell options. Returns
+  !> true if the scene needs to be rendered again.
+  module function draw_editrep_wscell(w,ttshown) result(changed)
+    use representations, only: wscell_geometry
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
+       iw_separatortext, iw_combo_simple
+    use systems, only: sysc
+    use tools_io, only: string
+    use param, only: bohrtoa
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch
+    integer, allocatable :: nside(:), iside(:,:)
+    real*8, allocatable :: xv(:,:)
+
+    ! initialize
+    changed = .false.
+
+    ! the size of the cell, recalculated only when the lattice or the geometry change
+    associate(ws => w%rep%ws)
+      if (ws%cache_lattice /= ws%lattice .or. ws%cache_rev /= sysc(w%isys)%rev_geometry) then
+         call wscell_geometry(w%isys,ws%lattice,ws%nf,ws%nv,nside,iside,xv)
+         ws%cache_lattice = ws%lattice
+         ws%cache_rev = sysc(w%isys)%rev_geometry
+      end if
+    end associate
+
+    !! the cell
+    ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
+    ! and a widget skipped because changed is already true is a widget not drawn
+    call iw_separatortext("Cell",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       call iw_text("Lattice",alignframe=.true.)
+       call iw_combo_simple("##wslattice","Unit cell" // c_null_char // "Primitive (centered)" // c_null_char,&
+          w%rep%ws%lattice,changed=ch,sameline=.true.)
+       call iw_tooltip("Lattice whose Wigner-Seitz cell is drawn: the lattice of the unit cell, &
+          &or the lattice of the unit cell and its centering vectors (the same for a primitive cell)",ttshown)
+       changed = changed .or. ch
+
+       call iw_text("Origin shift (fractional)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##originws",x3=w%rep%ws%origin,speed=0.001d0,decimal=5,sameline=.true.)
+       call iw_tooltip("Lattice point the Wigner-Seitz cell is drawn around",ttshown)
+       changed = changed .or. ch
+
+       if (w%rep%ws%nf > 0) &
+          call iw_text("Faces: " // string(w%rep%ws%nf) // ", vertices: " // string(w%rep%ws%nv) //&
+             ", edges: " // string(w%rep%ws%nf+w%rep%ws%nv-2))
+    end if
+
+    !! faces
+    call iw_separatortext("Faces",w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       ch = iw_checkbox("Show faces",w%rep%ws%showfaces,labelleft=.true.)
+       call iw_tooltip("Draw the faces of the Wigner-Seitz cell",ttshown)
+       changed = changed .or. ch
+       if (w%rep%ws%showfaces) then
+          call iw_text("Color",alignframe=.true.,gap=.true.)
+          ch = iw_coloredit("##wsfacecolor",rgb=w%rep%ws%rgb,sameline=.true.)
+          call iw_tooltip("Color of the faces",ttshown)
+          changed = changed .or. ch
+
+          call iw_text("Opacity",alignframe=.true.,gap=.true.)
+          ch = iw_dragfloat_real8("##wsalpha",x1=w%rep%ws%alpha,speed=0.005d0,min=0d0,max=1d0,&
+             decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Opacity of the faces (0 = transparent, 1 = opaque)",ttshown)
+          changed = changed .or. ch
+       end if
+    end if
+
+    !! edges
+    call iw_separatortext("Edges",w%editrep_sec(3))
+    if (w%editrep_sec(3)%open) then
+       ch = iw_checkbox("Show edges",w%rep%ws%showedges,labelleft=.true.)
+       call iw_tooltip("Draw the edges of the Wigner-Seitz cell",ttshown)
+       changed = changed .or. ch
+       if (w%rep%ws%showedges) then
+          call iw_text("Radius (Å)",alignframe=.true.,gap=.true.)
+          ch = iw_dragfloat_real8("##wsedgerad",x1=w%rep%ws%edge_rad,speed=0.002d0,&
+             min=0d0,max=1d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Radius of the edge cylinders",ttshown)
+          changed = changed .or. ch
+
+          call iw_text("Color",alignframe=.true.,gap=.true.)
+          ch = iw_coloredit("##wsedgecolor",rgb=w%rep%ws%edge_rgb,sameline=.true.)
+          call iw_tooltip("Color of the edges",ttshown)
+          changed = changed .or. ch
+       end if
+    end if
+
+    ! error message, outside the sections
+    if (w%rep%ws%nf <= 0) &
+       call iw_text("The Wigner-Seitz cell could not be calculated",danger=.true.)
+
+  end function draw_editrep_wscell
 
   !> Draw the editrep window, legend class. Returns true if the scene
   !> needs rendering again. ttshown = the tooltip flag.

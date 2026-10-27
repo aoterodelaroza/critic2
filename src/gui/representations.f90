@@ -60,6 +60,13 @@ module representations
   real*8, parameter, public :: uc_radius_def = 0.08d0 / bohrtoa ! radius of sticks
   real*8, parameter, public :: uc_radiusinner_def = 0.08d0 / bohrtoa ! radius of inner sticks
   real*8, parameter, public :: uc_innersteplen_def = 1.0d0 / bohrtoa ! length of stipple
+  !--> Wigner-Seitz cell
+  integer, parameter, public :: wslat_cell = 0 ! the lattice of the unit cell
+  integer, parameter, public :: wslat_primitive = 1 ! the lattice of the cell and its centering vectors
+  real*8, parameter, public :: wsalpha_def = 0.3d0 ! face opacity (1 = opaque)
+  real*8, parameter, public :: wsedgerad_def = 0.05d0 / bohrtoa ! edge cylinder radius
+  real(c_float), parameter, public :: wsface_rgb_def(3) = (/0.55_c_float,0.75_c_float,0.95_c_float/) ! face color
+  real(c_float), parameter, public :: wsedge_rgb_def(3) = 0._c_float ! edge color
   !--> axes
   real*8, parameter, public :: axes_length_def = 1.0d0 / bohrtoa ! length of each axis
   real*8, parameter, public :: axes_radius_def = 0.06d0 / bohrtoa ! radius of the axis shafts
@@ -427,7 +434,8 @@ module representations
   integer, parameter, public :: reptype_colorbar = 17 ! color bar of a colored isosurface
   integer, parameter, public :: reptype_slice = 18 ! colored map of a field on a plane ("Plane Map" in
                                                    ! the UI, "planemap" in the scene files)
-  integer, parameter, public :: reptype_NUM = 18
+  integer, parameter, public :: reptype_wscell = 19 ! Wigner-Seitz cell of the lattice
+  integer, parameter, public :: reptype_NUM = 19
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -454,7 +462,8 @@ module representations
   integer, parameter, public :: repflavor_scalebar = 21
   integer, parameter, public :: repflavor_colorbar = 22
   integer, parameter, public :: repflavor_slice = 23
-  integer, parameter, public :: repflavor_NUM = 23
+  integer, parameter, public :: repflavor_wscell = 24
+  integer, parameter, public :: repflavor_NUM = 24
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -474,7 +483,7 @@ module representations
      reptype_bonds, reptype_labels, reptype_polyhedra, reptype_unitcell, reptype_axes,&
      reptype_symelem, reptype_text, reptype_measure, reptype_shapes, reptype_isosurface,&
      reptype_cps, reptype_gpaths, reptype_planar, reptype_legend, reptype_scalebar,&
-     reptype_colorbar, reptype_slice/)
+     reptype_colorbar, reptype_slice, reptype_wscell/)
 
   ! default name of an object, by flavor (each flavor belongs to exactly
   ! one kind, so this is also the name of the kind for its basic flavor)
@@ -502,7 +511,8 @@ module representations
      "Legend           ",& ! repflavor_legend
      "Scale Bar        ",& ! repflavor_scalebar
      "Color Bar        ",& ! repflavor_colorbar
-     "Plane Map        "/) ! repflavor_slice
+     "Plane Map        ",& ! repflavor_slice
+     "Wigner-Seitz Cell"/) ! repflavor_wscell
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -570,6 +580,23 @@ module representations
      real*8 :: origin(3) ! translation of the drawn cell (fractional)
   end type rep_unitcell
   public :: rep_unitcell
+
+  !> Wigner-Seitz cell options (reptype_wscell; accessed as r%ws%...)
+  type rep_wscell
+     integer :: lattice = wslat_primitive ! lattice whose WS cell is drawn (wslat_*)
+     real*8 :: origin(3) = 0d0 ! lattice point the cell is drawn around (fractional)
+     logical :: showfaces = .true. ! draw the faces
+     real(c_float) :: rgb(3) = wsface_rgb_def ! face color
+     real*8 :: alpha = wsalpha_def ! face opacity (1 = opaque)
+     logical :: showedges = .true. ! draw the edges
+     real*8 :: edge_rad = wsedgerad_def ! edge cylinder radius (bohr)
+     real(c_float) :: edge_rgb(3) = wsedge_rgb_def ! edge color
+     ! face/vertex counts shown in the editor, and the lattice and
+     ! system geometry revision they were calculated for (not saved)
+     integer :: nf = 0, nv = 0
+     integer :: cache_lattice = -1, cache_rev = -1
+  end type rep_wscell
+  public :: rep_wscell
 
   !> Cartesian/crystallographic axes options (reptype_axes; accessed as r%axes%...)
   type rep_axes
@@ -1410,6 +1437,7 @@ module representations
      type(rep_scalebar) :: scalebar ! scale bar options
      type(rep_colorbar) :: colorbar ! color bar options
      type(rep_slice) :: slice ! plane map options
+     type(rep_wscell) :: ws ! Wigner-Seitz cell options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -1439,6 +1467,7 @@ module representations
   public :: iso_region_point_from_cart
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
+  public :: wscell_geometry
   public :: labels_row
   public :: cps_field
   public :: cps_field_default
@@ -1503,6 +1532,13 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
+     module subroutine wscell_geometry(isys,lattice,nf,nv,nside,iside,xv)
+       integer, intent(in) :: isys
+       integer, intent(in) :: lattice
+       integer, intent(out) :: nf, nv
+       integer, allocatable, intent(inout) :: nside(:), iside(:,:)
+       real*8, allocatable, intent(inout) :: xv(:,:)
+     end subroutine wscell_geometry
      module function labels_row(r,iat) result(idl)
        type(representation), intent(in) :: r
        integer, intent(in) :: iat

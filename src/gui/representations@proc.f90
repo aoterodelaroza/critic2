@@ -84,7 +84,8 @@ contains
   !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
   !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes),
   !> 14 (critical points), 15 (gradient paths), 16 (planar shapes),
-  !> 17 (legend), 18 (scale bar), 19 (color bar), 20 (plane map).
+  !> 17 (legend), 18 (scale bar), 19 (color bar), 20 (plane map),
+  !> 21 (Wigner-Seitz cell).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -349,6 +350,11 @@ contains
        if (r%type == reptype_slice) call r%slice%d%set_defaults(isys)
     end if
 
+    ! Wigner-Seitz cell
+    if (itype == 0 .or. itype == 21) then
+       r%ws = rep_wscell()
+    end if
+
     ! initialize the styles
     call r%reset_all_styles(itype)
 
@@ -375,6 +381,55 @@ contains
        itype == reptype_labels .or. itype == reptype_polyhedra)
 
   end function reptype_is_atombased
+
+  !> The Wigner-Seitz cell of system isys around the origin lattice
+  !> point: the lattice of the unit cell (lattice = wslat_cell, the
+  !> cell calculated by critic2 with the crystal structure) or the
+  !> lattice of the cell and its centering vectors (wslat_primitive).
+  !> Returns the number of faces (nf) and vertices (nv), the number of
+  !> vertices of each face (nside) with their indices in cyclic order
+  !> (iside), and the vertices (xv, cartesian bohr). nf = 0 if there
+  !> is no cell (molecules, or qhull failed).
+  module subroutine wscell_geometry(isys,lattice,nf,nv,nside,iside,xv)
+    use systems, only: sys
+    use tools, only: wscell, primitive_lattice
+    integer, intent(in) :: isys
+    integer, intent(in) :: lattice
+    integer, intent(out) :: nf, nv
+    integer, allocatable, intent(inout) :: nside(:), iside(:,:)
+    real*8, allocatable, intent(inout) :: xv(:,:)
+
+    real*8 :: m_x2cp(3,3)
+    logical :: okp
+    character(len=:), allocatable :: errmsg
+
+    nf = 0
+    nv = 0
+    associate(c => sys(isys)%c)
+      if (c%ismolecule) return
+      if (lattice == wslat_primitive .and. c%ncv > 1) then
+         ! the primitive lattice (no cell if no basis is found)
+         call primitive_lattice(c%m_x2c,c%ncv,c%cen,m_x2cp,okp)
+         if (.not.okp) return
+         call wscell(m_x2cp,.true.,nf=nf,nv=nv,iside=iside,nside=nside,x=xv,errmsg=errmsg)
+         if (len_trim(errmsg) > 0) then
+            nf = 0
+            nv = 0
+            return
+         end if
+         xv = matmul(m_x2cp,xv(:,1:nv))
+      else
+         ! the cell calculated with the crystal structure
+         if (c%ws_nf <= 0 .or. .not.allocated(c%ws_x)) return
+         nf = c%ws_nf
+         nv = c%ws_nv
+         nside = c%ws_nside
+         iside = c%ws_iside
+         xv = matmul(c%m_x2c,c%ws_x(:,1:nv))
+      end if
+    end associate
+
+  end subroutine wscell_geometry
 
   !> The row of the label style of the labels object r that holds cell
   !> atom iat: its species, non-equivalent atom, cell atom, or molecule,
@@ -776,6 +831,7 @@ contains
     r%scalebar = rep_scalebar()
     r%colorbar = rep_colorbar()
     r%slice = rep_slice()
+    r%ws = rep_wscell()
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -1604,6 +1660,9 @@ contains
              end do
           end do
        end if
+    elseif (r%type == reptype_wscell) then
+       !!! Wigner-Seitz cell !!!
+       call append_wscell()
     elseif (r%type == reptype_axes) then
        !!! cartesian axes representation !!!
 
@@ -3980,6 +4039,49 @@ contains
       end if
 
     end subroutine check_lshown
+
+    !> The faces (translucent, fan-triangulated from their centroid)
+    !> and the edges of the Wigner-Seitz cell, around the lattice point
+    !> at the origin shift.
+    subroutine append_wscell()
+      integer :: nf, nv, jf, jv, ia, ib, ne
+      integer, allocatable :: nside(:), iside(:,:), iedge(:,:)
+      real*8, allocatable :: xv(:,:)
+      real*8 :: xcen(3)
+      complex*16, parameter :: dzero(3) = (0d0,0d0)
+      type(dl_cylinder) :: dedge
+
+      call wscell_geometry(r%id,r%ws%lattice,nf,nv,nside,iside,xv)
+      if (nf <= 0) return
+
+      ! translate to the lattice point
+      xv = xv + spread(c%x2c(r%ws%origin),2,nv)
+
+      ! faces and edges; each edge is shared by two faces, drawn once
+      dedge%r = real(r%ws%edge_rad,c_float)
+      dedge%rgb = r%ws%edge_rgb
+      allocate(iedge(2,sum(nside(1:nf))))
+      ne = 0
+      do jf = 1, nf
+         if (r%ws%showfaces .and. nside(jf) >= 3) &
+            xcen = sum(xv(:,iside(1:nside(jf),jf)),2) / nside(jf)
+         do jv = 1, nside(jf)
+            ia = iside(jv,jf)
+            ib = iside(mod(jv,nside(jf))+1,jf)
+            if (r%ws%showfaces .and. nside(jf) >= 3) &
+               call append_triangle(xcen,xv(:,ia),xv(:,ib),dzero,dzero,dzero,r%ws%rgb,r%ws%alpha)
+            if (r%ws%showedges) then
+               if (any(iedge(1,1:ne) == min(ia,ib) .and. iedge(2,1:ne) == max(ia,ib))) cycle
+               ne = ne + 1
+               iedge(:,ne) = (/min(ia,ib),max(ia,ib)/)
+               dedge%x1 = real(xv(:,ia),c_float)
+               dedge%x2 = real(xv(:,ib),c_float)
+               call dl_append(obj%cylflat,obj%ncylflat,dedge)
+            end if
+         end do
+      end do
+
+    end subroutine append_wscell
 
   end subroutine add_draw_elements
 

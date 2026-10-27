@@ -151,6 +151,18 @@ contains
          call io%x(q,'innerstipple',r%uc%innerstipple)
          call io%x(q,'origin',r%uc%origin)
 
+      case (reptype_wscell)
+         call io%obj(p,'wscell',q,found)
+         if (.not.found) return
+         call io%x(q,'lattice',r%ws%lattice,wslat_cell,wslat_primitive)
+         call io%x(q,'origin',r%ws%origin)
+         call io%x(q,'showfaces',r%ws%showfaces)
+         call io%x(q,'rgb',r%ws%rgb)
+         call io%x(q,'alpha',r%ws%alpha,lo=0d0,hi=1d0)
+         call io%x(q,'showedges',r%ws%showedges)
+         call io%x(q,'edge_rad',r%ws%edge_rad,lo=0d0)
+         call io%x(q,'edge_rgb',r%ws%edge_rgb)
+
       case (reptype_axes)
          call io%obj(p,'axes',q,found)
          if (.not.found) return

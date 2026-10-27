@@ -29,6 +29,7 @@ module tools
   public :: tiny_atom_type
   public :: delaunay_reduction
   public :: wscell
+  public :: primitive_lattice
 
   interface qcksort
      module procedure qcksort_r8_inplace
@@ -119,6 +120,13 @@ module tools
        logical, intent(out), optional :: isortho_del
        character(len=:), allocatable, intent(out), optional :: errmsg
      end subroutine wscell
+     module subroutine primitive_lattice(m_x2c,ncv,cen,m_x2cp,ok)
+       real*8, intent(in) :: m_x2c(3,3)
+       integer, intent(in) :: ncv
+       real*8, intent(in) :: cen(3,ncv)
+       real*8, intent(out) :: m_x2cp(3,3)
+       logical, intent(out) :: ok
+     end subroutine primitive_lattice
   end interface
 
 end module tools

@@ -2519,7 +2519,7 @@ contains
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
        reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar, reptype_legend,&
-       reptype_scalebar, reptype_colorbar, reptype_slice
+       reptype_scalebar, reptype_colorbar, reptype_slice, reptype_wscell
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -2675,6 +2675,8 @@ contains
              str3 = "color bar" // c_null_char
           elseif (s%rep(i)%type == reptype_slice) then
              str3 = "plane map" // c_null_char
+          elseif (s%rep(i)%type == reptype_wscell) then
+             str3 = "ws cell" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then
