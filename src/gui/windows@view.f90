@@ -59,6 +59,8 @@ submodule (windows) view
   integer(c_int), parameter :: max_texture_side = 4096_c_int
   integer(c_int), parameter :: interactive_texture_side = 1024_c_int
   integer(c_int), parameter :: texture_side_bucket = 256_c_int
+  integer, parameter :: syscombo_nchar = 14 ! width of the system combo in the toolbar (characters)
+  integer, parameter :: syscombo_nchar_min = 8 ! the least it shrinks to before going on its own line
 
 
 contains
@@ -105,7 +107,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, k, nrep, is, istart
+    integer :: i, k, nrep, is, istart, nchar
     logical :: onlysel
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol
@@ -770,20 +772,35 @@ contains
     end if
     call iw_tooltip("Create a new view for the current scene",ttshown)
 
-    ! the selected system combo, filling what is left of the toolbar
-    ! row up to a cap (the popup is at least as wide as the combo); if
-    ! the row is too narrow to be useful, it goes on its own line. The
+    ! the selected system combo, at the end of the toolbar row: the
+    ! system number and its name, shortened to fit a short width that
+    ! shrinks to the room left in the row (the popup widens to the full
+    ! names, and the tooltip gives the full name and file). It goes on
+    ! its own line only if the row has no room for a minimal one. The
     ! arrow button is square, as wide as the icon-row frame is tall.
     call igSameLine(0._c_float,-1._c_float)
     call igGetContentRegionAvail(szavail)
-    if (szavail%x < iw_calcwidth(12,1) + iw_iconbutton_height()) then
+    nchar = syscombo_nchar
+    do while (nchar > syscombo_nchar_min .and. iw_calcwidth(nchar,1) + iw_iconbutton_height() > szavail%x)
+       nchar = nchar - 1
+    end do
+    if (iw_calcwidth(nchar,1) + iw_iconbutton_height() > szavail%x) then
        call igNewLine()
-       call igGetContentRegionAvail(szavail)
+       nchar = syscombo_nchar
     end if
-    call igSetNextItemWidth(min(szavail%x,iw_calcwidth(40,1) + iw_iconbutton_height()))
+    call igSetNextItemWidth(iw_calcwidth(nchar,1) + iw_iconbutton_height())
     str2 = "" // c_null_char
+    msg = ""
     if (goodsys) then
-       str2 = string(w%isys) // ": " // trim(sysc(w%isys)%seed%name) // c_null_char
+       msg = string(w%isys) // ": " // trim(sysc(w%isys)%seed%name)
+       if (len(msg) > nchar) then
+          str2 = msg(1:nchar-3) // "..." // c_null_char
+       else
+          str2 = msg // c_null_char
+       end if
+       if (allocated(sysc(w%isys)%fullname)) then
+          if (len_trim(sysc(w%isys)%fullname) > 0) msg = msg // " (" // trim(sysc(w%isys)%fullname) // ")"
+       end if
     end if
     str1 = "##systemcombo" // c_null_char
     ! as tall as the icon buttons it shares the toolbar with
@@ -803,7 +820,11 @@ contains
        end do
        call igEndCombo()
     end if
-    call iw_tooltip("Choose the system displayed",ttshown)
+    if (len_trim(msg) > 0) then
+       call iw_tooltip("Choose the system displayed: " // msg,ttshown)
+    else
+       call iw_tooltip("Choose the system displayed",ttshown)
+    end if
 
     ! the annotation row, under the toolbar
     call draw_annot_row(w,ttshown)
