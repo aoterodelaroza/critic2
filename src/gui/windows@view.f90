@@ -18,6 +18,7 @@
 ! Windows, view.
 submodule (windows) view
   use interfaces_cimgui
+  use scenes, only: space_real, space_recip
   implicit none
 
   ! 4-identity matrix (c-float)
@@ -75,7 +76,7 @@ contains
        BIND_VIEW_TRANSFORM_SUPERCELL,&
        get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDIT_D_A_PHI,&
-       BIND_VIEW_TOGGLE_ANNOTATE
+       BIND_VIEW_TOGGLE_ANNOTATE, BIND_VIEW_TOGGLE_KSPACE
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, repflavor_atoms_basic,&
        repflavor_bonds_basic, repflavor_bonds_vdwcontacts, repflavor_bonds_hbonds,&
@@ -86,7 +87,8 @@ contains
        repstyle_sticks, reptype_cps, repflavor_cps, reptype_gpaths, repflavor_gpaths,&
        reptype_planar, reptype_legend, repflavor_legend, reptype_scalebar, repflavor_scalebar,&
        reptype_colorbar, repflavor_colorbar, reptype_slice, repflavor_slice, reptype_wscell,&
-       repflavor_wscell, reptype_latvec, repflavor_latvec
+       repflavor_wscell, reptype_latvec, repflavor_latvec, reptype_bz, repflavor_bz, reptype_reclat,&
+       repflavor_reclat, reptype_reccell, repflavor_reccell, reptype_recaxes, repflavor_recaxes
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -96,7 +98,7 @@ contains
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
        icon_ui_tools, icon_ui_newview, icon_ui_display, icon_ui_annotate
     use crystalmod, only: iperiod_vacthr
-    use systems, only: sysc, sys, sys_init, nsys, ok_system, group_is_scf, group_master,&
+    use systems, only: sysc, sys, sys_init, nsys, ok_system, group_is_scf, group_master, main_scene,&
        cp_anchor_make
     use gui_main, only: g, io, fontsize, lockbehavior, tree_select_updates_view,&
        ColorBlack, ColorWhite, ColorClearTransparent, show_tools_menu
@@ -111,7 +113,7 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected, lcombo
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
-    logical :: isuc, islabelsl, needpick, enabled, ispoly, symenabled, istarget
+    logical :: isuc, islabelsl, needpick, enabled, enabledr, ispoly, symenabled, istarget
     integer :: islabels
     logical :: ch
     integer(c_int) :: flags, idum
@@ -180,13 +182,15 @@ contains
        elseif (w%isys_uid /= sysc(w%isys)%uid) then
           call w%select_view(w%isys)
        end if
+       ! a molecule has no reciprocal space
+       if (w%kspace .and. sys(w%isys)%c%ismolecule) call w%view_set_kspace(.false.)
     end if
     if (goodsys) then
        if (w%ismain) then
-          if (.not.associated(w%sc)) w%sc => sysc(w%isys)%sc
+          w%sc => main_scene(w%isys,w%kspace)
        else
           if (.not.associated(w%sc)) allocate(w%sc)
-          if (w%sc%isinit == 0) call w%sc%init(w%isys)
+          if (w%sc%isinit == 0) call w%sc%init(w%isys,merge(space_recip,space_real,w%kspace))
        end if
     else
        if (w%ismain) then
@@ -196,8 +200,18 @@ contains
              call w%sc%end()
              deallocate(w%sc)
           end if
+          if (associated(w%scother)) then
+             call w%scother%end()
+             deallocate(w%scother)
+          end if
           w%forcerender = .true.
        end if
+    end if
+
+    ! switch between the real- and reciprocal-space scenes (crystals)
+    if (goodsys .and. istarget) then
+       if (.not.sys(w%isys)%c%ismolecule .and. is_bind_event(BIND_VIEW_TOGGLE_KSPACE)) &
+          call w%view_set_kspace(.not.w%kspace)
     end if
 
     ! flags for shortcuts
@@ -227,8 +241,8 @@ contains
        if (islabels >= 0) islabelsl = .true.
     end if
 
-    ! process shortcut display bindings
-    if (associated(w%sc) .and. istarget) then
+    ! process shortcut display bindings (real-space objects)
+    if (associated(w%sc) .and. istarget .and. .not.w%kspace) then
        changedisplay = .false.
        if (is_bind_event(BIND_VIEW_TOGGLE_ATOMS)) then
           changedisplay(1) = .true.
@@ -270,16 +284,19 @@ contains
 
     ! toolbar: annotation row button, first, which shows the row of tools
     ! that draw and edit the 2D and 3D shapes, texts, measurements and axes
+    ! the real-space toggles act on the objects of the structure, which a
+    ! reciprocal-space scene does not have
+    enabledr = enabled .and. .not.w%kspace
     ldum = w%annot%shown
     if (iw_icon_togglebutton("annotbutton",icon_tex(icon_ui_annotate),"An",ldum,&
-       disabled=.not.enabled)) call annot_toggle(w)
+       disabled=.not.enabledr)) call annot_toggle(w)
     call iw_tooltip("Show or hide the annotation toolbar, with the tools that draw 2D and 3D &
        &shapes, texts, measurements, and axes in the view (" //&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_ANNOTATE)) // ")",ttshown)
     call igSameLine(0._c_float,-1._c_float)
     call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
 
-    if (iw_icon_togglebutton("atomstoggle",icon_tex(icon_ui_atoms),"At",isatom,disabled=.not.enabled,&
+    if (iw_icon_togglebutton("atomstoggle",icon_tex(icon_ui_atoms),"At",isatom,disabled=.not.enabledr,&
        sameline=.true.,caption="Atoms")) then
        call apply_displayflags(atoms=.true.)
        chbuild = .true.
@@ -288,7 +305,7 @@ contains
     call iw_tooltip("Show or hide the atoms ("//&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_ATOMS)) // ").",ttshown)
 
-    if (iw_icon_togglebutton("bondstoggle",icon_tex(icon_ui_bonds),"Bn",isbond,disabled=.not.enabled,&
+    if (iw_icon_togglebutton("bondstoggle",icon_tex(icon_ui_bonds),"Bn",isbond,disabled=.not.enabledr,&
        sameline=.true.,caption="Bonds")) then
        call apply_displayflags(bonds=.true.)
        chbuild = .true.
@@ -306,7 +323,7 @@ contains
     elseif (islabels == 8) then
        idum = icon_ui_label_wyck
     end if
-    if (iw_icon_togglebutton("labelstoggle",icon_tex(idum),"Lb",islabelsl,disabled=.not.enabled,&
+    if (iw_icon_togglebutton("labelstoggle",icon_tex(idum),"Lb",islabelsl,disabled=.not.enabledr,&
        sameline=.true.,caption="Labels")) then
        call cycle_labels()
        call apply_displayflags(labels=.true.)
@@ -317,7 +334,7 @@ contains
        trim(get_bind_keyname(BIND_VIEW_CYCLE_LABELS)) // ").",ttshown)
 
     if (.not.enabled .or. .not.ismol) then
-       if (iw_icon_togglebutton("celltoggle",icon_tex(icon_ui_cell),"Cl",isuc,disabled=.not.enabled,&
+       if (iw_icon_togglebutton("celltoggle",icon_tex(icon_ui_cell),"Cl",isuc,disabled=.not.enabledr,&
           sameline=.true.,caption="Cell")) then
           call apply_displayflags(cell=.true.)
           chbuild = .true.
@@ -327,7 +344,7 @@ contains
           trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
     end if
 
-    if (iw_icon_togglebutton("polytoggle",icon_tex(icon_ui_polyhedra),"Ph",ispoly,disabled=.not.enabled,&
+    if (iw_icon_togglebutton("polytoggle",icon_tex(icon_ui_polyhedra),"Ph",ispoly,disabled=.not.enabledr,&
        sameline=.true.,caption="Poly")) then
        call apply_displayflags(poly=.true.)
        chbuild = .true.
@@ -349,7 +366,7 @@ contains
        ! short frame in the middle of the row (popped before the popup
        ! below, which is not part of the toolbar row)
        call iw_push_iconrow_frame()
-       ldum = iw_button(msg // "###viewperiodicity",disabled=.not.enabled,popupcontext=ok,&
+       ldum = iw_button(msg // "###viewperiodicity",disabled=.not.enabledr,popupcontext=ok,&
           popupflags=ImGuiPopupFlags_MouseButtonLeft,caption="Cells")
        call iw_pop_iconrow_frame()
        call iw_tooltip("Number of unit cells displayed along the a, b, and c axes",ttshown)
@@ -372,6 +389,14 @@ contains
           end if
           call igEndPopup()
        end if
+
+       ! toolbar: switch between the real-space and the reciprocal-space
+       ! scenes of the system
+       ldum = w%kspace
+       if (iw_icon_togglebutton("kspacetoggle",0_c_int,"k",ldum,disabled=.not.enabled,&
+          sameline=.true.,caption="k-space")) call w%view_set_kspace(.not.w%kspace)
+       call iw_tooltip("Switch between the real-space and the reciprocal-space objects of &
+          &this crystal (" // trim(get_bind_keyname(BIND_VIEW_TOGGLE_KSPACE)) // ")",ttshown)
     end if
 
     ! toolbar: camera button, with the projection, camera position, and
@@ -460,7 +485,7 @@ contains
 
     ! toolbar: apply the settings of this scene to all systems
     if (iw_icon_togglebutton("applyallbutton",icon_tex(icon_ui_applyall),"Ap",&
-       disabled=.not.enabled,sameline=.true.,danger=.true.,caption="All")) then
+       disabled=.not.enabledr,sameline=.true.,danger=.true.,caption="All")) then
        ! only a multi-selection scopes
        onlysel = (tree_nselected() > 1)
        do i = 1, nsys
@@ -504,7 +529,7 @@ contains
     call igSameLine(0._c_float,-1._c_float)
     call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
     if (iw_icon_togglebutton("displaybutton",icon_tex(icon_ui_display),"Ds",&
-       disabled=.not.enabled,sameline=.true.,caption="Show")) &
+       disabled=.not.enabledr,sameline=.true.,caption="Show")) &
        idum = stack_create_window(wintype_display,.true.,idparent=w%id,orraise=-1)
     call iw_tooltip("Select the part of the system displayed in this view",ttshown)
 
@@ -512,7 +537,25 @@ contains
     ldum = iw_icon_togglebutton("drawbutton",icon_tex(icon_ui_draw),"Dw",sameline=.true.,&
        disabled=.not.enabled,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft,caption="Draw")
     call iw_tooltip("Add a new object to the view",ttshown)
-    if (ok) then
+    if (ok .and. w%kspace) then
+       ! the reciprocal-space objects
+       if (associated(w%sc)) then
+          if (iw_menuitem("Brillouin Zone")) &
+             call w%add_rep_and_edit(reptype_bz,repflavor_bz)
+          call iw_tooltip("The first Brillouin zone: the Wigner-Seitz cell of the reciprocal lattice",ttshown)
+          if (iw_menuitem("Reciprocal Lattice")) &
+             call w%add_rep_and_edit(reptype_reclat,repflavor_reclat)
+          call iw_tooltip("Spheres at the reciprocal lattice points",ttshown)
+          if (iw_menuitem("Reciprocal Cell")) &
+             call w%add_rep_and_edit(reptype_reccell,repflavor_reccell)
+          call iw_tooltip("The cell spanned by the reciprocal lattice vectors a*, b*, c*",ttshown)
+          if (iw_menuitem("Reciprocal Axes")) &
+             call w%add_rep_and_edit(reptype_recaxes,repflavor_recaxes)
+          call iw_tooltip("The directions of the reciprocal lattice vectors a*, b*, c*, in a corner of &
+             &the view",ttshown)
+       end if
+       call igEndPopup()
+    elseif (ok) then
        if (associated(w%sc)) then
           ! styles: whole looks for the structure, replacing the atoms and
           ! bonds objects in one go
@@ -720,6 +763,7 @@ contains
        disabled=.not.enabled,sameline=.true.,caption="View")) then
        idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
        win(idum)%sc = w%sc
+       win(idum)%kspace = w%kspace
        ! the value copy aliased the source scene's GL handles; detach so the new
        ! view lazily builds its own instance buffers
        call win(idum)%sc%gl%detach()
@@ -1027,7 +1071,7 @@ contains
     !! increase and decrease the number of cells shown
     if (associated(w%sc)) then
        if (istarget) then
-          if (.not.sys(w%isys)%c%ismolecule) then
+          if (.not.sys(w%isys)%c%ismolecule .and. .not.w%kspace) then
              if (is_bind_event(BIND_VIEW_INC_NCELL)) then
                 do i = 1, 3
                    if (sys(w%isys)%c%vaclength(i) < iperiod_vacthr) &
@@ -1067,8 +1111,8 @@ contains
     ! view focused and not merely targeted: Delete is also the tree's
     ! remove-system bind, and Ctrl+A passes the text-input guard, so
     ! acting from another focused window would fire them twice or while
-    ! the user is typing.
-    if (w%focused() .and. ok_system(w%isys,sys_init)) then
+    ! the user is typing. A reciprocal-space view does not show the atoms.
+    if (w%focused() .and. ok_system(w%isys,sys_init) .and. .not.w%kspace) then
        is = w%isys
        if (allocated(sysc(is)%highlight_rgba)) then
           ok = any(sysc(is)%highlight_rgba >= 0._c_float)
@@ -1317,7 +1361,7 @@ contains
   !> Select system isys in view window.
   module subroutine select_view(w,isys)
     use interfaces_glfw, only: glfwGetTime
-    use systems, only: nsys, sysc, sys_init
+    use systems, only: nsys, sysc, sys, sys_init, main_scene
     class(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
@@ -1338,15 +1382,22 @@ contains
     w%moveobj_imol = 0
     w%moveobj_isdiscrete = .false.
 
-    ! select and render the new scene
+    ! select and render the new scene, in the space the view shows (a
+    ! molecule has only the real-space one); an alternate view drops
+    ! its scene of the other space, which belonged to the old system
     w%isys = isys
     w%isys_uid = sysc(isys)%uid
+    if (sys(isys)%c%ismolecule) w%kspace = .false.
     if (w%ismain) then
-       w%sc => sysc(w%isys)%sc
+       w%sc => main_scene(w%isys,w%kspace)
     else
        if (.not.associated(w%sc)) allocate(w%sc)
        call w%sc%end()
-       call w%sc%init(w%isys)
+       call w%sc%init(w%isys,merge(space_recip,space_real,w%kspace))
+       if (associated(w%scother)) then
+          call w%scother%end()
+          deallocate(w%scother)
+       end if
     end if
     w%forcerender = .true.
 
@@ -1369,6 +1420,69 @@ contains
     w%timelast_assign = glfwGetTime()
 
   end subroutine select_view
+
+  !> Show the reciprocal-space scene of the system in view w (kspace),
+  !> or its real-space scene. A molecule has only the real-space one.
+  !> The main view shows the scenes of the system; an alternate view
+  !> owns both, and keeps the one it leaves for the next switch. The
+  !> camera of the new scene takes the orientation of the old one, so
+  !> a direction points the same way in both spaces. The state of the
+  !> view that refers to objects of the old scene (picks, modes, the
+  !> annotation tools) is reset.
+  module subroutine view_set_kspace(w,kspace)
+    use systems, only: sys, sys_init, ok_system, main_scene
+    class(window), intent(inout), target :: w
+    logical, intent(in) :: kspace
+
+    logical :: ks, hasrot
+    type(scene), pointer :: saux
+    real(c_float) :: rot(3,3)
+
+    ks = kspace
+    if (ok_system(w%isys,sys_init)) then
+       if (sys(w%isys)%c%ismolecule) ks = .false.
+    end if
+    if (ks .eqv. w%kspace) return
+    w%kspace = ks
+
+    ! the orientation of the scene the view leaves
+    hasrot = .false.
+    if (associated(w%sc)) then
+       hasrot = w%sc%iscaminit
+       if (hasrot) rot = w%sc%world(1:3,1:3)
+    end if
+
+    ! the scene of the new space
+    if (w%ismain) then
+       w%sc => main_scene(w%isys,ks)
+    else
+       saux => w%scother
+       w%scother => w%sc
+       w%sc => saux
+       if (.not.associated(w%sc)) allocate(w%sc)
+       if (w%sc%isinit == 0) call w%sc%init(w%isys,merge(space_recip,space_real,ks))
+    end if
+    if (associated(w%sc) .and. hasrot) then
+       if (allocated(w%sc%rotpending)) deallocate(w%sc%rotpending)
+       allocate(w%sc%rotpending(3,3))
+       w%sc%rotpending = rot
+    end if
+    w%forcerender = .true.
+
+    ! the interaction state belongs to the old scene
+    w%ilock = ilock_no
+    w%mousepos_idx = 0
+    w%mousepos_cp = 0
+    w%mousepos_lat = 0
+    w%mousepos_anchor = 0
+    w%measure_pend_cp = 0
+    w%measure_pend_lat = 0
+    call viewmode_to_navigate(w)
+    w%annot%shown = .false.
+    w%annot%rref = rep_ref()
+    w%annot%newrep = .false.
+
+  end subroutine view_set_kspace
 
   !> Process the user keybindings that set the viewmode. okmods = whether
   !> the mode modifiers may be read this frame (the view is under the
@@ -1441,6 +1555,13 @@ contains
     ! the window_forced view mode cannot be overridden by keybindings
     if (w%viewmode < 0) return
 
+    ! a reciprocal-space view only navigates: the other modes select,
+    ! move or edit the structure, which it does not show
+    if (w%kspace) then
+       if (w%viewmode /= vm_navigate) call viewmode_to_navigate(w)
+       return
+    end if
+
     ! the mode modifiers are not up for reading this frame
     if (.not.okmods) return
 
@@ -1481,6 +1602,9 @@ contains
     integer, intent(in) :: idcaller
     logical, intent(in), optional :: acceptempty
     logical, intent(in), optional :: latonly
+
+    ! the picks are of the real-space objects
+    if (w%kspace) call w%view_set_kspace(.false.)
 
     call objedit_drop_picks(w)
     w%viewmode = mode
@@ -1913,12 +2037,15 @@ contains
 
   !> The view-bar identity of the lattice point latidx (cell and
   !> centering vector, as in dl_sphere%latidx) under the cursor: its
-  !> fractional and Cartesian coordinates.
+  !> fractional and Cartesian coordinates. In a reciprocal-space view,
+  !> the reciprocal lattice point (h, k, l in latidx(1:3)) and its
+  !> reciprocal cartesian coordinates (1/Å, without 2*pi).
   function lat_hover_identity(w,latidx) result(msg)
     use systems, only: sys, ok_system, sys_init
     use global, only: dunit0, iunit_ang
     use utils, only: frac_point_string
     use tools_io, only: string
+    use param, only: bohrtoa
     class(window), intent(in) :: w
     integer(c_int), intent(in) :: latidx(4)
     character(len=:), allocatable :: msg
@@ -1929,6 +2056,14 @@ contains
     if (latidx(4) <= 0) return
     if (.not.ok_system(w%isys,sys_init)) return
     associate(c => sys(w%isys)%c)
+      if (w%kspace) then
+         x = latidx(1:3)
+         x0 = matmul(c%m_rx2rc,x) / bohrtoa
+         msg = "Reciprocal lattice point " // frac_point_string(x) // " " //&
+            string(x0(1),'f',decimal=4) // " " // string(x0(2),'f',decimal=4) // " " //&
+            string(x0(3),'f',decimal=4) // " (1/Å)"
+         return
+      end if
       if (latidx(4) > c%ncv) return
       x = latidx(1:3) + c%cen(:,latidx(4))
       x0 = (c%x2c(x) + c%molx0) * dunit0(iunit_ang)
@@ -4764,7 +4899,7 @@ contains
   !> made). Does nothing if the scene is not available.
   !> add_representation flags the scene for rebuild.
   module subroutine add_rep_and_edit(w,itype,flavor,ifield,irep)
-    use representations, only: reptype_isosurface
+    use representations, only: reptype_isosurface, reptype_is_recip
     class(window), intent(inout), target :: w
     integer, intent(in) :: itype, flavor
     integer, intent(in), optional :: ifield
@@ -4773,10 +4908,13 @@ contains
     integer :: id, idw
 
     if (present(irep)) irep = 0
+    ! the view shows the space of the object (real/reciprocal)
+    if (reptype_is_recip(itype) .neqv. w%kspace) call w%view_set_kspace(reptype_is_recip(itype))
     if (.not.associated(w%sc)) return
     if (w%sc%isinit == 0) call w%sc%init(w%isys)
     call w%sc%add_representation(itype,flavor,id=id)
-    if (id > 0 .and. itype == reptype_isosurface) then
+    if (id <= 0) return
+    if (itype == reptype_isosurface) then
        ! bind the field first: set_field re-stages an ungenerated grid,
        ! and benchmarking the reference field would price one never drawn
        if (present(ifield)) &

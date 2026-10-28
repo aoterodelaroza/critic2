@@ -990,6 +990,7 @@ contains
       if (.not.create) return
       isys = win(iview)%isys
       call sc%add_representation(reptype_gpaths,repflavor_gpaths,id=irep)
+      if (irep <= 0) return
       call sc%rep(irep)%gpaths%fref%set(sys(isys),w%gp%fref%id)
     end associate
 

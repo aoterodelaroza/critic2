@@ -441,7 +441,14 @@ module representations
                                                    ! the UI, "planemap" in the scene files)
   integer, parameter, public :: reptype_wscell = 19 ! Wigner-Seitz cell of the lattice
   integer, parameter, public :: reptype_latvec = 20 ! spheres at the lattice points
-  integer, parameter, public :: reptype_NUM = 20
+  ! reciprocal-space kinds: their objects live in the reciprocal-space
+  ! scene of a crystal only, and the real-space kinds in the real-space
+  ! scene only (reptype_is_recip)
+  integer, parameter, public :: reptype_bz = 21 ! Brillouin zone (WS cell of the reciprocal lattice)
+  integer, parameter, public :: reptype_reclat = 22 ! spheres at the reciprocal lattice points
+  integer, parameter, public :: reptype_reccell = 23 ! reciprocal cell (a*, b*, c*)
+  integer, parameter, public :: reptype_recaxes = 24 ! reciprocal axes gizmo (a*, b*, c*)
+  integer, parameter, public :: reptype_NUM = 24
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -470,7 +477,11 @@ module representations
   integer, parameter, public :: repflavor_slice = 23
   integer, parameter, public :: repflavor_wscell = 24
   integer, parameter, public :: repflavor_latvec = 25
-  integer, parameter, public :: repflavor_NUM = 25
+  integer, parameter, public :: repflavor_bz = 26
+  integer, parameter, public :: repflavor_reclat = 27
+  integer, parameter, public :: repflavor_reccell = 28
+  integer, parameter, public :: repflavor_recaxes = 29
+  integer, parameter, public :: repflavor_NUM = 29
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -490,37 +501,42 @@ module representations
      reptype_bonds, reptype_labels, reptype_polyhedra, reptype_unitcell, reptype_axes,&
      reptype_symelem, reptype_text, reptype_measure, reptype_shapes, reptype_isosurface,&
      reptype_cps, reptype_gpaths, reptype_planar, reptype_legend, reptype_scalebar,&
-     reptype_colorbar, reptype_slice, reptype_wscell, reptype_latvec/)
+     reptype_colorbar, reptype_slice, reptype_wscell, reptype_latvec, reptype_bz, reptype_reclat,&
+     reptype_reccell, reptype_recaxes/)
 
   ! default name of an object, by flavor (each flavor belongs to exactly
   ! one kind, so this is also the name of the kind for its basic flavor)
-  character(len=17), parameter, public :: repflavor_name(0:repflavor_NUM) = (/&
-     "                 ",& ! repflavor_unknown
-     "Atoms            ",& ! repflavor_atoms_basic
-     "Licorice Atoms   ",& ! repflavor_atoms_licorice
-     "Bonds            ",& ! repflavor_bonds_basic
-     "Sticks           ",& ! repflavor_bonds_sticks
-     "Licorice Bonds   ",& ! repflavor_bonds_licorice
-     "VdW Contacts     ",& ! repflavor_bonds_vdwcontacts
-     "Hydrogen Bonds   ",& ! repflavor_bonds_hbonds
-     "Labels           ",& ! repflavor_labels_basic
-     "Polyhedra        ",& ! repflavor_polyhedra_basic
-     "Unit Cell        ",& ! repflavor_unitcell_basic
-     "Axes             ",& ! repflavor_axes
-     "Symmetry elements",& ! repflavor_symelem
-     "Text             ",& ! repflavor_text
-     "Measurements     ",& ! repflavor_measure
-     "3D Shapes        ",& ! repflavor_shapes
-     "Isosurface       ",& ! repflavor_isosurface
-     "Critical Points  ",& ! repflavor_cps
-     "Gradient Paths   ",& ! repflavor_gpaths
-     "2D Drawing       ",& ! repflavor_planar
-     "Legend           ",& ! repflavor_legend
-     "Scale Bar        ",& ! repflavor_scalebar
-     "Color Bar        ",& ! repflavor_colorbar
-     "Plane Map        ",& ! repflavor_slice
-     "Wigner-Seitz Cell",& ! repflavor_wscell
-     "Lattice Vectors  "/) ! repflavor_latvec
+  character(len=18), parameter, public :: repflavor_name(0:repflavor_NUM) = (/&
+     "                  ",& ! repflavor_unknown
+     "Atoms             ",& ! repflavor_atoms_basic
+     "Licorice Atoms    ",& ! repflavor_atoms_licorice
+     "Bonds             ",& ! repflavor_bonds_basic
+     "Sticks            ",& ! repflavor_bonds_sticks
+     "Licorice Bonds    ",& ! repflavor_bonds_licorice
+     "VdW Contacts      ",& ! repflavor_bonds_vdwcontacts
+     "Hydrogen Bonds    ",& ! repflavor_bonds_hbonds
+     "Labels            ",& ! repflavor_labels_basic
+     "Polyhedra         ",& ! repflavor_polyhedra_basic
+     "Unit Cell         ",& ! repflavor_unitcell_basic
+     "Axes              ",& ! repflavor_axes
+     "Symmetry elements ",& ! repflavor_symelem
+     "Text              ",& ! repflavor_text
+     "Measurements      ",& ! repflavor_measure
+     "3D Shapes         ",& ! repflavor_shapes
+     "Isosurface        ",& ! repflavor_isosurface
+     "Critical Points   ",& ! repflavor_cps
+     "Gradient Paths    ",& ! repflavor_gpaths
+     "2D Drawing        ",& ! repflavor_planar
+     "Legend            ",& ! repflavor_legend
+     "Scale Bar         ",& ! repflavor_scalebar
+     "Color Bar         ",& ! repflavor_colorbar
+     "Plane Map         ",& ! repflavor_slice
+     "Wigner-Seitz Cell ",& ! repflavor_wscell
+     "Lattice Vectors   ",& ! repflavor_latvec
+     "Brillouin Zone    ",& ! repflavor_bz
+     "Reciprocal Lattice",& ! repflavor_reclat
+     "Reciprocal Cell   ",& ! repflavor_reccell
+     "Reciprocal Axes   "/) ! repflavor_recaxes
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -599,7 +615,8 @@ module representations
      logical :: showedges = .true. ! draw the edges
      real*8 :: edge_rad = wsedgerad_def ! edge cylinder radius (bohr)
      real(c_float) :: edge_rgb(3) = wsedge_rgb_def ! edge color
-     real*8, allocatable :: pts(:,:) ! lattice points with a cell drawn (fractional)
+     real*8, allocatable :: pts(:,:) ! lattice points with a cell drawn (fractional; reciprocal: hkl)
+     integer :: nrange = 1 ! Brillouin zone: the reciprocal lattice points listed have |h|,|k|,|l| <= nrange
      ! face/vertex counts shown in the editor, and the lattice and
      ! system geometry revision they were calculated for (not saved)
      integer :: nf = 0, nv = 0
@@ -618,6 +635,7 @@ module representations
      real*8 :: border_size = atomborder_def ! sphere border size (bohr)
      real(c_float) :: border_rgb(3) = 0._c_float ! sphere border color
      integer :: margin = 0 ! cells added on each side of the region drawn (transients only; not saved)
+     integer :: nrange = 1 ! reciprocal lattice: the points drawn have |h|,|k|,|l| <= nrange
   end type rep_latvec
   public :: rep_latvec
 
@@ -1492,6 +1510,9 @@ module representations
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
   public :: wscell_geometry
+  public :: recip_points
+  public :: recip_scale
+  public :: reptype_is_recip
   public :: lattice_points
   public :: wscell_isdrawn
   public :: labels_row
@@ -1572,13 +1593,29 @@ module representations
        real*8, intent(in) :: x(3)
        logical :: ok
      end function wscell_isdrawn
-     module subroutine wscell_geometry(isys,lattice,nf,nv,nside,iside,xv)
+     module subroutine wscell_geometry(isys,lattice,nf,nv,nside,iside,xv,recip)
        integer, intent(in) :: isys
        integer, intent(in) :: lattice
        integer, intent(out) :: nf, nv
        integer, allocatable, intent(inout) :: nside(:), iside(:,:)
        real*8, allocatable, intent(inout) :: xv(:,:)
+       logical, intent(in), optional :: recip
      end subroutine wscell_geometry
+     module subroutine recip_points(isys,lattice,n,np,ipt)
+       integer, intent(in) :: isys
+       integer, intent(in) :: lattice
+       integer, intent(in) :: n
+       integer, intent(out) :: np
+       integer, allocatable, intent(inout) :: ipt(:,:)
+     end subroutine recip_points
+     module function recip_scale(c) result(s)
+       type(crystal), intent(in) :: c
+       real*8 :: s
+     end function recip_scale
+     module function reptype_is_recip(itype) result(ok)
+       integer, intent(in) :: itype
+       logical :: ok
+     end function reptype_is_recip
      module function labels_row(r,iat) result(idl)
        type(representation), intent(in) :: r
        integer, intent(in) :: iat

@@ -1240,6 +1240,8 @@ module windows
      ! view parameters
      logical :: ismain ! whether this is the main view or an alternate
      type(scene), pointer :: sc ! pointer to the view scene
+     logical :: kspace = .false. ! the view shows the reciprocal-space scene of its system
+     type(scene), pointer :: scother => null() ! alternate view: its scene of the other space (null until the first switch)
      integer(c_int) :: FBO ! draw framebuffer
      integer(c_int) :: FBOtex ! draw framebuffer -> texture
      integer(c_int) :: FBOdepth ! draw framebuffer -> depth buffer
@@ -1553,6 +1555,7 @@ module windows
      procedure :: viewmode_activate_picking ! activate picking by view mode
      procedure :: viewmode_process_events ! process mouse events according to view mode
      procedure :: select_view ! select the system to show in a view
+     procedure :: view_set_kspace ! show the real- or reciprocal-space scene in a view
      procedure :: add_rep_and_edit ! add a representation to the view's scene and open its editor
      procedure :: annot_set_tool ! arm a tool of the object editing mode (annotation row, editors)
      procedure :: annot_edit_object ! open the editor of the object the annotation tool works on
@@ -2052,6 +2055,10 @@ module windows
        class(window), intent(inout), target :: w
        integer, intent(in) :: isys
      end subroutine select_view
+     module subroutine view_set_kspace(w,kspace)
+       class(window), intent(inout), target :: w
+       logical, intent(in) :: kspace
+     end subroutine view_set_kspace
      module subroutine add_rep_and_edit(w,itype,flavor,ifield,irep)
        class(window), intent(inout), target :: w
        integer, intent(in) :: itype, flavor

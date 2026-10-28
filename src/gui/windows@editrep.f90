@@ -69,7 +69,7 @@ contains
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
        reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
        reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar, reptype_slice, field_has_cps,&
-       reptype_wscell, reptype_latvec
+       reptype_wscell, reptype_latvec, reptype_bz, reptype_reclat, reptype_reccell, reptype_recaxes
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sysc, sys_init, ok_system
@@ -139,16 +139,16 @@ contains
        elseif (w%rep%type == reptype_polyhedra) then
           ch = w%draw_editrep_polyhedra(ttshown)
           changed = changed .or. ch
-       elseif (w%rep%type == reptype_unitcell) then
+       elseif (w%rep%type == reptype_unitcell .or. w%rep%type == reptype_reccell) then
           ch = w%draw_editrep_unitcell(ttshown)
           changed = changed .or. ch
-       elseif (w%rep%type == reptype_wscell) then
+       elseif (w%rep%type == reptype_wscell .or. w%rep%type == reptype_bz) then
           ch = w%draw_editrep_wscell(ttshown)
           changed = changed .or. ch
-       elseif (w%rep%type == reptype_latvec) then
+       elseif (w%rep%type == reptype_latvec .or. w%rep%type == reptype_reclat) then
           ch = w%draw_editrep_latvec(ttshown)
           changed = changed .or. ch
-       elseif (w%rep%type == reptype_axes) then
+       elseif (w%rep%type == reptype_axes .or. w%rep%type == reptype_recaxes) then
           ch = w%draw_editrep_axes(ttshown)
           changed = changed .or. ch
        elseif (w%rep%type == reptype_symelem) then
@@ -1200,6 +1200,7 @@ contains
   !> Draw the editrep window, unit cell class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_unitcell(w,ttshown) result(changed)
+    use representations, only: reptype_reccell
     use utils, only: iw_text, iw_tooltip, iw_clamp_color3, iw_checkbox,&
        iw_coloredit, iw_dragfloat_real8, iw_separatortext
     use param, only: bohrtoa
@@ -1207,45 +1208,69 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    logical :: ch
+    logical :: ch, isrec
+    real*8 :: u
 
     ! initialize
     changed = .false.
+    isrec = (w%rep%type == reptype_reccell)
 
     !! styles
     ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
     ! and a widget skipped because changed is already true is a widget not drawn
     call iw_separatortext("Style",w%editrep_sec(1))
     if (w%editrep_sec(1)%open) then
-       ch = iw_checkbox("Color crystallographic axes",w%rep%uc%coloraxes,labelleft=.true.)
-       call iw_tooltip("Represent crystallographic axes with colors (a=red,b=green,c=blue)",ttshown)
+       if (isrec) then
+          ch = iw_checkbox("Color reciprocal axes",w%rep%uc%coloraxes,labelleft=.true.)
+          call iw_tooltip("Draw the edges along a*, b*, c* in the axis colors (a*=red, b*=green, c*=blue)",ttshown)
+       else
+          ch = iw_checkbox("Color crystallographic axes",w%rep%uc%coloraxes,labelleft=.true.)
+          call iw_tooltip("Represent crystallographic axes with colors (a=red,b=green,c=blue)",ttshown)
+       end if
        changed = changed .or. ch
-       ch = iw_checkbox("Hide axes in vacuum directions",w%rep%uc%vaccutsticks,labelleft=.true.)
-       call iw_tooltip("In systems with vacuum direction(s), do not show the unit cell in the vacuum region",ttshown)
-       changed = changed .or. ch
+       if (.not.isrec) then
+          ch = iw_checkbox("Hide axes in vacuum directions",w%rep%uc%vaccutsticks,labelleft=.true.)
+          call iw_tooltip("In systems with vacuum direction(s), do not show the unit cell in the vacuum region",ttshown)
+          changed = changed .or. ch
+       end if
 
-       call iw_text("Radius (Å)",alignframe=.true.)
-       ch = iw_dragfloat_real8("##outer",x1=w%rep%uc%radius,speed=0.005d0,&
-          min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Radii of the unit cell edges",ttshown)
+       if (isrec) then
+          ! bohr^-1 stored, 1/Å shown, in steps fit for the reciprocal cell
+          u = recip_unit(w%isys)
+          call iw_text("Radius (1/Å)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##outer",x1=w%rep%uc%radius,speed=2d-3*u,min=0d0,max=2d0*u,&
+             scale=1d0/bohrtoa,decimal=5,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       else
+          call iw_text("Radius (Å)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##outer",x1=w%rep%uc%radius,speed=0.005d0,&
+             min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       end if
+       call iw_tooltip("Radii of the cell edges",ttshown)
        changed = changed .or. ch
 
        call iw_text("Color",alignframe=.true.,gap=.true.)
        ch = iw_coloredit("##uccolor",rgb=w%rep%uc%rgb,sameline=.true.)
-       call iw_tooltip("Color of the unit cell edges",ttshown)
+       call iw_tooltip("Color of the cell edges",ttshown)
        if (ch) then
           w%rep%uc%rgb = min(w%rep%uc%rgb,1._c_float)
           w%rep%uc%rgb = max(w%rep%uc%rgb,0._c_float)
           changed = .true.
        end if
 
-       call iw_text("Origin shift (fractional)",alignframe=.true.)
-       ch = iw_dragfloat_real8("##originuc",x3=w%rep%uc%origin,speed=0.001d0,decimal=5,sameline=.true.)
-       call iw_tooltip("Translation vector for the origin of the cell drawn (moves the cell sticks only)",ttshown)
+       if (isrec) then
+          call iw_text("Origin shift (hkl)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##originuc",x3=w%rep%uc%origin,speed=0.001d0,decimal=5,sameline=.true.)
+          call iw_tooltip("Translation of the reciprocal cell (in the reciprocal basis a*, b*, c*)",ttshown)
+       else
+          call iw_text("Origin shift (fractional)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##originuc",x3=w%rep%uc%origin,speed=0.001d0,decimal=5,sameline=.true.)
+          call iw_tooltip("Translation vector for the origin of the cell drawn (moves the cell sticks only)",ttshown)
+       end if
        changed = changed .or. ch
     end if
 
-    !! inner divisions
+    !! inner divisions (a single reciprocal cell has none)
+    if (isrec) return
     call iw_separatortext("Inner divisions",w%editrep_sec(2))
     if (w%editrep_sec(2)%open) then
        ch = iw_checkbox("Show inner divisions",w%rep%uc%inner,labelleft=.true.)
@@ -1274,13 +1299,16 @@ contains
 
   end function draw_editrep_unitcell
 
-  !> Draw the editrep window, Wigner-Seitz cell options. Returns
-  !> true if the scene needs to be rendered again.
+  !> Draw the editrep window, Wigner-Seitz cell options, and those of
+  !> the Brillouin zone (the cell of the reciprocal lattice, at the
+  !> reciprocal lattice points in its range). Returns true if the scene
+  !> needs to be rendered again.
   module function draw_editrep_wscell(w,ttshown) result(changed)
-    use representations, only: wscell_geometry, lattice_points, wscell_isdrawn
+    use representations, only: wscell_geometry, lattice_points, wscell_isdrawn, recip_points,&
+       reptype_bz
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
        iw_separatortext, iw_combo_simple, iw_table_column, iw_table_headers_row, iw_calcwidth,&
-       iw_calcheight, frac_point_string
+       iw_calcheight, frac_point_string, iw_intstepper
     use systems, only: sys, sysc
     use tools_io, only: string
     use param, only: bohrtoa
@@ -1294,17 +1322,21 @@ contains
     integer, allocatable :: nside(:), iside(:,:), ipt(:,:)
     real*8, allocatable :: xv(:,:), xpt(:,:), xkeep(:,:)
     logical, allocatable :: shown(:), listed(:)
-    logical :: chpts
+    logical :: chpts, isbz
     integer(c_int) :: flags
     type(ImVec2) :: sz
+    type(c_ptr) :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
+    real*8 :: lscale
 
     ! initialize
     changed = .false.
+    isbz = (w%rep%type == reptype_bz)
 
     ! the size of the cell, recalculated only when the lattice or the geometry change
     associate(ws => w%rep%ws)
       if (ws%cache_lattice /= ws%lattice .or. ws%cache_rev /= sysc(w%isys)%rev_geometry) then
-         call wscell_geometry(w%isys,ws%lattice,ws%nf,ws%nv,nside,iside,xv)
+         call wscell_geometry(w%isys,ws%lattice,ws%nf,ws%nv,nside,iside,xv,recip=isbz)
          ws%cache_lattice = ws%lattice
          ws%cache_rev = sysc(w%isys)%rev_geometry
       end if
@@ -1313,29 +1345,50 @@ contains
     !! the cell
     ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
     ! and a widget skipped because changed is already true is a widget not drawn
-    call iw_separatortext("Cell",w%editrep_sec(1))
+    if (isbz) then
+       call iw_separatortext("Zone",w%editrep_sec(1))
+    else
+       call iw_separatortext("Cell",w%editrep_sec(1))
+    end if
     if (w%editrep_sec(1)%open) then
-       call iw_text("Lattice",alignframe=.true.)
-       call iw_combo_simple("##wslattice","Unit cell" // c_null_char // "Primitive (centered)" // c_null_char,&
-          w%rep%ws%lattice,changed=ch,sameline=.true.)
-       call iw_tooltip("Lattice whose Wigner-Seitz cell is drawn: the lattice of the unit cell, &
-          &or the lattice of the unit cell and its centering vectors (the same for a primitive cell)",ttshown)
+       if (isbz) then
+          ! the reciprocal lattice points listed
+          call iw_text("Range",alignframe=.true.)
+          ch = iw_intstepper("##bzrange",w%rep%ws%nrange,minval=0,maxval=10,sameline=.true.)
+          call iw_tooltip("The reciprocal lattice points listed have |h|, |k|, |l| up to this",ttshown)
+       else
+          call iw_text("Lattice",alignframe=.true.)
+          call iw_combo_simple("##wslattice","Unit cell" // c_null_char // "Primitive (centered)" // c_null_char,&
+             w%rep%ws%lattice,changed=ch,sameline=.true.)
+          call iw_tooltip("Lattice whose Wigner-Seitz cell is drawn: the lattice of the unit cell, &
+             &or the lattice of the unit cell and its centering vectors (the same for a primitive cell)",ttshown)
+       end if
        changed = changed .or. ch
 
-       ! the lattice points of the displayed cells, and whether they have a cell
+       ! the lattice points of the displayed cells (reciprocal lattice
+       ! points in the range), and whether they have a cell
        iview = w%anchor_view()
        np = 0
-       if (iview > 0) &
+       if (isbz) then
+          call recip_points(w%isys,w%rep%ws%lattice,w%rep%ws%nrange,np,ipt)
+       elseif (iview > 0) then
           call lattice_points(w%isys,w%rep%ws%lattice,win(iview)%sc%disp,w%rep%disp,np,ipt)
+       end if
        allocate(shown(np),xpt(3,np))
        associate(c => sys(w%isys)%c)
          do i = 1, np
+            ! (a reciprocal lattice point has centering index 1, the origin)
             xpt(:,i) = ipt(1:3,i) + c%cen(:,ipt(4,i))
             shown(i) = wscell_isdrawn(w%rep%ws,xpt(:,i))
          end do
        end associate
        if (np > 0) then
-          call iw_text("Cells at " // string(count(shown)) // " of " // string(np) // " lattice points")
+          if (isbz) then
+             call iw_text("Zones at " // string(count(shown)) // " of " // string(np) //&
+                " reciprocal lattice points")
+          else
+             call iw_text("Cells at " // string(count(shown)) // " of " // string(np) // " lattice points")
+          end if
           chpts = .false.
 
           flags = ImGuiTableFlags_None
@@ -1350,26 +1403,46 @@ contains
           if (igBeginTable(c_loc(str1),2,flags,sz,0._c_float)) then
              ncol = -1
              call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-             call iw_table_column("Lattice point",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+             if (isbz) then
+                call iw_table_column("hkl",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+             else
+                call iw_table_column("Lattice point",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+             end if
              call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
-             do i = 1, np
-                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             ! only the visible rows are drawn
+             clipper = ImGuiListClipper_ImGuiListClipper()
+             call ImGuiListClipper_Begin(clipper,int(np,c_int),-1._c_float)
+             do while(ImGuiListClipper_Step(clipper))
+                call c_f_pointer(clipper,clipper_f)
+                do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
-                ! shown
-                if (igTableSetColumnIndex(0_c_int)) then
-                   ch = iw_checkbox("##wsptshown" // string(i),shown(i))
-                   call iw_tooltip("Draw a Wigner-Seitz cell around this lattice point",ttshown)
-                   chpts = chpts .or. ch
-                end if
+                   ! shown
+                   if (igTableSetColumnIndex(0_c_int)) then
+                      ch = iw_checkbox("##wsptshown" // string(i),shown(i))
+                      if (isbz) then
+                         call iw_tooltip("Draw a Brillouin zone around this reciprocal lattice point",ttshown)
+                      else
+                         call iw_tooltip("Draw a Wigner-Seitz cell around this lattice point",ttshown)
+                      end if
+                      chpts = chpts .or. ch
+                   end if
 
-                ! position
-                if (igTableSetColumnIndex(1_c_int)) &
-                   call iw_text(frac_point_string(xpt(:,i)),alignframe=.true.)
+                   ! position
+                   if (igTableSetColumnIndex(1_c_int)) &
+                      call iw_text(frac_point_string(xpt(:,i)),alignframe=.true.)
+                end do
              end do
+             call ImGuiListClipper_End(clipper)
+             call ImGuiListClipper_destroy(clipper)
              call igEndTable()
           end if
-          ch = showhide_buttons(shown,"wspts","Wigner-Seitz cells",ttshown)
+          if (isbz) then
+             ch = showhide_buttons(shown,"wspts","Brillouin zones",ttshown)
+          else
+             ch = showhide_buttons(shown,"wspts","Wigner-Seitz cells",ttshown)
+          end if
           chpts = chpts .or. ch
 
           ! the cells drawn are the lattice points checked in the table,
@@ -1392,9 +1465,15 @@ contains
           call iw_text("Faces: " // string(w%rep%ws%nf) // ", vertices: " // string(w%rep%ws%nv) //&
              ", edges: " // string(w%rep%ws%nf+w%rep%ws%nv-2))
 
-       call iw_text("Origin shift (fractional)",alignframe=.true.)
-       ch = iw_dragfloat_real8("##originws",x3=w%rep%ws%origin,speed=0.001d0,decimal=5,sameline=.true.)
-       call iw_tooltip("Shift applied to all the Wigner-Seitz cells (fractional)",ttshown)
+       if (isbz) then
+          call iw_text("Origin shift (hkl)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##originws",x3=w%rep%ws%origin,speed=0.001d0,decimal=5,sameline=.true.)
+          call iw_tooltip("Shift applied to all the Brillouin zones (in the reciprocal basis a*, b*, c*)",ttshown)
+       else
+          call iw_text("Origin shift (fractional)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##originws",x3=w%rep%ws%origin,speed=0.001d0,decimal=5,sameline=.true.)
+          call iw_tooltip("Shift applied to all the Wigner-Seitz cells (fractional)",ttshown)
+       end if
        changed = changed .or. ch
     end if
 
@@ -1402,7 +1481,7 @@ contains
     call iw_separatortext("Faces",w%editrep_sec(2))
     if (w%editrep_sec(2)%open) then
        ch = iw_checkbox("Show faces",w%rep%ws%showfaces,labelleft=.true.)
-       call iw_tooltip("Draw the faces of the Wigner-Seitz cell",ttshown)
+       call iw_tooltip("Draw the faces of the cell",ttshown)
        changed = changed .or. ch
        if (w%rep%ws%showfaces) then
           call iw_text("Color",alignframe=.true.,gap=.true.)
@@ -1422,12 +1501,21 @@ contains
     call iw_separatortext("Edges",w%editrep_sec(3))
     if (w%editrep_sec(3)%open) then
        ch = iw_checkbox("Show edges",w%rep%ws%showedges,labelleft=.true.)
-       call iw_tooltip("Draw the edges of the Wigner-Seitz cell",ttshown)
+       call iw_tooltip("Draw the edges of the cell",ttshown)
        changed = changed .or. ch
        if (w%rep%ws%showedges) then
-          call iw_text("Radius (Å)",alignframe=.true.,gap=.true.)
-          ch = iw_dragfloat_real8("##wsedgerad",x1=w%rep%ws%edge_rad,speed=0.002d0,&
-             min=0d0,max=1d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          if (isbz) then
+             ! bohr^-1 stored, 1/Å shown, in steps fit for the reciprocal cell
+             lscale = 1d0 / bohrtoa
+             call iw_text("Radius (1/Å)",alignframe=.true.,gap=.true.)
+             ch = iw_dragfloat_real8("##wsedgerad",x1=w%rep%ws%edge_rad,&
+                speed=2d-3*recip_unit(w%isys),min=0d0,max=recip_unit(w%isys),scale=lscale,decimal=5,sameline=.true.,&
+                flags=ImGuiSliderFlags_AlwaysClamp)
+          else
+             call iw_text("Radius (Å)",alignframe=.true.,gap=.true.)
+             ch = iw_dragfloat_real8("##wsedgerad",x1=w%rep%ws%edge_rad,speed=0.002d0,&
+                min=0d0,max=1d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          end if
           call iw_tooltip("Radius of the edge cylinders",ttshown)
           changed = changed .or. ch
 
@@ -1439,18 +1527,24 @@ contains
     end if
 
     ! error message, outside the sections
-    if (w%rep%ws%nf <= 0) &
-       call iw_text("The Wigner-Seitz cell could not be calculated",danger=.true.)
+    if (w%rep%ws%nf <= 0) then
+       if (isbz) then
+          call iw_text("The Brillouin zone could not be calculated",danger=.true.)
+       else
+          call iw_text("The Wigner-Seitz cell could not be calculated",danger=.true.)
+       end if
+    end if
 
   end function draw_editrep_wscell
 
-  !> Draw the editrep window, lattice vectors class. Returns true if
+  !> Draw the editrep window, lattice vectors class, and the
+  !> reciprocal lattice (the points hkl in its range). Returns true if
   !> the scene needs rendering again.
   module function draw_editrep_latvec(w,ttshown) result(changed)
-    use representations, only: lattice_points, replat_primitive
+    use representations, only: lattice_points, replat_primitive, recip_points, reptype_reclat
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
        iw_separatortext, iw_combo_simple, iw_table_column, iw_table_headers_row, iw_calcwidth,&
-       iw_calcheight, frac_point_string
+       iw_calcheight, frac_point_string, iw_intstepper
     use systems, only: sys
     use tools_io, only: string
     use param, only: bohrtoa
@@ -1466,27 +1560,50 @@ contains
     type(ImVec2) :: sz
     type(c_ptr) :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
+    logical :: isrec
+    real*8 :: u
 
     ! initialize
     changed = .false.
+    isrec = (w%rep%type == reptype_reclat)
 
     !! the lattice
     ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
     ! and a widget skipped because changed is already true is a widget not drawn
     call iw_separatortext("Lattice",w%editrep_sec(1))
     if (w%editrep_sec(1)%open) then
-       call iw_text("Lattice",alignframe=.true.)
-       call iw_combo_simple("##lvlattice","Unit cell" // c_null_char // "Primitive (centered)" // c_null_char,&
-          w%rep%lv%lattice,changed=ch,sameline=.true.)
-       call iw_tooltip("Lattice whose points are drawn: the lattice of the unit cell, &
-          &or the lattice of the unit cell and its centering vectors (the same for a primitive cell)",ttshown)
+       if (isrec) then
+          call iw_text("Real-space lattice",alignframe=.true.)
+          call iw_combo_simple("##lvlattice","Unit cell" // c_null_char //&
+             "Primitive" // c_null_char,w%rep%lv%lattice,changed=ch,sameline=.true.)
+          call iw_tooltip("Reciprocal lattice whose points are drawn: that of the unit cell (every hkl), &
+             &or that of the primitive lattice, without the hkl that the centering vectors extinguish &
+             &(the same for a primitive cell)",ttshown)
+       else
+          call iw_text("Lattice",alignframe=.true.)
+          call iw_combo_simple("##lvlattice","Unit cell" // c_null_char // "Primitive (centered)" // c_null_char,&
+             w%rep%lv%lattice,changed=ch,sameline=.true.)
+          call iw_tooltip("Lattice whose points are drawn: the lattice of the unit cell, &
+             &or the lattice of the unit cell and its centering vectors (the same for a primitive cell)",ttshown)
+       end if
        changed = changed .or. ch
+
+       ! the reciprocal lattice points drawn have |h|,|k|,|l| up to the range
+       if (isrec) then
+          call iw_text("Range",alignframe=.true.)
+          ch = iw_intstepper("##lvrange",w%rep%lv%nrange,minval=0,maxval=10,sameline=.true.)
+          call iw_tooltip("The reciprocal lattice points drawn have |h|, |k|, |l| up to this",ttshown)
+          changed = changed .or. ch
+       end if
 
        ! the lattice points in the region drawn
        iview = w%anchor_view()
        np = 0
-       if (iview > 0) &
+       if (isrec) then
+          call recip_points(w%isys,w%rep%lv%lattice,w%rep%lv%nrange,np,ipt)
+       elseif (iview > 0) then
           call lattice_points(w%isys,w%rep%lv%lattice,win(iview)%sc%disp,w%rep%disp,np,ipt)
+       end if
        call iw_text("Lattice points: " // string(np))
        if (np > 0) then
           flags = ImGuiTableFlags_None
@@ -1500,7 +1617,11 @@ contains
           sz%y = iw_calcheight(min(8,np+1),0,.false.)
           if (igBeginTable(c_loc(str1),1,flags,sz,0._c_float)) then
              ncol = -1
-             call iw_table_column("Lattice point",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+             if (isrec) then
+                call iw_table_column("hkl",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+             else
+                call iw_table_column("Lattice point",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+             end if
              call iw_table_headers_row(freezetop=.true.,autofit=.true.)
              ! only the visible rows are formatted
              clipper = ImGuiListClipper_ImGuiListClipper()
@@ -1510,6 +1631,7 @@ contains
                   call c_f_pointer(clipper,clipper_f)
                   do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
                      call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                     ! (a reciprocal lattice point has centering index 1, the origin)
                      if (igTableSetColumnIndex(0_c_int)) &
                         call iw_text(frac_point_string(ipt(1:3,i) + c%cen(:,ipt(4,i))))
                   end do
@@ -1525,9 +1647,17 @@ contains
     !! the spheres
     call iw_separatortext("Spheres",w%editrep_sec(2),hasmore=.true.)
     if (w%editrep_sec(2)%open) then
-       call iw_text("Radius (Å)",alignframe=.true.)
-       ch = iw_dragfloat_real8("##lvrad",x1=w%rep%lv%rad,speed=0.002d0,min=0d0,max=5d0,scale=bohrtoa,&
-          decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       if (isrec) then
+          ! bohr^-1 stored, 1/Å shown, in steps fit for the reciprocal cell
+          u = recip_unit(w%isys)
+          call iw_text("Radius (1/Å)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##lvrad",x1=w%rep%lv%rad,speed=2d-3*u,min=0d0,max=5d0*u,&
+             scale=1d0/bohrtoa,decimal=5,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       else
+          call iw_text("Radius (Å)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##lvrad",x1=w%rep%lv%rad,speed=0.002d0,min=0d0,max=5d0,scale=bohrtoa,&
+             decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       end if
        call iw_tooltip("Radius of the lattice point spheres",ttshown)
        changed = changed .or. ch
 
@@ -1543,7 +1673,7 @@ contains
        changed = changed .or. ch
 
        ! the points at the centering vectors, if there are any drawn
-       if (w%rep%lv%lattice == replat_primitive .and. sys(w%isys)%c%ncv > 1) then
+       if (.not.isrec .and. w%rep%lv%lattice == replat_primitive .and. sys(w%isys)%c%ncv > 1) then
           ch = iw_checkbox("Separate centering color",w%rep%lv%usecenrgb,labelleft=.true.)
           call iw_tooltip("Draw the lattice points at a centering vector (other than the cell &
              &origins) in their own color",ttshown)
@@ -1558,9 +1688,16 @@ contains
 
        ! border size and color
        if (w%editrep_sec(2)%more) then
-          call iw_text("Border size (Å)",alignframe=.true.)
-          ch = iw_dragfloat_real8("##lvborder",x1=w%rep%lv%border_size,speed=0.002d0,min=0d0,max=1d0,&
-             scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          if (isrec) then
+             u = recip_unit(w%isys)
+             call iw_text("Border size (1/Å)",alignframe=.true.)
+             ch = iw_dragfloat_real8("##lvborder",x1=w%rep%lv%border_size,speed=2d-3*u,min=0d0,max=u,&
+                scale=1d0/bohrtoa,decimal=5,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          else
+             call iw_text("Border size (Å)",alignframe=.true.)
+             ch = iw_dragfloat_real8("##lvborder",x1=w%rep%lv%border_size,speed=0.002d0,min=0d0,max=1d0,&
+                scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          end if
           call iw_tooltip("Thickness of the sphere borders",ttshown)
           changed = changed .or. ch
 
@@ -2060,11 +2197,12 @@ contains
 
   end function draw_editrep_colorbar
 
-  !> Draw the editrep window, cartesian axes class. Returns true if the
+  !> Draw the editrep window, cartesian axes class, and the reciprocal
+  !> axes (a*, b*, c*, always in the window). Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_axes(w,ttshown) result(changed)
     use windows, only: win
-    use representations, only: axplace_scene, axplace_window
+    use representations, only: axplace_scene, axplace_window, reptype_recaxes
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_inputtext,&
        iw_radiobutton, iw_combo_simple, iw_separatortext
     use systems, only: sys
@@ -2073,15 +2211,23 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    logical :: ch
+    logical :: ch, isrec
     integer :: icoord, iview
     real*8 :: zf
+    character(len=2) :: axname(3)
 
     ! initialize
     changed = .false.
+    isrec = (w%rep%type == reptype_recaxes)
+    if (isrec) then
+       axname = (/"a*","b*","c*"/)
+    else
+       axname = (/"x ","y ","z "/)
+    end if
 
-    ! the toolbar, which places and edits the axes in the view
-    if (w%anchor_view() > 0) &
+    ! the toolbar, which places and edits the axes in the view (the
+    ! reciprocal axes are always in the window)
+    if (w%anchor_view() > 0 .and. .not.isrec) &
        call w%editrep_toolbar(ttshown)
 
     !! placement: the kind of axes, and where they are
@@ -2089,7 +2235,7 @@ contains
     if (w%editrep_sec(1)%open) then
        ! axes kind: cartesian (x/y/z) or crystallographic (a/b/c). Only
        ! meaningful for crystals (molecules have no lattice vectors).
-       if (.not.sys(w%isys)%c%ismolecule) then
+       if (.not.sys(w%isys)%c%ismolecule .and. .not.isrec) then
           icoord = w%rep%axes%kind
           call iw_text("Type",alignframe=.true.)
           call iw_combo_simple("##axeskind","Cartesian" // c_null_char // &
@@ -2111,15 +2257,18 @@ contains
        end if
 
        ! position
-       call iw_text("Position",alignframe=.true.)
-       ch = iw_radiobutton("Fixed in window",int=w%rep%axes%placement,intval=int(axplace_window,c_int),&
-          sameline=.true.)
-       if (ch) w%rep%axes%scale_auto = .true. ! re-size the gizmo for the scene
-       changed = changed .or. ch
-       call iw_tooltip("Anchor the axes at a fixed position in the window",ttshown)
-       changed = changed .or. iw_radiobutton("In the scene",int=w%rep%axes%placement,&
-          intval=int(axplace_scene,c_int),sameline=.true.)
-       call iw_tooltip("Place the axes at a point of the scene",ttshown)
+       if (.not.isrec) then
+          call iw_text("Position",alignframe=.true.)
+          ch = iw_radiobutton("Fixed in window",int=w%rep%axes%placement,intval=int(axplace_window,c_int),&
+             sameline=.true.)
+          if (ch) w%rep%axes%scale_auto = .true. ! re-size the gizmo for the scene
+          changed = changed .or. ch
+          call iw_tooltip("Anchor the axes at a fixed position in the window",ttshown)
+          ch = iw_radiobutton("In the scene",int=w%rep%axes%placement,&
+             intval=int(axplace_scene,c_int),sameline=.true.)
+          changed = changed .or. ch
+          call iw_tooltip("Place the axes at a point of the scene",ttshown)
+       end if
        if (w%rep%axes%placement == axplace_scene) then
           call iw_text("Coordinates",alignframe=.true.)
           if (sys(w%isys)%c%ismolecule) then
@@ -2182,37 +2331,46 @@ contains
        changed = changed .or. ch
        call iw_tooltip("Global scale factor applied to the whole gizmo (arrows and labels)",ttshown)
 
-       ! arrow shafts
-       call iw_text("Shaft length (Å)",alignframe=.true.)
-       changed = changed .or. iw_dragfloat_real8("##arrowshaftlength",x1=w%rep%axes%length,speed=0.01d0,&
-          min=0d0,max=100d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Length of each cartesian axis",ttshown)
-       call iw_text("Shaft radius (Å)",alignframe=.true.,gap=.true.)
-       changed = changed .or. iw_dragfloat_real8("##axesradius",x1=w%rep%axes%radius,speed=0.005d0,&
-          min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Radius of the axis shafts",ttshown)
+       ! arrow shafts (the reciprocal axes are drawn with the defaults, scaled)
+       if (.not.isrec) then
+          call iw_text("Shaft length (Å)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##arrowshaftlength",x1=w%rep%axes%length,speed=0.01d0,&
+             min=0d0,max=100d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          changed = changed .or. ch
+          call iw_tooltip("Length of each cartesian axis",ttshown)
+          call iw_text("Shaft radius (Å)",alignframe=.true.,gap=.true.)
+          ch = iw_dragfloat_real8("##axesradius",x1=w%rep%axes%radius,speed=0.005d0,&
+             min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          changed = changed .or. ch
+          call iw_tooltip("Radius of the axis shafts",ttshown)
 
-       ! arrowheads
-       call iw_text("Head length (Å)",alignframe=.true.)
-       changed = changed .or. iw_dragfloat_real8("##arrowheadlength",x1=w%rep%axes%conelength,speed=0.005d0,&
-          min=0d0,max=10d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Length of the arrowhead cones (controls how pointy the arrows are)",ttshown)
-       call iw_text("Head radius (Å)",alignframe=.true.,gap=.true.)
-       changed = changed .or. iw_dragfloat_real8("##conerad",x1=w%rep%axes%coneradius,speed=0.005d0,&
-          min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Base radius of the arrowhead cones (controls how wide the arrows are)",ttshown)
+          ! arrowheads
+          call iw_text("Head length (Å)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##arrowheadlength",x1=w%rep%axes%conelength,speed=0.005d0,&
+             min=0d0,max=10d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          changed = changed .or. ch
+          call iw_tooltip("Length of the arrowhead cones (controls how pointy the arrows are)",ttshown)
+          call iw_text("Head radius (Å)",alignframe=.true.,gap=.true.)
+          ch = iw_dragfloat_real8("##conerad",x1=w%rep%axes%coneradius,speed=0.005d0,&
+             min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          changed = changed .or. ch
+          call iw_tooltip("Base radius of the arrowhead cones (controls how wide the arrows are)",ttshown)
+       end if
 
        ! colors
        call iw_text("Colors",alignframe=.true.)
-       call iw_text("x",alignframe=.true.,sameline=.true.)
-       changed = changed .or. iw_coloredit("##axescolx",rgb=w%rep%axes%rgb(:,1),sameline=.true.)
-       call iw_tooltip("Color of the x axis",ttshown)
-       call iw_text("y",alignframe=.true.,gap=.true.)
-       changed = changed .or. iw_coloredit("##axescoly",rgb=w%rep%axes%rgb(:,2),sameline=.true.)
-       call iw_tooltip("Color of the y axis",ttshown)
-       call iw_text("z",alignframe=.true.,gap=.true.)
-       changed = changed .or. iw_coloredit("##axescolz",rgb=w%rep%axes%rgb(:,3),sameline=.true.)
-       call iw_tooltip("Color of the z axis",ttshown)
+       call iw_text(trim(axname(1)),alignframe=.true.,sameline=.true.)
+       ch = iw_coloredit("##axescolx",rgb=w%rep%axes%rgb(:,1),sameline=.true.)
+       changed = changed .or. ch
+       call iw_tooltip("Color of the " // trim(axname(1)) // " axis",ttshown)
+       call iw_text(trim(axname(2)),alignframe=.true.,gap=.true.)
+       ch = iw_coloredit("##axescoly",rgb=w%rep%axes%rgb(:,2),sameline=.true.)
+       changed = changed .or. ch
+       call iw_tooltip("Color of the " // trim(axname(2)) // " axis",ttshown)
+       call iw_text(trim(axname(3)),alignframe=.true.,gap=.true.)
+       ch = iw_coloredit("##axescolz",rgb=w%rep%axes%rgb(:,3),sameline=.true.)
+       changed = changed .or. ch
+       call iw_tooltip("Color of the " // trim(axname(3)) // " axis",ttshown)
     end if
 
     !! labels
@@ -2245,22 +2403,29 @@ contains
              sameline=.true.)
           call iw_tooltip("Text shown for each axis label",ttshown)
 
-          call iw_text("Distance to arrow head (Å)",alignframe=.true.)
-          changed = changed .or. iw_dragfloat_real8("##axeslabeldist",x1=w%rep%axes%labeldistance,&
-             speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
-          call iw_tooltip("Distance from the arrowhead to the label, along the axis (all axes)",ttshown)
-          call iw_text("x offset (Å)",alignframe=.true.)
-          changed = changed .or. iw_dragfloat_real8("##axeslbloffx",x3=w%rep%axes%labeloffset(:,1),&
-             speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
-          call iw_tooltip("Cartesian offset (Å) of the x-axis label from its position on the axis",ttshown)
-          call iw_text("y offset (Å)",alignframe=.true.)
-          changed = changed .or. iw_dragfloat_real8("##axeslbloffy",x3=w%rep%axes%labeloffset(:,2),&
-             speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
-          call iw_tooltip("Cartesian offset (Å) of the y-axis label from its position on the axis",ttshown)
-          call iw_text("z offset (Å)",alignframe=.true.)
-          changed = changed .or. iw_dragfloat_real8("##axeslbloffz",x3=w%rep%axes%labeloffset(:,3),&
-             speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
-          call iw_tooltip("Cartesian offset (Å) of the z-axis label from its position on the axis",ttshown)
+          ! the label placement (the reciprocal axes keep the defaults)
+          if (.not.isrec) then
+             call iw_text("Distance to arrow head (Å)",alignframe=.true.)
+             ch = iw_dragfloat_real8("##axeslabeldist",x1=w%rep%axes%labeldistance,&
+                speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
+             changed = changed .or. ch
+             call iw_tooltip("Distance from the arrowhead to the label, along the axis (all axes)",ttshown)
+             call iw_text("x offset (Å)",alignframe=.true.)
+             ch = iw_dragfloat_real8("##axeslbloffx",x3=w%rep%axes%labeloffset(:,1),&
+                speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
+             changed = changed .or. ch
+             call iw_tooltip("Cartesian offset (Å) of the x-axis label from its position on the axis",ttshown)
+             call iw_text("y offset (Å)",alignframe=.true.)
+             ch = iw_dragfloat_real8("##axeslbloffy",x3=w%rep%axes%labeloffset(:,2),&
+                speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
+             changed = changed .or. ch
+             call iw_tooltip("Cartesian offset (Å) of the y-axis label from its position on the axis",ttshown)
+             call iw_text("z offset (Å)",alignframe=.true.)
+             ch = iw_dragfloat_real8("##axeslbloffz",x3=w%rep%axes%labeloffset(:,3),&
+                speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
+             changed = changed .or. ch
+             call iw_tooltip("Cartesian offset (Å) of the z-axis label from its position on the axis",ttshown)
+          end if
        end if
     end if
 
@@ -7390,5 +7555,19 @@ contains
     end subroutine write_point
 
   end subroutine write_paths
+
+  !> The reciprocal length (1/Å) drawn in the reciprocal-space scene
+  !> of system isys as large as 1 Å is in real space: the scale of the
+  !> drag widgets of the reciprocal sizes, stored in bohr^-1.
+  function recip_unit(isys) result(u)
+    use representations, only: recip_scale
+    use systems, only: sys
+    use param, only: bohrtoa
+    integer, intent(in) :: isys
+    real*8 :: u
+
+    u = 1d0 / (recip_scale(sys(isys)%c) * bohrtoa**2)
+
+  end function recip_unit
 
 end submodule editrep

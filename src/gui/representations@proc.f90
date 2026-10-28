@@ -199,6 +199,8 @@ contains
        r%uc%innersteplen = uc_innersteplen_def
        r%uc%innerstipple = .true.
        r%uc%origin = 0d0
+       ! reciprocal cell: its sizes are in bohr^-1
+       if (r%type == reptype_reccell) r%uc%radius = uc_radius_def / recip_scale(sys(isys)%c)
     end if
 
     ! cartesian axes
@@ -229,6 +231,13 @@ contains
        r%axes%labelstr(1) = "x"
        r%axes%labelstr(2) = "y"
        r%axes%labelstr(3) = "z"
+       ! reciprocal axes: a*, b*, c*, always in the window
+       if (r%type == reptype_recaxes) then
+          r%axes%kind = 2
+          r%axes%labelstr(1) = "a*"
+          r%axes%labelstr(2) = "b*"
+          r%axes%labelstr(3) = "c*"
+       end if
     end if
 
     ! coordination polyhedra
@@ -356,11 +365,18 @@ contains
        ! one cell, at the origin
        allocate(r%ws%pts(3,1))
        r%ws%pts = 0d0
+       ! Brillouin zone: its sizes are in bohr^-1
+       if (r%type == reptype_bz) r%ws%edge_rad = wsedgerad_def / recip_scale(sys(isys)%c)
     end if
 
     ! lattice vectors
     if (itype == 0 .or. itype == 22) then
        r%lv = rep_latvec()
+       ! reciprocal lattice: its sizes are in bohr^-1
+       if (r%type == reptype_reclat) then
+          r%lv%rad = latvec_rad_def / recip_scale(sys(isys)%c)
+          r%lv%border_size = atomborder_def / recip_scale(sys(isys)%c)
+       end if
     end if
 
     ! initialize the styles
@@ -489,35 +505,55 @@ contains
   !> Returns the number of faces (nf) and vertices (nv), the number of
   !> vertices of each face (nside) with their indices in cyclic order
   !> (iside), and the vertices (xv, cartesian bohr). nf = 0 if there
-  !> is no cell (molecules, or qhull failed).
-  module subroutine wscell_geometry(isys,lattice,nf,nv,nside,iside,xv)
+  !> is no cell (molecules, or qhull failed). With recip, the cell of
+  !> the reciprocal lattice instead: the reciprocal of the lattice of
+  !> the unit cell (replat_cell), or the reciprocal of the primitive
+  !> lattice, whose cell is the first Brillouin zone (replat_primitive),
+  !> with the vertices in the frame of the reciprocal-space scene
+  !> (recip_scale times the reciprocal cartesian coordinates, bohr^-1).
+  module subroutine wscell_geometry(isys,lattice,nf,nv,nside,iside,xv,recip)
     use systems, only: sys
     use tools, only: wscell, primitive_lattice
+    use tools_math, only: matinv
     integer, intent(in) :: isys
     integer, intent(in) :: lattice
     integer, intent(out) :: nf, nv
     integer, allocatable, intent(inout) :: nside(:), iside(:,:)
     real*8, allocatable, intent(inout) :: xv(:,:)
+    logical, intent(in), optional :: recip
 
-    real*8 :: m_x2cp(3,3)
-    logical :: okp
+    real*8 :: b(3,3)
+    logical :: okp, lrec, lprim
     character(len=:), allocatable :: errmsg
 
     nf = 0
     nv = 0
+    lrec = .false.
+    if (present(recip)) lrec = recip
     associate(c => sys(isys)%c)
       if (c%ismolecule) return
-      if (lattice == replat_primitive .and. c%ncv > 1) then
-         ! the primitive lattice (no cell if no basis is found)
-         call primitive_lattice(c%m_x2c,c%ncv,c%cen,m_x2cp,okp)
-         if (.not.okp) return
-         call wscell(m_x2cp,.true.,nf=nf,nv=nv,iside=iside,nside=nside,x=xv,errmsg=errmsg)
+      lprim = (lattice == replat_primitive .and. c%ncv > 1)
+      if (lprim .or. lrec) then
+         ! the basis: of the primitive lattice (no cell if none is found)
+         ! or of the cell; reciprocal: its reciprocal, in the frame of the
+         ! reciprocal-space scene
+         if (lprim) then
+            call primitive_lattice(c%m_x2c,c%ncv,c%cen,b,okp)
+            if (.not.okp) return
+         else
+            b = c%m_x2c
+         end if
+         if (lrec) then
+            call matinv(b,3)
+            b = recip_scale(c) * transpose(b)
+         end if
+         call wscell(b,.true.,nf=nf,nv=nv,iside=iside,nside=nside,x=xv,errmsg=errmsg)
          if (len_trim(errmsg) > 0) then
             nf = 0
             nv = 0
             return
          end if
-         xv = matmul(m_x2cp,xv(:,1:nv))
+         xv = matmul(b,xv(:,1:nv))
       else
          ! the cell calculated with the crystal structure
          if (c%ws_nf <= 0 .or. .not.allocated(c%ws_x)) return
@@ -530,6 +566,74 @@ contains
     end associate
 
   end subroutine wscell_geometry
+
+  !> The reciprocal lattice points of system isys with |h|,|k|,|l| <=
+  !> n, in the reciprocal basis of the unit cell (a*, b*, c*, without
+  !> 2*pi): all of them (lattice = replat_cell), or only those of the
+  !> reciprocal of the primitive lattice, with h*t integer for every
+  !> centering vector t (replat_primitive; the others are the
+  !> reflections a centered cell extinguishes). Returns np points in
+  !> ipt(:,1:np): h, k, l (1:3) and 1 (4, so the point identifies itself
+  !> in the pick as a lattice point does). Molecules have none.
+  module subroutine recip_points(isys,lattice,n,np,ipt)
+    use systems, only: sys
+    integer, intent(in) :: isys
+    integer, intent(in) :: lattice
+    integer, intent(in) :: n
+    integer, intent(out) :: np
+    integer, allocatable, intent(inout) :: ipt(:,:)
+
+    real*8, parameter :: eps = 1d-5
+    integer :: i, j, k, l, nn
+    real*8 :: x
+
+    np = 0
+    if (allocated(ipt)) deallocate(ipt)
+    nn = max(n,0)
+    allocate(ipt(4,(2*nn+1)**3))
+    associate(c => sys(isys)%c)
+      if (c%ismolecule) return
+      do i = -nn, nn
+         do j = -nn, nn
+            loop: do k = -nn, nn
+               if (lattice == replat_primitive) then
+                  do l = 2, c%ncv
+                     x = i * c%cen(1,l) + j * c%cen(2,l) + k * c%cen(3,l)
+                     if (abs(x - nint(x)) > eps) cycle loop
+                  end do
+               end if
+               np = np + 1
+               ipt(:,np) = (/i,j,k,1/)
+            end do loop
+         end do
+      end do
+    end associate
+
+  end subroutine recip_points
+
+  !> The scale of the reciprocal-space scene of crystal c: positions
+  !> in the scene are this times the reciprocal cartesian coordinates
+  !> (bohr^-1, without 2*pi), so the reciprocal cell of a cubic crystal
+  !> is drawn as large as its unit cell, and the camera and drawing
+  !> sizes made for structures work. It never shows in the interface,
+  !> which gives reciprocal coordinates in hkl and in 1/Å.
+  module function recip_scale(c) result(s)
+    type(crystal), intent(in) :: c
+    real*8 :: s
+
+    s = max(c%omega,1d-10)**(2d0/3d0)
+
+  end function recip_scale
+
+  !> Whether the objects of kind itype belong to reciprocal space.
+  module function reptype_is_recip(itype) result(ok)
+    integer, intent(in) :: itype
+    logical :: ok
+
+    ok = (itype == reptype_bz .or. itype == reptype_reclat .or. itype == reptype_reccell .or.&
+       itype == reptype_recaxes)
+
+  end function reptype_is_recip
 
   !> The row of the label style of the labels object r that holds cell
   !> atom iat: its species, non-equivalent atom, cell atom, or molecule,
@@ -695,6 +799,9 @@ contains
     do k = 1, 3
        if (ax%kind == 1 .and. .not.c%ismolecule) then
           u(:,k) = c%m_x2c(:,k) / norm2(c%m_x2c(:,k))
+       elseif (ax%kind == 2 .and. .not.c%ismolecule) then
+          ! reciprocal: a*, b*, c*
+          u(:,k) = c%m_rx2rc(:,k) / norm2(c%m_rx2rc(:,k))
        else
           u(k,k) = 1d0
        end if
@@ -1761,13 +1868,16 @@ contains
              end do
           end do
        end if
-    elseif (r%type == reptype_wscell) then
-       !!! Wigner-Seitz cell !!!
+    elseif (r%type == reptype_wscell .or. r%type == reptype_bz) then
+       !!! Wigner-Seitz cell, Brillouin zone !!!
        call append_wscell()
-    elseif (r%type == reptype_latvec) then
-       !!! lattice vectors !!!
+    elseif (r%type == reptype_latvec .or. r%type == reptype_reclat) then
+       !!! lattice vectors, reciprocal lattice !!!
        call append_latvec()
-    elseif (r%type == reptype_axes) then
+    elseif (r%type == reptype_reccell) then
+       !!! reciprocal cell !!!
+       call append_reccell()
+    elseif (r%type == reptype_axes .or. r%type == reptype_recaxes) then
        !!! cartesian axes representation !!!
 
        ! placement: at the cartesian origin (+shift), or anchored to a
@@ -4147,29 +4257,42 @@ contains
     !> The faces (translucent, fan-triangulated from their centroid)
     !> and the edges of the Wigner-Seitz cells, at the selected lattice
     !> points of the displayed cells plus the origin shift. A face or
-    !> an edge shared by two cells is drawn once.
+    !> an edge shared by two cells is drawn once. The Brillouin zone is
+    !> the same, with the reciprocal lattice points in its range.
     subroutine append_wscell()
       integer :: nf, nv, jf, jv, ia, ib, np, ip, nsel, mf, me, k
       integer, allocatable :: nside(:), iside(:,:), ipt(:,:)
       real*8, allocatable :: xv(:,:), xsel(:,:), fcen(:,:), emid(:,:), eend(:,:,:)
       integer, allocatable :: fcell(:), fidx(:)
       logical, allocatable :: keep(:)
-      real*8 :: xo(3)
+      real*8 :: xo(3), rscale, mframe(3,3)
+      logical :: isbz
       complex*16, parameter :: dzero(3) = (0d0,0d0)
       type(dl_cylinder) :: dedge
 
-      call wscell_geometry(r%id,r%ws%lattice,nf,nv,nside,iside,xv)
+      isbz = (r%type == reptype_bz)
+      call wscell_geometry(r%id,r%ws%lattice,nf,nv,nside,iside,xv,recip=isbz)
       if (nf <= 0) return
 
-      ! the selected lattice points of the displayed cells
-      call lattice_points(r%id,r%ws%lattice,disp,r%disp,np,ipt)
+      ! the selected lattice points of the displayed cells (Brillouin
+      ! zone: the reciprocal lattice points in its range, whose centering
+      ! index is 1, the origin), and the frame they are drawn in
+      if (isbz) then
+         call recip_points(r%id,r%ws%lattice,r%ws%nrange,np,ipt)
+         rscale = recip_scale(c)
+         mframe = rscale * c%m_rx2rc
+      else
+         call lattice_points(r%id,r%ws%lattice,disp,r%disp,np,ipt)
+         rscale = 1d0
+         mframe = c%m_x2c
+      end if
       allocate(xsel(3,np))
       nsel = 0
       do ip = 1, np
          xo = ipt(1:3,ip) + c%cen(:,ipt(4,ip))
          if (.not.wscell_isdrawn(r%ws,xo)) cycle
          nsel = nsel + 1
-         xsel(:,nsel) = c%x2c(xo + r%ws%origin)
+         xsel(:,nsel) = matmul(mframe,xo + r%ws%origin)
       end do
       if (nsel == 0) return
 
@@ -4218,7 +4341,7 @@ contains
             end do
          end do
          call unique_points(emid,me,keep)
-         dedge%r = real(r%ws%edge_rad,c_float)
+         dedge%r = real(rscale * r%ws%edge_rad,c_float)
          dedge%rgb = r%ws%edge_rgb
          do k = 1, me
             if (.not.keep(k)) cycle
@@ -4232,22 +4355,61 @@ contains
 
     !> One sphere at each lattice point in the region drawn, carrying
     !> its identity (latidx: cell and centering vector) for the pick.
+    !> The reciprocal lattice is the same, with the points in its range
+    !> (latidx: h, k, l and 1).
     subroutine append_latvec()
       integer :: np, ip
       integer, allocatable :: ipt(:,:)
       type(dl_sphere) :: dlat
+      real*8 :: xs(3), rscale, mframe(3,3)
 
-      call lattice_points(r%id,r%lv%lattice,disp,r%disp,np,ipt,margin=r%lv%margin)
+      ! the points, and the frame they are drawn in (a reciprocal lattice
+      ! point has centering index 1, the origin)
+      if (r%type == reptype_reclat) then
+         call recip_points(r%id,r%lv%lattice,r%lv%nrange,np,ipt)
+         rscale = recip_scale(c)
+         mframe = rscale * c%m_rx2rc
+      else
+         call lattice_points(r%id,r%lv%lattice,disp,r%disp,np,ipt,margin=r%lv%margin)
+         rscale = 1d0
+         mframe = c%m_x2c
+      end if
       do ip = 1, np
-         dlat = dl_sphere(x=real(c%x2c(ipt(1:3,ip) + c%cen(:,ipt(4,ip))),c_float),r=real(r%lv%rad,c_float),&
+         xs = matmul(mframe,ipt(1:3,ip) + c%cen(:,ipt(4,ip)))
+         dlat = dl_sphere(x=real(xs,c_float),r=real(rscale * r%lv%rad,c_float),&
             rgb=r%lv%rgb,idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
-            border=real(r%lv%border_size,c_float),rgbborder=r%lv%border_rgb,&
+            border=real(rscale * r%lv%border_size,c_float),rgbborder=r%lv%border_rgb,&
             alpha=real(r%lv%alpha,c_float),latidx=ipt(:,ip))
          if (r%lv%usecenrgb .and. ipt(4,ip) > 1) dlat%rgb = r%lv%cenrgb
          call dl_append(obj%sph,obj%nsph,dlat)
       end do
 
     end subroutine append_latvec
+
+    !> The twelve edges of the reciprocal cell (spanned by a*, b*, c*)
+    !> at its origin, with a*, b*, c* in the axis colors if asked.
+    subroutine append_reccell()
+      integer :: i
+      real*8 :: rscale, xa(3), xb(3), mframe(3,3)
+      type(dl_cylinder) :: dedge
+
+      rscale = recip_scale(c)
+      mframe = rscale * c%m_rx2rc
+      dedge%r = real(rscale * r%uc%radius,c_float)
+      do i = 1, 12
+         xa = matmul(mframe,r%uc%origin + real(uc(:,1,i),8))
+         xb = matmul(mframe,r%uc%origin + real(uc(:,2,i),8))
+         dedge%x1 = real(xa,c_float)
+         dedge%x2 = real(xb,c_float)
+         if (r%uc%coloraxes .and. i <= 3) then
+            dedge%rgb = ColorAxes_def(:,i)
+         else
+            dedge%rgb = r%uc%rgb
+         end if
+         call dl_append(obj%cylflat,obj%ncylflat,dedge)
+      end do
+
+    end subroutine append_reccell
 
   end subroutine add_draw_elements
 

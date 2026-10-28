@@ -35,6 +35,13 @@ module scenes
   real(c_float), parameter, public :: min_zoom = 1._c_float
   real(c_float), parameter, public :: max_zoom = 100._c_float
 
+  !> The space a scene shows: real space (the structure) or reciprocal
+  !> space (the reciprocal lattice, its Brillouin zone, k-space data).
+  !> The two have different units, so a scene holds the objects of one
+  !> space only.
+  integer, parameter, public :: space_real = 0
+  integer, parameter, public :: space_recip = 1
+
   !> Animation default parameters
   real*8, parameter, public :: anim_speed_default = 4d0
   real*8, parameter, public :: anim_amplitude_default = 5d0
@@ -82,6 +89,7 @@ module scenes
      integer :: isinit = 0 ! 0=uninitialized, 1=initialized but not built, 2=init and built
      integer :: gen = 0 ! generation, one more at each init (the objects of earlier ones are gone)
      integer :: id ! system ID
+     integer :: space = space_real ! the space of the objects (space_real/space_recip); kept by init and end
      integer, allocatable :: iord(:) ! the representation order
      logical :: forcesort = .false. ! force sort the representations
      logical :: forceresetcam = .false. ! force reset of the camera
@@ -121,6 +129,7 @@ module scenes
      logical :: hasanchoredobj = .false. ! true if any object is anchored to the window borders (needs re-render on resize)
      integer*8 :: lockedcam = 0 ! 0=no, -1=global locking group, else the locking group (uid of the group master system)
      type(scene_camera), allocatable :: campending ! camera to take once the first camera reset is done (a loaded scene file)
+     real(c_float), allocatable :: rotpending(:,:) ! orientation (3x3) to take about the scene center at the next render (switch of space)
      ! list of representations
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
@@ -229,9 +238,10 @@ module scenes
   ! module procedure interfaces
   interface
      ! scene
-     module subroutine scene_init(s,isys)
+     module subroutine scene_init(s,isys,space)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: isys
+       integer, intent(in), optional :: space
      end subroutine scene_init
      module subroutine scene_end(s)
        class(scene), intent(inout), target :: s

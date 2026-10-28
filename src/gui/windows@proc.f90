@@ -750,7 +750,7 @@ contains
   !> editrep window whose parent view comes later in the stack follow
   !> the parent's stale scene pointer.
   module subroutine regenerate_window_pointers()
-    use systems, only: sysc, sys_init, ok_system
+    use systems, only: main_scene
 
     integer :: i, iv
 
@@ -767,9 +767,7 @@ contains
 
        ! The main view shows the scene of its system, which lives inside
        ! the sysc array and moves with it.
-       nullify(win(i)%sc)
-       iv = win(i)%isys
-       if (ok_system(iv,sys_init)) win(i)%sc => sysc(iv)%sc
+       win(i)%sc => main_scene(win(i)%isys,win(i)%kspace)
     end do
 
     ! the representation edited by each edit-representation window; if
@@ -835,6 +833,8 @@ contains
     w%okfile_set = .false. ! whether the library file has been set by the user
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
     nullify(w%sc)
+    nullify(w%scother)
+    w%kspace = .false.
     w%forcerender = .true.
     if (allocated(w%iord)) deallocate(w%iord)
     w%lastselected = 0
@@ -1169,6 +1169,10 @@ contains
           call w%delete_texture_view()
           if (.not.w%ismain) then
              if (associated(w%sc)) deallocate(w%sc)
+             if (associated(w%scother)) then
+                call w%scother%end()
+                deallocate(w%scother)
+             end if
           end if
        elseif (w%type == wintype_cp) then
           ! the CP under the mouse in its table is no longer highlighted

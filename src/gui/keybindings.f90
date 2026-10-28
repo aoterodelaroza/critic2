@@ -142,7 +142,8 @@ module keybindings
   integer, parameter, public :: BIND_VIEW_TOGGLE_ANNOTATE = 88 ! view: show/hide the annotation row
   integer, parameter, public :: BIND_REDO_ALT = 89 ! redo, the second key for it
   integer, parameter, public :: BIND_EDIT_WHEEL = 90 ! view: step the distance/angle/dihedral being edited in the builder
-  integer, parameter, public :: BIND_NUM = 90 ! total number of binds
+  integer, parameter, public :: BIND_VIEW_TOGGLE_KSPACE = 91 ! view: switch between the real- and reciprocal-space scenes
+  integer, parameter, public :: BIND_NUM = 91 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -235,7 +236,8 @@ module keybindings
      "Do not snap to atoms            ",& ! BIND_OBJEDIT_NOSNAP
      "Toggle the annotation toolbar   ",& ! BIND_VIEW_TOGGLE_ANNOTATE
      "Redo (second key)               ",& ! BIND_REDO_ALT
-     "Step the edited measurement     "&  ! BIND_EDIT_WHEEL
+     "Step the edited measurement     ",& ! BIND_EDIT_WHEEL
+     "Toggle reciprocal space         "&  ! BIND_VIEW_TOGGLE_KSPACE
      /)
 
   ! The key associated with each bind, bind -> key
@@ -384,7 +386,8 @@ module keybindings
      group_viewmode_objedit,&     ! BIND_OBJEDIT_NOSNAP
      group_view,&                 ! BIND_VIEW_TOGGLE_ANNOTATE
      group_global,&               ! BIND_REDO_ALT
-     group_viewmode_editmeasure/) ! BIND_EDIT_WHEEL
+     group_viewmode_editmeasure,& ! BIND_EDIT_WHEEL
+     group_view/)                 ! BIND_VIEW_TOGGLE_KSPACE
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -480,7 +483,8 @@ module keybindings
      -1,& ! BIND_OBJEDIT_NOSNAP
      0,&  ! BIND_VIEW_TOGGLE_ANNOTATE
      0,&  ! BIND_REDO_ALT
-     0/)  ! BIND_EDIT_WHEEL
+     0,&  ! BIND_EDIT_WHEEL
+     0/)  ! BIND_VIEW_TOGGLE_KSPACE
 
   ! module procedure interfaces
   interface

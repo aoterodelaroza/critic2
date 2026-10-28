@@ -26,6 +26,7 @@
 ! next to the scene file for a field with no file), written when the
 ! scene is saved and read when it is loaded.
 submodule (systems) scenefile
+  use scenes, only: space_recip
   implicit none
 
   ! version of the scene file format written; a reader refuses files
@@ -38,8 +39,10 @@ submodule (systems) scenefile
   ! subroutine add_file_entry(json,r,path,dir)
   ! function find_file_entry(json,r,dir,changed) result(file)
   ! function replace_files(line,old,new) result(lnew)
-  ! subroutine write_objects(json,p,isys)
-  ! subroutine load_objects(isys,str,autoadded)
+  ! subroutine write_scene_part(json,p,sc)
+  ! subroutine read_scene_part(json,p,objects,autoadded,bgcolor,cam)
+  ! subroutine write_objects(json,p,sc)
+  ! subroutine load_objects(sc,str,autoadded)
 
 contains
 
@@ -55,7 +58,6 @@ contains
     type(json_core), target :: json
     type(json_value), pointer :: p, o
     type(crystalseed) :: seed
-    type(scene_camera) :: cam
     integer :: i, j, n
     integer, allocatable :: iv(:)
     logical :: ok, copysym
@@ -104,13 +106,17 @@ contains
 
     ! the fields and the objects
     call write_fields(json,p,isys,file)
-    call write_objects(json,p,isys)
+    call write_scene_part(json,p,sysc(isys)%sc)
 
-    ! the scene: Display, background, camera
+    ! the Display of the scene
     call sysc(isys)%sc%disp%write_json(json,p)
-    call json%add(p,'background',real(sysc(isys)%sc%bgcolor,8))
-    call sysc(isys)%sc%cam_get(cam)
-    call cam%write_json(json,p)
+
+    ! the reciprocal-space scene, if it was made
+    if (sysc(isys)%sck%isinit /= 0) then
+       call json%create_object(o,'kspace')
+       call json%add(p,o)
+       call write_scene_part(json,o,sysc(isys)%sck)
+    end if
 
     ! write the file
     call json%print(p,file)
@@ -146,7 +152,6 @@ contains
     use tools_io, only: string
     use utils, only: file_name_abs
     use param, only: isformat_r_derived
-    use representations, only: reptype_NUM
     character*(*), intent(in) :: file
     type(crystalseed), allocatable, intent(inout) :: seed(:)
     type(scene_pending), intent(out) :: pend
@@ -156,7 +161,6 @@ contains
     type(json_value), pointer :: p, o
     integer, allocatable :: iv(:)
     real*8, allocatable :: rv(:)
-    logical, allocatable :: lv(:)
     character(len=:), allocatable :: name
     integer :: i, iver
     logical :: found, ok
@@ -227,33 +231,20 @@ contains
     ! the fields
     call read_fields(json,p,file,pend)
 
-    ! the objects, kept as JSON text until the system is built
-    call json%get(p,'objects',o,found)
-    if (found) call json%print_to_string(o,pend%objects)
-    call json%get(p,'objects_autoadded',lv,found)
-    if (found) then
-       ! files written before a kind was added have fewer entries: the
-       ! kinds they know
-       allocate(pend%autoadded(reptype_NUM))
-       pend%autoadded = .false.
-       pend%autoadded(1:min(size(lv),reptype_NUM)) = lv(1:min(size(lv),reptype_NUM))
-    end if
+    ! the objects (kept as JSON text until the system is built),
+    ! background and camera
+    call read_scene_part(json,p,pend%objects,pend%autoadded,pend%bgcolor,pend%cam)
 
-    ! the scene settings
+    ! the Display of the scene
     call json%get(p,'display',o,found)
     if (found) then
        allocate(pend%disp)
        call pend%disp%read_json(json,o)
     end if
-    call json%get(p,'background',rv,found)
-    if (found) then
-       if (size(rv) == 3) pend%bgcolor = real(rv,c_float)
-    end if
-    call json%get(p,'camera',o,found)
-    if (found) then
-       allocate(pend%cam)
-       if (.not.pend%cam%read_json(json,o)) deallocate(pend%cam)
-    end if
+
+    ! the reciprocal-space scene
+    call json%get(p,'kspace',o,found)
+    if (found) call read_scene_part(json,o,pend%kobjects,pend%kautoadded,pend%kbgcolor,pend%kcam)
 
     pend%file = file_name_abs(file)
 
@@ -371,7 +362,7 @@ contains
     if (.not.allocated(sysc(isys)%scenefile)) return
 
     associate(pend => sysc(isys)%scenefile, sc => sysc(isys)%sc)
-      if (allocated(pend%objects)) call load_objects(isys,pend%objects,pend%autoadded)
+      if (allocated(pend%objects)) call load_objects(sc,pend%objects,pend%autoadded)
       if (allocated(pend%disp)) then
          sc%disp = pend%disp
          if (sc%disp%atype < 1 .or. sc%disp%atype > atlisttype_NUM) then
@@ -386,6 +377,17 @@ contains
       if (allocated(pend%cam)) sc%campending = pend%cam
       sc%forcebuildlists = .true.
     end associate
+
+    ! the reciprocal-space scene of the file, made now with its objects
+    if (allocated(sysc(isys)%scenefile%kobjects) .and. .not.sys(isys)%c%ismolecule) then
+       associate(pend => sysc(isys)%scenefile, sck => sysc(isys)%sck)
+         call sck%init(isys,space_recip)
+         call load_objects(sck,pend%kobjects,pend%kautoadded)
+         if (allocated(pend%kbgcolor)) sck%bgcolor = pend%kbgcolor
+         if (allocated(pend%kcam)) sck%campending = pend%kcam
+         sck%forcebuildlists = .true.
+       end associate
+    end if
     deallocate(sysc(isys)%scenefile)
 
   end subroutine scene_file_apply
@@ -495,19 +497,82 @@ contains
 
   end subroutine write_fields
 
-  !> Write the objects of the main scene of system isys (not the
-  !> transient ones) to the json object p, in the order of the object
-  !> list, with the kinds added to the scene. A color bar names its
-  !> isosurface object by its position in the file (from 1), and the
-  !> isosurface by its position in that object (colorbar_link).
-  subroutine write_objects(json,p,isys)
+  !> Write the objects, the background and the camera of scene sc to
+  !> the json object p. A scene never shown has the camera of the
+  !> scene file it came from, if any, and none otherwise.
+  subroutine write_scene_part(json,p,sc)
+    use json_module, only: json_value, json_core
+    type(json_core), intent(inout), target :: json
+    type(json_value), pointer :: p
+    type(scene), intent(inout) :: sc
+
+    type(scene_camera) :: cam
+
+    call write_objects(json,p,sc)
+    call json%add(p,'background',real(sc%bgcolor,8))
+    if (sc%iscaminit) then
+       call sc%cam_get(cam)
+       call cam%write_json(json,p)
+    elseif (allocated(sc%campending)) then
+       call sc%campending%write_json(json,p)
+    end if
+
+  end subroutine write_scene_part
+
+  !> Read the objects (as the JSON text of the "objects" array), the
+  !> kinds added to the scene, the background and the camera of a scene
+  !> from the json object p, as written by write_scene_part. Each part
+  !> is allocated if it is in p.
+  subroutine read_scene_part(json,p,objects,autoadded,bgcolor,cam)
+    use json_module, only: json_value, json_core
+    use representations, only: reptype_NUM
+    type(json_core), intent(inout) :: json
+    type(json_value), pointer, intent(in) :: p
+    character(len=:), allocatable, intent(inout) :: objects
+    logical, allocatable, intent(inout) :: autoadded(:)
+    real(c_float), allocatable, intent(inout) :: bgcolor(:)
+    type(scene_camera), allocatable, intent(inout) :: cam
+
+    type(json_value), pointer :: o
+    logical, allocatable :: lv(:)
+    real*8, allocatable :: rv(:)
+    logical :: found
+
+    call json%get(p,'objects',o,found)
+    if (found) call json%print_to_string(o,objects)
+    call json%get(p,'objects_autoadded',lv,found)
+    if (found) then
+       ! files written before a kind was added have fewer entries: the
+       ! kinds they know
+       allocate(autoadded(reptype_NUM))
+       autoadded = .false.
+       autoadded(1:min(size(lv),reptype_NUM)) = lv(1:min(size(lv),reptype_NUM))
+    end if
+    call json%get(p,'background',rv,found)
+    if (found) then
+       if (size(rv) == 3) bgcolor = real(rv,c_float)
+    end if
+    call json%get(p,'camera',o,found)
+    if (found) then
+       allocate(cam)
+       if (.not.cam%read_json(json,o)) deallocate(cam)
+    end if
+
+  end subroutine read_scene_part
+
+  !> Write the objects of scene sc (not the transient ones) to the
+  !> json object p, in the order of the object list, with the kinds
+  !> added to the scene. A color bar names its isosurface object by its
+  !> position in the file (from 1), and the isosurface by its position
+  !> in that object (colorbar_link).
+  subroutine write_objects(json,p,sc)
     use json_module, only: json_value, json_core
     use jsonxfer, only: json_xfer
     use representations, only: reptype_colorbar, reptype_isosurface, rep_slot_of, iso_slot_index
     use tools, only: mergesort
     type(json_core), intent(inout), target :: json
     type(json_value), pointer, intent(in) :: p
-    integer, intent(in) :: isys
+    type(scene), intent(inout) :: sc
 
     type(json_xfer) :: io
     type(json_value), pointer :: a, q, r
@@ -517,58 +582,56 @@ contains
 
     io%json => json
     io%reading = .false.
-    associate(sc => sysc(isys)%sc)
-      ! the objects, in list order
-      allocate(iord(sc%nrep),perm(sc%nrep))
-      do i = 1, sc%nrep
-         iord(i) = sc%rep(i)%iord
-         perm(i) = i
-      end do
-      if (sc%nrep > 0) call mergesort(iord,perm,1,sc%nrep)
+    ! the objects, in list order
+    allocate(iord(sc%nrep),perm(sc%nrep))
+    do i = 1, sc%nrep
+       iord(i) = sc%rep(i)%iord
+       perm(i) = i
+    end do
+    if (sc%nrep > 0) call mergesort(iord,perm,1,sc%nrep)
 
-      ! position of each object in the file (0 = not in it)
-      allocate(ifile(sc%nrep))
-      ifile = 0
-      n = 0
-      do k = 1, sc%nrep
-         i = perm(k)
-         if (.not.sc%rep(i)%isinit .or. sc%rep(i)%owner /= 0) cycle
-         n = n + 1
-         ifile(i) = n
-      end do
+    ! position of each object in the file (0 = not in it)
+    allocate(ifile(sc%nrep))
+    ifile = 0
+    n = 0
+    do k = 1, sc%nrep
+       i = perm(k)
+       if (.not.sc%rep(i)%isinit .or. sc%rep(i)%owner /= 0) cycle
+       n = n + 1
+       ifile(i) = n
+    end do
 
-      call json%create_array(a,'objects')
-      call json%add(p,a)
-      do k = 1, sc%nrep
-         i = perm(k)
-         if (ifile(i) == 0) cycle
-         call json%create_object(q,'')
-         call io%x(q,'type',sc%rep(i)%type)
-         call io%x(q,'flavor',sc%rep(i)%flavor)
-         call sc%rep(i)%xfer_json(io,q,.false.)
-         call sc%rep(i)%xfer_json(io,q,.true.)
+    call json%create_array(a,'objects')
+    call json%add(p,a)
+    do k = 1, sc%nrep
+       i = perm(k)
+       if (ifile(i) == 0) cycle
+       call json%create_object(q,'')
+       call io%x(q,'type',sc%rep(i)%type)
+       call io%x(q,'flavor',sc%rep(i)%flavor)
+       call sc%rep(i)%xfer_json(io,q,.false.)
+       call sc%rep(i)%xfer_json(io,q,.true.)
 
-         ! the isosurface of a color bar (none = automatic)
-         if (sc%rep(i)%type == reptype_colorbar) then
-            irep = rep_slot_of(sc%rep,sc%nrep,sc%rep(i)%colorbar%isouid)
-            if (irep > 0) then
-               if (ifile(irep) > 0 .and. sc%rep(irep)%type == reptype_isosurface) then
-                  iobj = ifile(irep)
-                  islot = iso_slot_index(sc%rep(irep)%iso,sc%rep(i)%colorbar%slotuid)
-                  call io%obj(q,'colorbar_link',r,found)
-                  call io%x(r,'object',iobj)
-                  call io%x(r,'isosurface',islot)
-               end if
-            end if
-         end if
-         call json%add(a,q)
-      end do
-      call json%add(p,'objects_autoadded',sc%autoadded)
-    end associate
+       ! the isosurface of a color bar (none = automatic)
+       if (sc%rep(i)%type == reptype_colorbar) then
+          irep = rep_slot_of(sc%rep,sc%nrep,sc%rep(i)%colorbar%isouid)
+          if (irep > 0) then
+             if (ifile(irep) > 0 .and. sc%rep(irep)%type == reptype_isosurface) then
+                iobj = ifile(irep)
+                islot = iso_slot_index(sc%rep(irep)%iso,sc%rep(i)%colorbar%slotuid)
+                call io%obj(q,'colorbar_link',r,found)
+                call io%x(r,'object',iobj)
+                call io%x(r,'isosurface',islot)
+             end if
+          end if
+       end if
+       call json%add(a,q)
+    end do
+    call json%add(p,'objects_autoadded',sc%autoadded)
 
   end subroutine write_objects
 
-  !> Replace the objects of the main scene of system isys with those
+  !> Replace the objects of scene sc with those
   !> of the scene file, given as the JSON text str of its "objects"
   !> array, and set the kinds added to the scene (autoadded) if given.
   !> Each object is made with the defaults of its kind, its options
@@ -577,13 +640,13 @@ contains
   !> bars are linked to their isosurfaces after all the objects are
   !> made. Run by the initialization thread, before any window can
   !> point to the objects.
-  subroutine load_objects(isys,str,autoadded)
+  subroutine load_objects(sc,str,autoadded)
     use json_module, only: json_value, json_core
     use jsonxfer, only: json_xfer
     use tools_io, only: uout
     use representations, only: representation, reptype_NUM, repflavor_NUM, repflavor_type,&
        reptype_colorbar, reptype_isosurface
-    integer, intent(in) :: isys
+    type(scene), intent(inout) :: sc
     character*(*), intent(in) :: str
     logical, allocatable, intent(in) :: autoadded(:)
 
@@ -610,67 +673,66 @@ contains
 
     io%json => json
     io%reading = .true.
-    associate(sc => sysc(isys)%sc)
-      ! the objects the scene was made with go, and their names and
-      ! list positions with them
-      do i = 1, sc%nrep
-         if (sc%rep(i)%isinit .and. sc%rep(i)%owner == 0) call sc%rep(i)%end()
-      end do
-      sc%icount = 0
+    ! the objects the scene was made with go, and their names and
+    ! list positions with them
+    do i = 1, sc%nrep
+       if (sc%rep(i)%isinit .and. sc%rep(i)%owner == 0) call sc%rep(i)%end()
+    end do
+    sc%icount = 0
 
-      ! room for all the objects, so that adding them does not grow the
-      ! list (that would make the windows point to the objects again,
-      ! from this thread)
-      if (size(sc%rep,1) < sc%nrep + n) then
-         allocate(aux(sc%nrep + n))
-         aux(1:sc%nrep) = sc%rep(1:sc%nrep)
-         call move_alloc(aux,sc%rep)
-      end if
+    ! room for all the objects, so that adding them does not grow the
+    ! list (that would make the windows point to the objects again,
+    ! from this thread)
+    if (size(sc%rep,1) < sc%nrep + n) then
+       allocate(aux(sc%nrep + n))
+       aux(1:sc%nrep) = sc%rep(1:sc%nrep)
+       call move_alloc(aux,sc%rep)
+    end if
 
-      ! the objects of the file, and the slot each is made in (0 = not
-      ! made)
-      allocate(idnew(n))
-      idnew = 0
-      do i = 1, n
-         call json%get_child(a,i,q)
-         if (.not.associated(q)) cycle
-         itype = 0
-         iflavor = -1
-         call io%x(q,'type',itype,1,reptype_NUM)
-         call io%x(q,'flavor',iflavor,0,repflavor_NUM)
-         if (itype == 0 .or. iflavor < 0) cycle
-         if (repflavor_type(iflavor) /= itype) cycle
-         call sc%add_representation(itype,iflavor,id)
-         if (.not.sc%rep(id)%isinit) cycle
-         call sc%rep(id)%xfer_json(io,q,.false.)
-         call sc%rep(id)%reset_all_styles(0)
-         call sc%rep(id)%update()
-         call sc%rep(id)%xfer_json(io,q,.true.)
-         idnew(i) = id
-      end do
+    ! the objects of the file, and the slot each is made in (0 = not
+    ! made)
+    allocate(idnew(n))
+    idnew = 0
+    do i = 1, n
+       call json%get_child(a,i,q)
+       if (.not.associated(q)) cycle
+       itype = 0
+       iflavor = -1
+       call io%x(q,'type',itype,1,reptype_NUM)
+       call io%x(q,'flavor',iflavor,0,repflavor_NUM)
+       if (itype == 0 .or. iflavor < 0) cycle
+       if (repflavor_type(iflavor) /= itype) cycle
+       call sc%add_representation(itype,iflavor,id)
+       if (id <= 0) cycle
+       if (.not.sc%rep(id)%isinit) cycle
+       call sc%rep(id)%xfer_json(io,q,.false.)
+       call sc%rep(id)%reset_all_styles(0)
+       call sc%rep(id)%update()
+       call sc%rep(id)%xfer_json(io,q,.true.)
+       idnew(i) = id
+    end do
 
-      ! the isosurfaces of the color bars
-      do i = 1, n
-         if (idnew(i) == 0) cycle
-         if (sc%rep(idnew(i))%type /= reptype_colorbar) cycle
-         call json%get_child(a,i,q)
-         call io%obj(q,'colorbar_link',r,found)
-         if (.not.found) cycle
-         k = 0
-         islot = 0
-         call io%x(r,'object',k,1,n)
-         call io%x(r,'isosurface',islot,0,huge(1))
-         if (k == 0) cycle
-         if (idnew(k) == 0) cycle
-         if (sc%rep(idnew(k))%type /= reptype_isosurface) cycle
-         sc%rep(idnew(i))%colorbar%isouid = sc%rep(idnew(k))%uid
-         if (islot >= 1 .and. islot <= sc%rep(idnew(k))%iso%niso) &
-            sc%rep(idnew(i))%colorbar%slotuid = sc%rep(idnew(k))%iso%slot(islot)%uid
-      end do
-      if (allocated(autoadded)) sc%autoadded = autoadded
-      sc%forcesort = .true.
-      sc%forcebuildlists = .true.
-    end associate
+    ! the isosurfaces of the color bars
+    do i = 1, n
+       if (idnew(i) == 0) cycle
+       if (sc%rep(idnew(i))%type /= reptype_colorbar) cycle
+       call json%get_child(a,i,q)
+       call io%obj(q,'colorbar_link',r,found)
+       if (.not.found) cycle
+       k = 0
+       islot = 0
+       call io%x(r,'object',k,1,n)
+       call io%x(r,'isosurface',islot,0,huge(1))
+       if (k == 0) cycle
+       if (idnew(k) == 0) cycle
+       if (sc%rep(idnew(k))%type /= reptype_isosurface) cycle
+       sc%rep(idnew(i))%colorbar%isouid = sc%rep(idnew(k))%uid
+       if (islot >= 1 .and. islot <= sc%rep(idnew(k))%iso%niso) &
+          sc%rep(idnew(i))%colorbar%slotuid = sc%rep(idnew(k))%iso%slot(islot)%uid
+    end do
+    if (allocated(autoadded)) sc%autoadded = autoadded
+    sc%forcesort = .true.
+    sc%forcebuildlists = .true.
     if (json%failed()) call json%clear_exceptions()
     call json%destroy(a)
 

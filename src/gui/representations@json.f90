@@ -138,8 +138,12 @@ contains
          call io%x(q,'rgbhl',r%poly%rgbhl)
          call io%x(q,'style_type',r%poly%style%type,0,atlisttype_NUM)
 
-      case (reptype_unitcell)
-         call io%obj(p,'unitcell',q,found)
+      case (reptype_unitcell, reptype_reccell)
+         if (r%type == reptype_reccell) then
+            call io%obj(p,'reccell',q,found)
+         else
+            call io%obj(p,'unitcell',q,found)
+         end if
          if (.not.found) return
          call io%x(q,'inner',r%uc%inner)
          call io%x(q,'coloraxes',r%uc%coloraxes)
@@ -151,10 +155,15 @@ contains
          call io%x(q,'innerstipple',r%uc%innerstipple)
          call io%x(q,'origin',r%uc%origin)
 
-      case (reptype_wscell)
-         call io%obj(p,'wscell',q,found)
+      case (reptype_wscell, reptype_bz)
+         if (r%type == reptype_bz) then
+            call io%obj(p,'bz',q,found)
+         else
+            call io%obj(p,'wscell',q,found)
+         end if
          if (.not.found) return
          call io%x(q,'lattice',r%ws%lattice,replat_cell,replat_primitive)
+         if (r%type == reptype_bz) call io%x(q,'nrange',r%ws%nrange,0,20)
          call io%x(q,'origin',r%ws%origin)
          call io%x(q,'showfaces',r%ws%showfaces)
          call io%x(q,'rgb',r%ws%rgb)
@@ -172,10 +181,15 @@ contains
          end if
          if (n > 0) call io%x(q,'pts',r%ws%pts)
 
-      case (reptype_latvec)
-         call io%obj(p,'latvec',q,found)
+      case (reptype_latvec, reptype_reclat)
+         if (r%type == reptype_reclat) then
+            call io%obj(p,'reclattice',q,found)
+         else
+            call io%obj(p,'latvec',q,found)
+         end if
          if (.not.found) return
          call io%x(q,'lattice',r%lv%lattice,replat_cell,replat_primitive)
+         if (r%type == reptype_reclat) call io%x(q,'nrange',r%lv%nrange,0,20)
          call io%x(q,'rad',r%lv%rad,lo=0d0)
          call io%x(q,'rgb',r%lv%rgb)
          call io%x(q,'alpha',r%lv%alpha,lo=0d0,hi=1d0)
@@ -184,11 +198,16 @@ contains
          call io%x(q,'border_size',r%lv%border_size,lo=0d0)
          call io%x(q,'border_rgb',r%lv%border_rgb)
 
-      case (reptype_axes)
-         call io%obj(p,'axes',q,found)
+      case (reptype_axes, reptype_recaxes)
+         if (r%type == reptype_recaxes) then
+            call io%obj(p,'recaxes',q,found)
+         else
+            call io%obj(p,'axes',q,found)
+         end if
          if (.not.found) return
-         call io%x(q,'kind',r%axes%kind,0,1)
+         if (r%type == reptype_axes) call io%x(q,'kind',r%axes%kind,0,1)
          call io%x(q,'placement',r%axes%placement,axplace_scene,axplace_window)
+         if (r%type == reptype_recaxes) r%axes%placement = axplace_window ! reciprocal axes: in the window only
          call io%x(q,'coordtype',r%axes%coordtype,0,2)
          call io%x(q,'origin',r%axes%origin)
          call io%x(q,'winpos',r%axes%winpos)

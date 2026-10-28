@@ -158,6 +158,11 @@ module systems
      type(scene_display), allocatable :: disp ! the Display (masks not stamped)
      real(c_float), allocatable :: bgcolor(:) ! background color
      type(scene_camera), allocatable :: cam ! the camera
+     ! the reciprocal-space scene: objects, kinds added, background, camera
+     character(len=:), allocatable :: kobjects
+     logical, allocatable :: kautoadded(:)
+     real(c_float), allocatable :: kbgcolor(:)
+     type(scene_camera), allocatable :: kcam
   end type scene_pending
 
   ! system configuration type
@@ -183,6 +188,7 @@ module systems
      logical :: renamed = .false. ! true if the system has been renamed
      ! scene
      type(scene) :: sc ! scene for the system in the main view
+     type(scene) :: sck ! reciprocal-space scene for the main view (crystals; initialized on first use)
      type(scene_pending), allocatable :: scenefile ! scene file settings waiting for the system to be built
      character(len=:), allocatable :: scenesrc ! the scene file the system was read from (absolute path)
      ! interactive molecular dynamics (one run per system, driven each frame)
@@ -383,6 +389,7 @@ module systems
   public :: add_system_empty_molecule
   public :: regenerate_system_pointers
   public :: ok_system
+  public :: main_scene
   public :: field_cost
   public :: cp_anchor_make
   public :: cp_anchor_add
@@ -537,6 +544,11 @@ module systems
        integer*8, intent(in), optional :: uid
        logical :: ok_system
      end function ok_system
+     module function main_scene(isys,kspace) result(sc)
+       integer, intent(in) :: isys
+       logical, intent(in) :: kspace
+       type(scene), pointer :: sc
+     end function main_scene
      module function field_cost(isys,ifield,measure,request) result(secs)
        use types, only: field_evaluation_avail
        integer, intent(in) :: isys, ifield

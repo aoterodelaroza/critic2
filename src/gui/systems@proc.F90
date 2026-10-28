@@ -132,8 +132,11 @@ contains
        ! the data is ready
        sysc(i)%status = sys_ready
 
-       ! initialize the scene and build the initial draw list
+       ! initialize the scene and build the initial draw list; the
+       ! reciprocal-space scene of an earlier system in this slot is
+       ! gone, and is initialized when first shown
        call sysc(i)%sc%init(i)
+       call sysc(i)%sck%end()
 
        ! post the first geometry change
        call sysc(i)%post_event(lastchange_geometry,keepfields=.true.)
@@ -1189,6 +1192,27 @@ contains
     call memory_fence()
 
   end function ok_system
+
+  !> The scene the main views show for system isys: the real-space one,
+  !> or the reciprocal-space one (kspace, crystals only), initialized
+  !> the first time it is asked for. Null if the system is not
+  !> initialized.
+  module function main_scene(isys,kspace) result(sc)
+    use scenes, only: space_recip
+    integer, intent(in) :: isys
+    logical, intent(in) :: kspace
+    type(scene), pointer :: sc
+
+    nullify(sc)
+    if (.not.ok_system(isys,sys_init)) return
+    if (kspace .and. .not.sys(isys)%c%ismolecule) then
+       sc => sysc(isys)%sck
+       if (sc%isinit == 0) call sc%init(isys,space_recip)
+    else
+       sc => sysc(isys)%sc
+    end if
+
+  end function main_scene
 
   !> Measurement anchor for the critical point icel (index in the
   !> complete CP list) of field ifield of system isys, in the image at

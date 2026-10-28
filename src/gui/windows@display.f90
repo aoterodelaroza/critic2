@@ -41,6 +41,8 @@ contains
     if (goodsys) goodsys = ok_system(isys,sys_init)
     if (goodsys) goodsys = associated(win(iview)%sc)
     if (goodsys) goodsys = (win(iview)%sc%isinit > 0)
+    ! the Display is of the real-space scene
+    if (goodsys) goodsys = .not.win(iview)%kspace
     if (w%firstpass) w%errmsg = ""
 
     changed = .false.

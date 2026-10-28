@@ -142,17 +142,22 @@ contains
 
   !xx! scene
 
-  !> Initialize a scene object associated with system isys.
-  module subroutine scene_init(s,isys)
+  !> Initialize a scene object associated with system isys, showing
+  !> space (space_real or space_recip; if not given, the space the
+  !> scene had).
+  module subroutine scene_init(s,isys,space)
     use representations, only: reptype_unitcell, reptype_axes, repstyle_ballandstick,&
-       repstyle_sticks, repflavor_unitcell_basic, repflavor_axes, repflavor_NUM
+       repstyle_sticks, repflavor_unitcell_basic, repflavor_axes, repflavor_NUM, reptype_bz,&
+       repflavor_bz, reptype_reclat, repflavor_reclat, reptype_recaxes, repflavor_recaxes
     use systems, only: sys, sysc, sys_ready, ok_system
     use global, only: crsmall
     use gui_main, only: lockbehavior
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
+    integer, intent(in), optional :: space
 
-    ! check the system is sane
+    ! check the system is sane (the space asked for is kept for a later init)
+    if (present(space)) s%space = space
     if (.not.ok_system(isys,sys_ready)) return
 
     ! basic variables
@@ -161,6 +166,7 @@ contains
     s%gen = s%gen + 1
     s%iscaminit = .false.
     if (allocated(s%campending)) deallocate(s%campending)
+    if (allocated(s%rotpending)) deallocate(s%rotpending)
     call s%disp%init(isys)
     s%scenerad = 10d0
     s%scenecenter = 0d0
@@ -201,21 +207,29 @@ contains
     s%nreptrans = 0
     s%vibarrow_owner = 0
 
-    ! atoms and bonds: the default look, with the bonds alone in a system
-    ! too large for the atoms to be legible
-    if (sys(isys)%c%ncel <= crsmall) then
-       call s%set_style(repstyle_ballandstick)
+    if (s%space == space_recip) then
+       ! reciprocal space: the Brillouin zone, the reciprocal lattice
+       ! points around it, and the reciprocal axes
+       call s%add_representation(reptype_bz,repflavor_bz)
+       call s%add_representation(reptype_reclat,repflavor_reclat)
+       call s%add_representation(reptype_recaxes,repflavor_recaxes)
     else
-       call s%set_style(repstyle_sticks)
+       ! atoms and bonds: the default look, with the bonds alone in a system
+       ! too large for the atoms to be legible
+       if (sys(isys)%c%ncel <= crsmall) then
+          call s%set_style(repstyle_ballandstick)
+       else
+          call s%set_style(repstyle_sticks)
+       end if
+
+       ! unit cell
+       if (.not.sys(isys)%c%ismolecule) &
+          call s%add_representation(reptype_unitcell,repflavor_unitcell_basic)
+
+       ! cartesian axes (shown by default for molecules)
+       if (sys(isys)%c%ismolecule) &
+          call s%add_representation(reptype_axes,repflavor_axes)
     end if
-
-    ! unit cell
-    if (.not.sys(isys)%c%ismolecule) &
-       call s%add_representation(reptype_unitcell,repflavor_unitcell_basic)
-
-    ! cartesian axes (shown by default for molecules)
-    if (sys(isys)%c%ismolecule) &
-       call s%add_representation(reptype_axes,repflavor_axes)
 
     ! reset the camera later
     s%camresetdist = 1.5_c_float
@@ -229,7 +243,7 @@ contains
 
     ! locking group for the camera
     s%forceresetcam = .true.
-    if (lockbehavior == 0) then ! no-lock
+    if (lockbehavior == 0 .or. s%space == space_recip) then ! no-lock (a reciprocal-space scene is never locked)
        s%lockedcam = 0
     elseif (lockbehavior == 2) then ! all-lock
        s%lockedcam = -1
@@ -253,6 +267,7 @@ contains
     s%iscaminit = .false.
     s%id = 0
     if (allocated(s%campending)) deallocate(s%campending)
+    if (allocated(s%rotpending)) deallocate(s%rotpending)
     call s%gl%end()
     call s%obj%end()
     call s%disp%end()
@@ -372,7 +387,8 @@ contains
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use representations, only: reptype_atoms, reptype_polyhedra, reptype_axes, reptype_symelem,&
-       reptype_shapes, reptype_legend, reptype_colorbar, axes_winfrac_def, axplace_window, colorbar_rep
+       reptype_shapes, reptype_legend, reptype_colorbar, axes_winfrac_def, axplace_window, colorbar_rep,&
+       reptype_recaxes
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use systems, only: sys, sys_ready, ok_system, sysc, cp_anchor_resolve
@@ -389,7 +405,7 @@ contains
     if (.not.ok_system(s%id,sys_ready)) return
 
     ! show the critical points the first time the system has them
-    call s%add_cps_maybe()
+    if (s%space == space_real) call s%add_cps_maybe()
 
     ! reset the draw lists
     call s%obj%reset()
@@ -399,7 +415,7 @@ contains
 
     ! regenerate the vibration arrows (they depend on the display and on
     ! everything else that forces a build)
-    call vibarrow_refresh(s)
+    if (s%space == space_real) call vibarrow_refresh(s)
 
     ! how many cells already have their atoms drawn, and the first shown
     ! atoms object (the legends take the atom colors from it)
@@ -420,7 +436,8 @@ contains
        call s%rep(i)%update()
 
        ! add draw elements
-       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == axplace_window) cycle
+       if ((s%rep(i)%type == reptype_axes .or. s%rep(i)%type == reptype_recaxes) .and.&
+          s%rep(i)%axes%placement == axplace_window) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
        if (s%rep(i)%type == reptype_shapes) cycle
        if (s%rep(i)%type == reptype_legend) cycle
@@ -646,7 +663,8 @@ contains
 
     ! build the window-anchored axes
     do i = 1, s%nrep
-       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == axplace_window) then
+       if ((s%rep(i)%type == reptype_axes .or. s%rep(i)%type == reptype_recaxes) .and.&
+          s%rep(i)%axes%placement == axplace_window) then
           if (s%rep(i)%axes%scale_auto .and. sys(s%id)%c%ncel > 0) then
              s%rep(i)%axes%scale = axes_winfrac_def * real(s%scenerad,8) / max(s%rep(i)%axes%length,1d-10)
              s%rep(i)%axes%scale_auto = .false.
@@ -2526,7 +2544,8 @@ contains
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
        reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar, reptype_legend,&
-       reptype_scalebar, reptype_colorbar, reptype_slice, reptype_wscell, reptype_latvec
+       reptype_scalebar, reptype_colorbar, reptype_slice, reptype_wscell, reptype_latvec, reptype_bz,&
+       reptype_reclat, reptype_reccell, reptype_recaxes
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -2686,6 +2705,14 @@ contains
              str3 = "ws cell" // c_null_char
           elseif (s%rep(i)%type == reptype_latvec) then
              str3 = "lattice vectors" // c_null_char
+          elseif (s%rep(i)%type == reptype_bz) then
+             str3 = "brillouin zone" // c_null_char
+          elseif (s%rep(i)%type == reptype_reclat) then
+             str3 = "reciprocal lattice" // c_null_char
+          elseif (s%rep(i)%type == reptype_reccell) then
+             str3 = "reciprocal cell" // c_null_char
+          elseif (s%rep(i)%type == reptype_recaxes) then
+             str3 = "reciprocal axes" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then
@@ -3073,13 +3100,18 @@ contains
   !> given flavor.  If id is present, it returns the new
   !> representation id.
   module subroutine add_representation(s,itype,flavor,id)
-    use representations, only: reptype_gpaths, reptype_bonds
+    use representations, only: reptype_gpaths, reptype_bonds, reptype_is_recip
     class(scene), intent(inout), target :: s
     integer, intent(in) :: itype
     integer, intent(in) :: flavor
     integer, intent(out), optional :: id
 
     integer :: id_, i
+
+    ! an object of the other space is never added (id = 0): the two
+    ! spaces have different units
+    if (present(id)) id = 0
+    if (reptype_is_recip(itype) .neqv. (s%space == space_recip)) return
 
     id_ = s%get_new_representation_id()
     call s%rep(id_)%init(s%id,itype,flavor,s%icount)
@@ -3302,6 +3334,7 @@ contains
     logical :: fcps, fgp
 
     if (s%isinit == 0) return
+    if (s%space /= space_real) return ! critical points are real-space objects
     fcps = .false.
     fgp = .false.
     do i = 1, s%nrep
@@ -3352,6 +3385,7 @@ contains
 
     found = .false.
     changed = .false.
+    if (s%space /= space_real) return ! atoms, bonds, labels...: real-space objects
     do i = 1, s%nrep
        if (.not.s%rep(i)%isinit) cycle
        if (s%rep(i)%type /= itype) cycle
@@ -3406,6 +3440,7 @@ contains
     if (istyle < 1 .or. istyle > repstyle_NUM) return
     if (s%isinit == 0) return
     if (.not.ok_system(s%id,sys_ready)) return
+    if (s%space /= space_real) return ! the styles are made of real-space objects
 
     ! out with the old: every atoms object, and the bonds objects that draw
     ! the connectivity of the structure. The first object of each kind hands
@@ -4037,8 +4072,10 @@ contains
   !> retag an unarmed item of the same owner and type if there is one,
   !> or claim a fresh slot; both count as found=.false. Returns the
   !> slot id of a valid, initialized representation, or 0 if a fresh
-  !> slot could not be initialized.
+  !> slot could not be initialized or the kind belongs to the other
+  !> space (real/reciprocal) than the scene.
   function transient_slot(s,owner,itag,itype,flavor,found) result(id)
+    use representations, only: reptype_is_recip
     class(scene), intent(inout) :: s
     integer*8, intent(in) :: owner
     integer, intent(in) :: itag
@@ -4056,6 +4093,9 @@ contains
     ! defaults of the item, so retagging across flavors would hand the
     ! producer a slot configured for something else
     if (present(found)) found = .false.
+    id = 0
+    ! an object of the other space is never in this scene
+    if (reptype_is_recip(itype) .neqv. (s%space == space_recip)) return
     ifree = 0
     ihole = 0
     do i = 1, s%nreptrans
@@ -4097,10 +4137,13 @@ contains
   !> group, and reset the camera if required.
   subroutine scene_render_prepare(s)
     use systems, only: sysc, nsys
+    use utils, only: translate
+    use interfaces_glfw, only: glfwGetTime
     class(scene), intent(inout), target :: s
 
     integer :: i, ifound
     real*8 :: time
+    real(c_float) :: rotw(4,4)
 
     ! create this scene's GL instance buffers on first render
     if (.not.s%gl%isinit) call s%gl%init()
@@ -4131,6 +4174,19 @@ contains
     if (allocated(s%campending) .and. s%iscaminit) then
        call s%cam_put(s%campending)
        deallocate(s%campending)
+    end if
+
+    ! the orientation of the scene of the other space, about this
+    ! scene's center (the zoom and the pan are this scene's own)
+    if (allocated(s%rotpending) .and. s%iscaminit) then
+       rotw = eye4
+       rotw(1:3,1:3) = s%rotpending
+       s%world = eye4
+       call translate(s%world,s%scenecenter)
+       s%world = matmul(s%world,rotw)
+       call translate(s%world,-s%scenecenter)
+       deallocate(s%rotpending)
+       s%timelastcamchange = glfwGetTime()
     end if
 
   end subroutine scene_render_prepare

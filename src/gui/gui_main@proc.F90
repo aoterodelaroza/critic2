@@ -460,12 +460,20 @@ contains
        do i = 1, nsys
           if (sysc(i)%sc%nreptrans > 0) &
              call sysc(i)%sc%reap_transient_representations()
+          if (sysc(i)%sck%nreptrans > 0) &
+             call sysc(i)%sck%reap_transient_representations()
        end do
        do i = 1, nwin
           if (.not.win(i)%isinit .or. win(i)%type /= wintype_view) cycle
-          if (win(i)%ismain .or. .not.associated(win(i)%sc)) cycle
-          if (win(i)%sc%nreptrans > 0) &
-             call win(i)%sc%reap_transient_representations()
+          if (win(i)%ismain) cycle
+          if (associated(win(i)%sc)) then
+             if (win(i)%sc%nreptrans > 0) &
+                call win(i)%sc%reap_transient_representations()
+          end if
+          if (associated(win(i)%scother)) then
+             if (win(i)%scother%nreptrans > 0) &
+                call win(i)%scother%reap_transient_representations()
+          end if
        end do
 
        ! first pass: use the dock builder routines to place the
