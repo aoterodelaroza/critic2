@@ -201,6 +201,7 @@ module scenes
      procedure :: show_transient_iso => scene_show_transient_iso
      procedure :: show_transient_polyhedra => scene_show_transient_polyhedra
      procedure :: show_transient_spacefill => scene_show_transient_spacefill
+     procedure :: show_transient_latvec => scene_show_transient_latvec
      procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
      procedure :: text_box => scene_text_box
      procedure :: overlay_map => scene_overlay_map
@@ -257,10 +258,11 @@ module scenes
      module subroutine scene_render(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render
-     module subroutine scene_render_pick(s,bondpick,atoms)
+     module subroutine scene_render_pick(s,bondpick,atoms,latonly)
        class(scene), intent(inout), target :: s
        logical, intent(in) :: bondpick
        logical, intent(in), optional :: atoms
+       logical, intent(in), optional :: latonly
      end subroutine scene_render_pick
      module function scene_overlay_zoom_factor(s) result(f)
        class(scene), intent(in) :: s
@@ -444,6 +446,13 @@ module scenes
        integer, intent(in) :: tag
        real*8, intent(in) :: rad(:)
      end subroutine scene_show_transient_spacefill
+     module subroutine scene_show_transient_latvec(s,owner,tag,lattice,margin)
+       class(scene), intent(inout), target :: s
+       integer*8, intent(in) :: owner
+       integer, intent(in) :: tag
+       integer, intent(in) :: lattice
+       integer, intent(in) :: margin
+     end subroutine scene_show_transient_latvec
      ! rep_ref
      module subroutine rep_ref_set(rr,s,id)
        class(rep_ref), intent(inout) :: rr

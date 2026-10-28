@@ -617,6 +617,7 @@ module representations
      real(c_float) :: cenrgb(3) = latvec_cenrgb_def ! color of the centering points
      real*8 :: border_size = atomborder_def ! sphere border size (bohr)
      real(c_float) :: border_rgb(3) = 0._c_float ! sphere border color
+     integer :: margin = 0 ! cells added on each side of the region drawn (transients only; not saved)
   end type rep_latvec
   public :: rep_latvec
 
@@ -1557,13 +1558,14 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
-     module subroutine lattice_points(isys,lattice,disp,ovr,np,ipt)
+     module subroutine lattice_points(isys,lattice,disp,ovr,np,ipt,margin)
        integer, intent(in) :: isys
        integer, intent(in) :: lattice
        type(scene_display), intent(in) :: disp
        type(rep_display), intent(in) :: ovr
        integer, intent(out) :: np
        integer, allocatable, intent(inout) :: ipt(:,:)
+       integer, intent(in), optional :: margin
      end subroutine lattice_points
      module function wscell_isdrawn(ws,x) result(ok)
        type(rep_wscell), intent(in) :: ws

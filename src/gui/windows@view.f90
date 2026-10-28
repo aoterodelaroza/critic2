@@ -118,7 +118,7 @@ contains
     integer(c_int) :: newside, vside
     real(c_float) :: scal, rgba(4)
     real(c_float) :: rscale, tmpuv
-    logical :: interacting, pickbonds, pickatoms
+    logical :: interacting, pickbonds, pickatoms, picklat
     integer :: pickmode
     real*8 :: time
     type(ImVec2) :: sz
@@ -820,7 +820,14 @@ contains
     ! bonds (the bonds and the atoms), so a change needs a fresh pick render.
     pickbonds = vm_is_bondpick(w%viewmode) .or. objedit_bondpick(w)
     pickatoms = .not.vm_is_bondpick(w%viewmode)
-    pickmode = merge(merge(2,1,pickatoms),0,pickbonds)
+    picklat = (w%viewmode == vm_pick_atom .and. w%vmdata%latonly)
+    if (picklat) then
+       pickmode = 3
+    elseif (pickbonds) then
+       pickmode = merge(2,1,pickatoms)
+    else
+       pickmode = 0
+    end if
     if (.not.interacting .and. pickmode /= w%pickmode_last) w%forcerender = .true.
     if (interacting) then
        rscale = real(min(w%FBOside,interactive_texture_side),c_float) / real(w%FBOside,c_float)
@@ -883,7 +890,7 @@ contains
           call glClearColor(ColorClearTransparent(1),ColorClearTransparent(2),&
              ColorClearTransparent(3),ColorClearTransparent(4))
           call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-          if (associated(w%sc)) call w%sc%renderpick(pickbonds,atoms=pickatoms)
+          if (associated(w%sc)) call w%sc%renderpick(pickbonds,atoms=pickatoms,latonly=picklat)
           call glBindFramebuffer(GL_FRAMEBUFFER, 0)
           ! only latch when the pass actually ran, so the buffer and the flag
           ! cannot disagree after a camera drag suppressed it
@@ -1467,12 +1474,13 @@ contains
   !> shows the mode hint from viewmode_text. idcaller is the window
   !> ID (win(:)) of the caller, used by the caller to verify it owns
   !> the pick result.
-  module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty)
+  module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty,latonly)
     class(window), intent(inout), target :: w
     integer, intent(in) :: mode
     character(len=*), intent(in), optional :: message
     integer, intent(in) :: idcaller
     logical, intent(in), optional :: acceptempty
+    logical, intent(in), optional :: latonly
 
     call objedit_drop_picks(w)
     w%viewmode = mode
@@ -1484,6 +1492,8 @@ contains
     if (present(message)) w%vmdata%msg = trim(message)
     w%vmdata%acceptempty = .false.
     if (present(acceptempty)) w%vmdata%acceptempty = acceptempty
+    w%vmdata%latonly = .false.
+    if (present(latonly)) w%vmdata%latonly = latonly
     w%vmdata%idx = 0
     w%vmdata%bidx = 0
     w%vmdata%cpidx = 0
@@ -3013,6 +3023,8 @@ contains
       integer(c_int), intent(in) :: lat(4)
       logical, intent(in) :: alt
 
+      logical :: deliver
+
       if (w%viewmode == vm_pick_bond) then
          ! a window is waiting for one bond: deliver it and end the mode. A
          ! click that hit no bond aborts the pick (flag stays 0), unless
@@ -3052,12 +3064,19 @@ contains
          w%vmdata%bidx = 0
          w%vmdata%cpidx = 0
          w%vmdata%latidx = 0
-         if (idx(1) > 0) w%vmdata%idx = idx
-         if (idx(1) == 0 .and. w%vmdata%acceptempty) then
-            w%vmdata%cpidx = cp
+         if (w%vmdata%latonly) then
+            ! only a lattice point is delivered; anything else aborts
             w%vmdata%latidx = lat
+            deliver = (lat(4) > 0)
+         else
+            if (idx(1) > 0) w%vmdata%idx = idx
+            if (idx(1) == 0 .and. w%vmdata%acceptempty) then
+               w%vmdata%cpidx = cp
+               w%vmdata%latidx = lat
+            end if
+            deliver = (idx(1) > 0 .or. w%vmdata%acceptempty)
          end if
-         if (idx(1) > 0 .or. w%vmdata%acceptempty) then
+         if (deliver) then
             w%vmdata%flag = 1
             w%vmdata%xpos = (/texpos%x,texpos%y/)
          end if
@@ -4442,10 +4461,12 @@ contains
   !> including its lattice translation, or the empty-space click
   !> unprojected onto the plane of the scene center). If present,
   !> cpidx is the clicked critical point (as dl_sphere%cpidx; zero if
-  !> none). Releases the forced mode and resets the view's pick data as
+  !> none), and latidx the clicked lattice point (as dl_sphere%latidx:
+  !> cell and centering vector; zero if none), delivered with
+  !> acceptempty or latonly. Releases the forced mode and resets the view's pick data as
   !> needed; the caller keeps only its own pending marker and the
   !> destination of the point.
-  module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx)
+  module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx)
     use systems, only: sysc
     integer, intent(in) :: iview
     integer, intent(in) :: idcaller
@@ -4454,12 +4475,14 @@ contains
     integer, intent(out) :: istat
     real*8, intent(out) :: xc(3)
     integer, intent(out), optional :: cpidx(5)
+    integer, intent(out), optional :: latidx(4)
 
     logical :: okp
 
     istat = ipick_pending
     xc = 0d0
     if (present(cpidx)) cpidx = 0
+    if (present(latidx)) latidx = 0
     associate(v => win(iview))
       if (.not.v%viewmode_owner_is(idcaller)) then
          ! the pick was taken over by another window
@@ -4474,6 +4497,7 @@ contains
          call view_pick_point(iview,isys,xc,okp)
          istat = merge(ipick_point,ipick_cancelled,okp)
          if (present(cpidx) .and. okp) cpidx = v%vmdata%cpidx
+         if (present(latidx) .and. okp) latidx = v%vmdata%latidx
          v%vmdata%idx = 0
          v%vmdata%bidx = 0
          v%vmdata%cpidx = 0

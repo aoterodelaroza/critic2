@@ -399,8 +399,9 @@ contains
   !> points are the cell origins (lattice = replat_cell) or the cell
   !> origins plus the centering vectors (replat_primitive). Returns np
   !> points in ipt(:,1:np): the cell (1:3) and the centering vector
-  !> (4); the point is at ipt(1:3) + c%cen(:,ipt(4)) (fractional).
-  module subroutine lattice_points(isys,lattice,disp,ovr,np,ipt)
+  !> (4); the point is at ipt(1:3) + c%cen(:,ipt(4)) (fractional). If
+  !> margin is given, the region grows by that many cells on each side.
+  module subroutine lattice_points(isys,lattice,disp,ovr,np,ipt,margin)
     use systems, only: sys
     integer, intent(in) :: isys
     integer, intent(in) :: lattice
@@ -408,6 +409,7 @@ contains
     type(rep_display), intent(in) :: ovr
     integer, intent(out) :: np
     integer, allocatable, intent(inout) :: ipt(:,:)
+    integer, intent(in), optional :: margin
 
     real*8, parameter :: eps = 1d-5 ! on a face of the region (fractional)
 
@@ -428,6 +430,10 @@ contains
       if (ovr%ignoresel) then
          tshift = 0d0
          border = .true.
+      end if
+      if (present(margin)) then
+         tshift = tshift - margin
+         n = n + 2 * margin
       end if
       ncv = 1
       if (lattice == replat_primitive) ncv = c%ncv
@@ -4231,7 +4237,7 @@ contains
       integer, allocatable :: ipt(:,:)
       type(dl_sphere) :: dlat
 
-      call lattice_points(r%id,r%lv%lattice,disp,r%disp,np,ipt)
+      call lattice_points(r%id,r%lv%lattice,disp,r%disp,np,ipt,margin=r%lv%margin)
       do ip = 1, np
          dlat = dl_sphere(x=real(c%x2c(ipt(1:3,ip) + c%cen(:,ipt(4,ip))),c_float),r=real(r%lv%rad,c_float),&
             rgb=r%lv%rgb,idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&

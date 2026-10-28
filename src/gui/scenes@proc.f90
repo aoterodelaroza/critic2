@@ -2178,7 +2178,7 @@ contains
   !> Draw the scene into the pick buffer. Spheres always; cylinders only
   !> when bondpick, and then the atoms become depth-only occluders (they
   !> return no index) so that only bonds can be picked.
-  module subroutine scene_render_pick(s,bondpick,atoms)
+  module subroutine scene_render_pick(s,bondpick,atoms,latonly)
     use interfaces_cimgui
     use interfaces_opengl3
     use systems, only: sys
@@ -2190,9 +2190,10 @@ contains
     class(scene), intent(inout), target :: s
     logical, intent(in) :: bondpick
     logical, intent(in), optional :: atoms
+    logical, intent(in), optional :: latonly
 
     integer :: i, iz, idx, n
-    logical :: onlybonds
+    logical :: onlybonds, onlylat
     real(c_float) :: ridx(4), rpick
     real(c_float), parameter :: zero3(3) = 0._c_float
 
@@ -2222,10 +2223,15 @@ contains
     ! with bondpick and atoms, both the bonds and the atoms are pickable
     onlybonds = bondpick
     if (present(atoms)) onlybonds = bondpick .and. .not.atoms
+    ! with latonly, only the lattice points: the rest is not drawn, so
+    ! that a point inside an atom can be picked too
+    onlylat = .false.
+    if (present(latonly)) onlylat = latonly
     if (s%obj%nsph > 0) then
        call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph)
        n = 0
        do i = 1, s%obj%nsph
+          if (onlylat .and. s%obj%sph(i)%latidx(4) <= 0) cycle
           if (s%obj%sph(i)%cpidx(1) > 0 .or. s%obj%sph(i)%latidx(4) > 0) then
              ! critical points and lattice points: pickable (hover
              ! identity), but not when picking only bonds (the bond
@@ -2263,7 +2269,7 @@ contains
     ! visible pass is skipped, so the gaps between the strands of a double bond
     ! and between dashes are clickable too. The radius covers the strands, which
     ! the visible pass draws at 0.5*r displaced by up to 1.35*r
-    if (bondpick .and. s%obj%ncyl > 0) then
+    if (bondpick .and. .not.onlylat .and. s%obj%ncyl > 0) then
        call useshader(shader_cylinder)
        call setuniform_mat4(s%world,idxi=uniloc(u_world))
        call setuniform_mat4(s%view,idxi=uniloc(u_view))
@@ -3742,6 +3748,34 @@ contains
     end if
 
   end subroutine scene_show_transient_polyhedra
+
+  !> Show the lattice points (lattice: replat_*) as a transient lattice
+  !> vectors representation identified by (owner,tag), with margin
+  !> cells added on each side of the region drawn. The draw lists are
+  !> rebuilt only when the options change.
+  module subroutine scene_show_transient_latvec(s,owner,tag,lattice,margin)
+    use representations, only: reptype_latvec, repflavor_latvec
+    class(scene), intent(inout), target :: s
+    integer*8, intent(in) :: owner
+    integer, intent(in) :: tag
+    integer, intent(in) :: lattice
+    integer, intent(in) :: margin
+
+    integer :: id
+    logical :: found
+
+    id = transient_slot(s,owner,tag,reptype_latvec,repflavor_latvec,found)
+    if (id <= 0) return
+
+    associate (r => s%reptrans(id)%lv)
+      if (r%lattice /= lattice .or. r%margin /= margin) then
+         r%lattice = lattice
+         r%margin = margin
+         if (found) call transient_dirty(s) ! a new/retagged item is already dirty
+      end if
+    end associate
+
+  end subroutine scene_show_transient_latvec
 
   !> Draw the atoms of the system as spheres of radius rad (bohr), one
   !> entry per non-equivalent atom, as a transient representation

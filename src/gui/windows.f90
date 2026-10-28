@@ -1171,6 +1171,7 @@ module windows
      integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate; 0 = nothing delivered/cancelled)
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms and pick-atom modes)
      logical :: acceptempty = .false. ! pick-atom mode: an empty-space click delivers a position instead of aborting
+     logical :: latonly = .false. ! pick-atom mode: only the lattice points can be picked (anything else aborts)
      integer :: owner = 0 ! owner window ID
      integer*8 :: owner_uid = 0 ! uid of the owner window (its slot may be reused)
   end type viewmode_data
@@ -1249,7 +1250,7 @@ module windows
      type(ImVec2) :: v_rmin, v_rmax ! view image rectangle
      logical :: forcerender = .true. ! force render of the scene
      logical :: lowresrender = .false. ! last render was at reduced (interactive) resolution
-     integer :: pickmode_last = 0 ! what the last pick render included: 0 atoms, 1 bonds, 2 both
+     integer :: pickmode_last = 0 ! what the last pick render included: 0 atoms, 1 bonds, 2 both, 3 lattice points
      integer :: viewmode = vm_navigate ! view mode (see vm_* above)
      logical :: viewmode_transient = .false. ! true if view mode is transient (resets every frame)
      type(viewmode_data) :: vmdata ! data associated with window_forced view modes
@@ -1476,6 +1477,9 @@ module windows
      integer(c_int) :: geometry_cell_intmat(3,3) = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/)) ! integer part of the full transformation matrix
      integer :: geometry_cell_cen(3) = 1 ! per-row centering index added to the full transformation matrix (1 = zero centering)
      real*8 :: geometry_cell_origin(3) = 0d0 ! origin shift for the matrix transformation
+     type(pairpick) :: geometry_lvpick ! session stamp of the lattice-vector pick (full transformation)
+     integer :: geometry_lvpick_row = 0 ! row of the full transformation being picked (1-3; 0 = none)
+     integer :: geometry_lvpick_last = 0 ! last row of the pick: it goes on to the next rows up to this one (Pick All: 3)
      integer(c_int) :: geometry_cell_inice = 10 ! maximum supercell size for the nice cell search
      logical :: geometry_cell_mindisp = .false. ! nice search: fewest phonon displacements first (MINDISP)
      type(nice_cell), allocatable :: geometry_cell_nice(:) ! nice search results, one cell per size (r = 0: none)
@@ -2066,12 +2070,13 @@ module windows
        class(window), intent(inout), target :: w
        logical, intent(in) :: okmods
      end subroutine viewmode_set_mode
-     module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty)
+     module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty,latonly)
        class(window), intent(inout), target :: w
        integer, intent(in) :: mode
        character(len=*), intent(in), optional :: message
        integer, intent(in) :: idcaller
        logical, intent(in), optional :: acceptempty
+       logical, intent(in), optional :: latonly
      end subroutine viewmode_set_forced
      module subroutine viewmode_exit_forced(w)
        class(window), intent(inout), target :: w
@@ -2172,7 +2177,7 @@ module windows
        real*8, intent(out) :: xc(3)
        logical, intent(out) :: ok
      end subroutine view_pick_point
-     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx)
+     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx)
        integer, intent(in) :: iview
        integer, intent(in) :: idcaller
        integer, intent(in) :: isys
@@ -2180,6 +2185,7 @@ module windows
        integer, intent(out) :: istat
        real*8, intent(out) :: xc(3)
        integer, intent(out), optional :: cpidx(5)
+       integer, intent(out), optional :: latidx(4)
      end subroutine view_pick_result
      module subroutine view_pick_winfrac(iview,idcaller,istat,winfrac)
        integer, intent(in) :: iview

@@ -25,7 +25,8 @@ contains
   module subroutine draw_geometry(w)
     use representations, only: reptype_symelem, repflavor_symelem, rep_shape, shapekind_arrow,&
        shapekind_cylinder, axes_length_def, axes_radius_def, axes_conelength_def,&
-       axes_coneradius_def, rotaxis_radius_def
+       axes_coneradius_def, rotaxis_radius_def, replat_primitive, shapekind_sphere, shapekind_box,&
+       latvec_rad_def
     use crystalmod, only: symelem_type_mask
     use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, laue_string, pointgroup_info
@@ -92,6 +93,19 @@ contains
     real*8 :: rotdir(3), rotlen ! transient rotation-axis direction and half-length
     type(rep_shape) :: stdshp(3) ! transient std-orientation axes (arrows)
     type(rep_shape) :: rotshp(1) ! transient rotation axis (cylinder)
+    type(rep_shape) :: lvshp(7) ! transient preview of the full transformation (spheres, arrows, box)
+    logical :: lvshown ! the transient lattice points were shown this frame
+    real*8 :: fullm(3,3), xb(3)
+    ! preview of the full transformation, in lattice-point sphere radii
+    real*8, parameter :: pv_radfac = 1.5d0 ! the new lattice vectors' spheres
+    real*8, parameter :: pv_arrowr = 0.3d0 ! arrow shaft radius
+    real*8, parameter :: pv_headr = 2.5d0 ! arrowhead radius (shaft radii)
+    real*8, parameter :: pv_headl = 0.15d0 ! arrowhead length (fraction of the arrow)
+    real*8, parameter :: pv_edger = 0.25d0 ! outline radius
+    real(c_float), parameter :: pv_edge_rgb(3) = (/1._c_float,0.6_c_float,0._c_float/) ! outline color
+    character(len=*), parameter :: errorigin = "The origin is not a lattice vector: pick another lattice point"
+    integer :: istat, latpick(4) ! lattice-vector pick: status and the picked point
+    real*8 :: xpick(3)
     type(ImVec4) :: col4
     character(len=3) :: schpg
     integer :: holo, laue
@@ -270,6 +284,34 @@ contains
           ! the pick is in progress: highlight the atom receiving the bond
           ! (applied in the hover-highlight section at the end of the draw)
           ipickhl = w%geometry_addbond%idx(1)
+       end if
+    end if
+
+    ! handle a pending lattice-vector pick (full cell transformation): the
+    ! picked point is the integer part and the centering vector of the
+    ! row; with Pick All, the pick moves on to the next rows. The origin
+    ! is not a lattice vector: picking it keeps the pick waiting.
+    lvshown = .false.
+    if (w%geometry_lvpick_row > 0) then
+       call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,latidx=latpick)
+       if (istat == ipick_point .and. latpick(4) > 0 .and. latpick(4) <= sys(isys)%c%ncv) then
+          if (all(abs(latpick(1:3) + sys(isys)%c%cen(:,latpick(4))) < 1d-5)) then
+             w%errmsg = errorigin
+             call lvpick_start(w%geometry_lvpick_row,w%geometry_lvpick_last)
+          else
+             i = w%geometry_lvpick_row
+             w%geometry_cell_intmat(:,i) = latpick(1:3)
+             w%geometry_cell_cen(i) = latpick(4)
+             w%errmsg = ""
+             if (i < w%geometry_lvpick_last) then
+                call lvpick_start(i+1,w%geometry_lvpick_last)
+             else
+                w%geometry_lvpick_row = 0
+             end if
+          end if
+       elseif (istat /= ipick_pending) then
+          w%geometry_lvpick_row = 0
+          if (w%errmsg == errorigin) w%errmsg = ""
        end if
     end if
 
@@ -1073,8 +1115,9 @@ contains
                       else
                          call iw_text("c' ",alignframe=.true.)
                       end if
-                      ch = ch .or. iw_inputint3("##cellmat" // string(im),&
+                      lch = iw_inputint3("##cellmat" // string(im),&
                          w%geometry_cell_intmat(:,im),width=3*3,sameline=.true.,notlive=.true.)
+                      ch = ch .or. lch
                       if (sys(isys)%c%ncv > 1) then
                          call iw_text(" + ",sameline=.true.)
                          call iw_combo_simple("##cellcen" // string(im),stropt,w%geometry_cell_cen(im),&
@@ -1082,15 +1125,46 @@ contains
                          ch = ch .or. lch
                          call iw_tooltip("Centering vector added to this lattice vector",ttshown)
                       end if
+                      if (iw_button("Pick##cellpick" // string(im),sameline=.true.,&
+                         disabled=(w%geometry_lvpick_row == im))) call lvpick_start(im,im)
+                      call iw_tooltip("Pick this lattice vector in the view: click the lattice point &
+                         &it ends at (a click anywhere else cancels)",ttshown)
                    end do
+                   if (iw_button("Pick All##cellpickall",disabled=(w%geometry_lvpick_row > 0))) &
+                      call lvpick_start(1,3)
+                   call iw_tooltip("Pick the three lattice vectors in the view, one after the other &
+                      &(a click anywhere else than a lattice point cancels)",ttshown)
                    call iw_text("Origin",alignframe=.true.)
                    do jm = 1, 3
-                      ch = ch .or. iw_dragfloat_real8("##cellorigin" // string(jm),&
+                      lch = iw_dragfloat_real8("##cellorigin" // string(jm),&
                          x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
                          notlive=.true.)
+                      ch = ch .or. lch
                    end do
                    ! if the user changed the matrix or the origin, clear the error message
                    if (ch) w%errmsg = ""
+
+                   ! the lattice points around the displayed cells, for the
+                   ! picks, and the preview of the new cell: its lattice
+                   ! vectors (larger spheres in the axis colors over their
+                   ! lattice points, and arrows from the origin ending at
+                   ! their surface) and its outline, at its origin
+                   if (.not.sys(isys)%c%ismolecule .and. associated(win(iview)%sc)) then
+                      call win(iview)%sc%show_transient_latvec(w%uid,1,replat_primitive,1)
+                      fullm = full_matrix()
+                      do im = 1, 3
+                         xb = sys(isys)%c%x2c(fullm(:,im))
+                         lvshp(im) = rep_shape(kind=shapekind_sphere,x1=xb,rad=pv_radfac*latvec_rad_def,&
+                            rgb=ColorAxes_def(:,im))
+                         lvshp(3+im) = rep_shape(kind=shapekind_arrow,shown=(norm2(xb) > 2d0*lvshp(im)%rad),&
+                            rad=pv_arrowr*latvec_rad_def,headr=pv_headr,headl=pv_headl,rgb=ColorAxes_def(:,im))
+                         if (lvshp(3+im)%shown) lvshp(3+im)%v(:,1) = xb * (1d0 - lvshp(im)%rad / norm2(xb))
+                      end do
+                      lvshp(7) = rep_shape(kind=shapekind_box,x1=sys(isys)%c%x2c(w%geometry_cell_origin),&
+                         v=matmul(sys(isys)%c%m_x2c,fullm),rad=pv_edger*latvec_rad_def,rgb=pv_edge_rgb,alpha=0._c_float)
+                      call win(iview)%sc%show_transient_shapes(w%uid,0,lvshp)
+                      lvshown = .true.
+                   end if
                 end if
                 ok = iw_button("Apply##celltransfapply",danger=.true.)
                 call iw_tooltip("Apply the supercell transformation",ttshown)
@@ -1103,10 +1177,7 @@ contains
                       iaction_m(3,3) = real(w%geometry_cell_nrep(3),8)
                       iaction_x = 0d0
                    else
-                      do im = 1, 3
-                         iaction_m(:,im) = real(w%geometry_cell_intmat(:,im),8) + &
-                            sys(isys)%c%cen(:,w%geometry_cell_cen(im))
-                      end do
+                      iaction_m = full_matrix()
                       iaction_x = w%geometry_cell_origin
                    end if
                    iaction_l = .false.
@@ -1591,6 +1662,7 @@ contains
                          ! "+" button: pick an atom in the view to add a bond to this atom
                          if (iw_button("+##addbond" // suffix,disabled=(iview == 0),nocapture=.true.)) then
                             call w%geometry_addbond%stage((/i,0,0,0/))
+                            w%geometry_lvpick_row = 0
                             call win(iview)%viewmode_set_forced(vm_pick_atom,&
                                "Pick an atom to bond to atom " // string(i),w%id)
                          end if
@@ -2109,6 +2181,9 @@ contains
 
     call igEndGroup()
 
+    ! the lattice-vector pick ends with the lattice points it picks from
+    if (.not.lvshown .and. w%geometry_lvpick_row > 0) call lvpick_cancel()
+
     ! hover highlight, plus the atom awaiting an add-bond pick (transient
     ! highlights clear each frame, so they must go in a single call)
     if (ihlbond > 0) then
@@ -2401,6 +2476,7 @@ contains
       if (iw_icon_togglebutton(strid,itex,fallback,state=lstate,disabled=(iview == 0),&
          sameline=.true.)) then
          w%errmsg = ""
+         w%geometry_lvpick_row = 0
          call bondmode_toggle(w,iview,isys,mode)
       end if
       call iw_tooltip(ttip,ttshown,whendisabled=.true.)
@@ -2458,8 +2534,47 @@ contains
       w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
       w%geometry_cell_cen = 1
       w%geometry_cell_origin = 0d0
+      w%geometry_lvpick_row = 0
 
     end subroutine reset_for_new_system
+
+    ! Start the pick of the lattice vector in row irow of the full cell
+    ! transformation, in the anchor view; the pick goes on to the next
+    ! rows up to ilast. It replaces a pending add-bond pick.
+    subroutine lvpick_start(irow,ilast)
+      integer, intent(in) :: irow, ilast
+
+      character(len=3), parameter :: lbl(3) = (/"a' ","b' ","c' "/)
+
+      call w%geometry_addbond%clear()
+      w%geometry_lvpick_row = irow
+      w%geometry_lvpick_last = ilast
+      call w%geometry_lvpick%arm()
+      call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the lattice point of " // trim(lbl(irow)),&
+         w%id,latonly=.true.)
+
+    end subroutine lvpick_start
+
+    ! Cancel a pending lattice-vector pick and release the view.
+    subroutine lvpick_cancel()
+
+      call win(iview)%viewmode_release_forced(w%id)
+      w%geometry_lvpick_row = 0
+
+    end subroutine lvpick_cancel
+
+    ! The matrix of the full cell transformation: the lattice vectors of
+    ! the new cell (columns, fractional), integer part plus centering.
+    function full_matrix() result(m)
+      real*8 :: m(3,3)
+
+      integer :: k
+
+      do k = 1, 3
+         m(:,k) = real(w%geometry_cell_intmat(:,k),8) + sys(isys)%c%cen(:,w%geometry_cell_cen(k))
+      end do
+
+    end function full_matrix
 
     ! deallocate the sort array and force a sort of the table
     subroutine reset_sort()
