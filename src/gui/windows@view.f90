@@ -541,7 +541,7 @@ contains
           if (iw_menuitem("Brillouin Zone")) &
              call w%add_rep_and_edit(reptype_bz,repflavor_bz)
           call iw_tooltip("The first Brillouin zone: the Wigner-Seitz cell of the reciprocal lattice",ttshown)
-          if (iw_menuitem("Reciprocal Lattice")) &
+          if (iw_menuitem("Lattice Vectors")) &
              call w%add_rep_and_edit(reptype_reclat,repflavor_reclat)
           call iw_tooltip("Spheres at the reciprocal lattice points",ttshown)
           if (iw_menuitem("Reciprocal Cell")) &

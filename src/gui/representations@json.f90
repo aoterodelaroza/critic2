@@ -197,6 +197,15 @@ contains
          call io%x(q,'cenrgb',r%lv%cenrgb)
          call io%x(q,'border_size',r%lv%border_size,lo=0d0)
          call io%x(q,'border_rgb',r%lv%border_rgb)
+         n = 0
+         if (allocated(r%lv%hide)) n = size(r%lv%hide,2)
+         call io%x(q,'nhide',n,0)
+         if (io%reading) then
+            if (allocated(r%lv%hide)) deallocate(r%lv%hide)
+            allocate(r%lv%hide(3,n))
+            r%lv%hide = 0d0
+         end if
+         if (n > 0) call io%x(q,'hide',r%lv%hide)
 
       case (reptype_axes, reptype_recaxes)
          if (r%type == reptype_recaxes) then

@@ -2708,7 +2708,7 @@ contains
           elseif (s%rep(i)%type == reptype_bz) then
              str3 = "brillouin zone" // c_null_char
           elseif (s%rep(i)%type == reptype_reclat) then
-             str3 = "reciprocal lattice" // c_null_char
+             str3 = "lattice vectors" // c_null_char
           elseif (s%rep(i)%type == reptype_reccell) then
              str3 = "reciprocal cell" // c_null_char
           elseif (s%rep(i)%type == reptype_recaxes) then

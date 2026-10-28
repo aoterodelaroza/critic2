@@ -474,6 +474,7 @@ contains
          end do
       end do
     end associate
+    call origin_first(np,ipt)
 
   end subroutine lattice_points
 
@@ -484,19 +485,30 @@ contains
     real*8, intent(in) :: x(3)
     logical :: ok
 
+    ok = point_in_list(ws%pts,x)
+
+  end function wscell_isdrawn
+
+  !> Whether the point x (fractional) is one of the points in pts (3 x
+  !> n; none if not allocated).
+  module function point_in_list(pts,x) result(ok)
+    real*8, allocatable, intent(in) :: pts(:,:)
+    real*8, intent(in) :: x(3)
+    logical :: ok
+
     real*8, parameter :: eps = 1d-5
     integer :: i
 
     ok = .false.
-    if (.not.allocated(ws%pts)) return
-    do i = 1, size(ws%pts,2)
-       if (all(abs(ws%pts(:,i) - x) < eps)) then
+    if (.not.allocated(pts)) return
+    do i = 1, size(pts,2)
+       if (all(abs(pts(:,i) - x) < eps)) then
           ok = .true.
           return
        end if
     end do
 
-  end function wscell_isdrawn
+  end function point_in_list
 
   !> The Wigner-Seitz cell of system isys around the origin lattice
   !> point: the lattice of the unit cell (lattice = replat_cell, the
@@ -608,6 +620,7 @@ contains
          end do
       end do
     end associate
+    call origin_first(np,ipt)
 
   end subroutine recip_points
 
@@ -4375,6 +4388,7 @@ contains
          mframe = c%m_x2c
       end if
       do ip = 1, np
+         if (point_in_list(r%lv%hide,ipt(1:3,ip) + c%cen(:,ipt(4,ip)))) cycle
          xs = matmul(mframe,ipt(1:3,ip) + c%cen(:,ipt(4,ip)))
          dlat = dl_sphere(x=real(xs,c_float),r=real(rscale * r%lv%rad,c_float),&
             rgb=r%lv%rgb,idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
@@ -5400,6 +5414,25 @@ contains
     end do
 
   end subroutine vib_phasors
+
+  !> Move the origin (cell 0,0,0 and centering vector 1) to the front
+  !> of the np lattice points in ipt(:,1:np) (as in lattice_points),
+  !> keeping the order of the others: the lists of lattice points
+  !> start with it.
+  subroutine origin_first(np,ipt)
+    integer, intent(in) :: np
+    integer, intent(inout) :: ipt(:,:)
+
+    integer :: i
+
+    do i = 2, np
+       if (all(ipt(1:3,i) == 0) .and. ipt(4,i) == 1) then
+          ipt(:,1:i) = cshift(ipt(:,1:i),-1,2)
+          return
+       end if
+    end do
+
+  end subroutine origin_first
 
   !> Mark the distinct points among x(:,1:m) (cartesian, bohr): keep(i)
   !> is .true. for the first of every group of points closer than

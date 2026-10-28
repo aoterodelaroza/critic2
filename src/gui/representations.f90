@@ -534,7 +534,7 @@ module representations
      "Wigner-Seitz Cell ",& ! repflavor_wscell
      "Lattice Vectors   ",& ! repflavor_latvec
      "Brillouin Zone    ",& ! repflavor_bz
-     "Reciprocal Lattice",& ! repflavor_reclat
+     "Lattice Vectors   ",& ! repflavor_reclat
      "Reciprocal Cell   ",& ! repflavor_reccell
      "Reciprocal Axes   "/) ! repflavor_recaxes
 
@@ -636,6 +636,7 @@ module representations
      real(c_float) :: border_rgb(3) = 0._c_float ! sphere border color
      integer :: margin = 0 ! cells added on each side of the region drawn (transients only; not saved)
      integer :: nrange = 1 ! reciprocal lattice: the points drawn have |h|,|k|,|l| <= nrange
+     real*8, allocatable :: hide(:,:) ! points not drawn (fractional; reciprocal: hkl)
   end type rep_latvec
   public :: rep_latvec
 
@@ -1515,6 +1516,7 @@ module representations
   public :: reptype_is_recip
   public :: lattice_points
   public :: wscell_isdrawn
+  public :: point_in_list
   public :: labels_row
   public :: cps_field
   public :: cps_field_default
@@ -1593,6 +1595,11 @@ module representations
        real*8, intent(in) :: x(3)
        logical :: ok
      end function wscell_isdrawn
+     module function point_in_list(pts,x) result(ok)
+       real*8, allocatable, intent(in) :: pts(:,:)
+       real*8, intent(in) :: x(3)
+       logical :: ok
+     end function point_in_list
      module subroutine wscell_geometry(isys,lattice,nf,nv,nside,iside,xv,recip)
        integer, intent(in) :: isys
        integer, intent(in) :: lattice

@@ -1307,8 +1307,7 @@ contains
     use representations, only: wscell_geometry, lattice_points, wscell_isdrawn, recip_points,&
        reptype_bz
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_separatortext, iw_combo_simple, iw_table_column, iw_table_headers_row, iw_calcwidth,&
-       iw_calcheight, frac_point_string, iw_intstepper
+       iw_separatortext, iw_combo_simple, iw_intstepper
     use systems, only: sys, sysc
     use tools_io, only: string
     use param, only: bohrtoa
@@ -1317,16 +1316,11 @@ contains
     logical :: changed
 
     logical :: ch
-    integer :: i, iview, np, ncol
-    character(kind=c_char,len=:), allocatable, target :: str1
+    integer :: i, iview, np
     integer, allocatable :: nside(:), iside(:,:), ipt(:,:)
-    real*8, allocatable :: xv(:,:), xpt(:,:), xkeep(:,:)
-    logical, allocatable :: shown(:), listed(:)
+    real*8, allocatable :: xv(:,:), xpt(:,:)
+    logical, allocatable :: shown(:)
     logical :: chpts, isbz
-    integer(c_int) :: flags
-    type(ImVec2) :: sz
-    type(c_ptr) :: clipper
-    type(ImGuiListClipper), pointer :: clipper_f
     real*8 :: lscale
 
     ! initialize
@@ -1389,74 +1383,19 @@ contains
           else
              call iw_text("Cells at " // string(count(shown)) // " of " // string(np) // " lattice points")
           end if
-          chpts = .false.
-
-          flags = ImGuiTableFlags_None
-          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-          flags = ior(flags,ImGuiTableFlags_RowBg)
-          flags = ior(flags,ImGuiTableFlags_Borders)
-          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
-          str1 = "##tablewspoints" // c_null_char
-          sz%x = iw_calcwidth(30,2)
-          sz%y = iw_calcheight(min(8,np+1),0,.false.)
-          if (igBeginTable(c_loc(str1),2,flags,sz,0._c_float)) then
-             ncol = -1
-             call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-             if (isbz) then
-                call iw_table_column("hkl",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
-             else
-                call iw_table_column("Lattice point",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
-             end if
-             call iw_table_headers_row(freezetop=.true.,autofit=.true.)
-
-             ! only the visible rows are drawn
-             clipper = ImGuiListClipper_ImGuiListClipper()
-             call ImGuiListClipper_Begin(clipper,int(np,c_int),-1._c_float)
-             do while(ImGuiListClipper_Step(clipper))
-                call c_f_pointer(clipper,clipper_f)
-                do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-
-                   ! shown
-                   if (igTableSetColumnIndex(0_c_int)) then
-                      ch = iw_checkbox("##wsptshown" // string(i),shown(i))
-                      if (isbz) then
-                         call iw_tooltip("Draw a Brillouin zone around this reciprocal lattice point",ttshown)
-                      else
-                         call iw_tooltip("Draw a Wigner-Seitz cell around this lattice point",ttshown)
-                      end if
-                      chpts = chpts .or. ch
-                   end if
-
-                   ! position
-                   if (igTableSetColumnIndex(1_c_int)) &
-                      call iw_text(frac_point_string(xpt(:,i)),alignframe=.true.)
-                end do
-             end do
-             call ImGuiListClipper_End(clipper)
-             call ImGuiListClipper_destroy(clipper)
-             call igEndTable()
-          end if
           if (isbz) then
-             ch = showhide_buttons(shown,"wspts","Brillouin zones",ttshown)
+             chpts = point_table(xpt,shown,.true.,"wspt",&
+                "Draw a Brillouin zone around this reciprocal lattice point","Brillouin zones",ttshown)
           else
-             ch = showhide_buttons(shown,"wspts","Wigner-Seitz cells",ttshown)
+             chpts = point_table(xpt,shown,.false.,"wspt",&
+                "Draw a Wigner-Seitz cell around this lattice point","Wigner-Seitz cells",ttshown)
           end if
-          chpts = chpts .or. ch
 
           ! the cells drawn are the lattice points checked in the table,
           ! plus the stored points not in it (outside the displayed cells
           ! or not lattice points of the current lattice), kept for later
           if (chpts) then
-             if (.not.allocated(w%rep%ws%pts)) allocate(w%rep%ws%pts(3,0))
-             allocate(listed(size(w%rep%ws%pts,2)))
-             do i = 1, size(w%rep%ws%pts,2)
-                listed(i) = any(all(abs(xpt - spread(w%rep%ws%pts(:,i),2,np)) < 1d-5,1))
-             end do
-             xkeep = w%rep%ws%pts(:,pack((/(i,i=1,size(listed))/),.not.listed))
-             w%rep%ws%pts = reshape((/xkeep,xpt(:,pack((/(i,i=1,np)/),shown))/),&
-                (/3,size(xkeep,2)+count(shown)/))
+             call merge_point_list(w%rep%ws%pts,xpt,shown)
              changed = .true.
           end if
        end if
@@ -1541,10 +1480,10 @@ contains
   !> reciprocal lattice (the points hkl in its range). Returns true if
   !> the scene needs rendering again.
   module function draw_editrep_latvec(w,ttshown) result(changed)
-    use representations, only: lattice_points, replat_primitive, recip_points, reptype_reclat
+    use representations, only: lattice_points, replat_primitive, recip_points, reptype_reclat,&
+       point_in_list
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_separatortext, iw_combo_simple, iw_table_column, iw_table_headers_row, iw_calcwidth,&
-       iw_calcheight, frac_point_string, iw_intstepper
+       iw_separatortext, iw_combo_simple, iw_intstepper
     use systems, only: sys
     use tools_io, only: string
     use param, only: bohrtoa
@@ -1553,15 +1492,12 @@ contains
     logical :: changed
 
     logical :: ch
-    integer :: i, iview, np, ncol
-    character(kind=c_char,len=:), allocatable, target :: str1
+    integer :: i, iview, np
     integer, allocatable :: ipt(:,:)
-    integer(c_int) :: flags
-    type(ImVec2) :: sz
-    type(c_ptr) :: clipper
-    type(ImGuiListClipper), pointer :: clipper_f
-    logical :: isrec
+    logical :: isrec, chpts
     real*8 :: u
+    real*8, allocatable :: xpt(:,:)
+    logical, allocatable :: shown(:)
 
     ! initialize
     changed = .false.
@@ -1596,7 +1532,7 @@ contains
           changed = changed .or. ch
        end if
 
-       ! the lattice points in the region drawn
+       ! the lattice points in the region drawn, and whether each is shown
        iview = w%anchor_view()
        np = 0
        if (isrec) then
@@ -1604,42 +1540,30 @@ contains
        elseif (iview > 0) then
           call lattice_points(w%isys,w%rep%lv%lattice,win(iview)%sc%disp,w%rep%disp,np,ipt)
        end if
-       call iw_text("Lattice points: " // string(np))
+       allocate(shown(np),xpt(3,np))
+       associate(c => sys(w%isys)%c)
+         do i = 1, np
+            ! (a reciprocal lattice point has centering index 1, the origin)
+            xpt(:,i) = ipt(1:3,i) + c%cen(:,ipt(4,i))
+            shown(i) = .not.point_in_list(w%rep%lv%hide,xpt(:,i))
+         end do
+       end associate
        if (np > 0) then
-          flags = ImGuiTableFlags_None
-          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-          flags = ior(flags,ImGuiTableFlags_RowBg)
-          flags = ior(flags,ImGuiTableFlags_Borders)
-          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
-          str1 = "##tablelvpoints" // c_null_char
-          sz%x = iw_calcwidth(30,1)
-          sz%y = iw_calcheight(min(8,np+1),0,.false.)
-          if (igBeginTable(c_loc(str1),1,flags,sz,0._c_float)) then
-             ncol = -1
-             if (isrec) then
-                call iw_table_column("hkl",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
-             else
-                call iw_table_column("Lattice point",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
-             end if
-             call iw_table_headers_row(freezetop=.true.,autofit=.true.)
-             ! only the visible rows are formatted
-             clipper = ImGuiListClipper_ImGuiListClipper()
-             call ImGuiListClipper_Begin(clipper,int(np,c_int),-1._c_float)
-             associate(c => sys(w%isys)%c)
-               do while(ImGuiListClipper_Step(clipper))
-                  call c_f_pointer(clipper,clipper_f)
-                  do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-                     call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-                     ! (a reciprocal lattice point has centering index 1, the origin)
-                     if (igTableSetColumnIndex(0_c_int)) &
-                        call iw_text(frac_point_string(ipt(1:3,i) + c%cen(:,ipt(4,i))))
-                  end do
-               end do
-             end associate
-             call ImGuiListClipper_End(clipper)
-             call ImGuiListClipper_destroy(clipper)
-             call igEndTable()
+          call iw_text("Lattice points: " // string(count(shown)) // " of " // string(np) // " shown")
+          if (isrec) then
+             chpts = point_table(xpt,shown,.true.,"lvpt",&
+                "Draw the sphere at this reciprocal lattice point","lattice points",ttshown)
+          else
+             chpts = point_table(xpt,shown,.false.,"lvpt",&
+                "Draw the sphere at this lattice point","lattice points",ttshown)
+          end if
+
+          ! the points hidden are those unchecked in the table, plus the
+          ! stored points not in it (outside the region drawn, or not
+          ! points of the current lattice), kept for later
+          if (chpts) then
+             call merge_point_list(w%rep%lv%hide,xpt,.not.shown)
+             changed = .true.
           end if
        end if
     end if
@@ -2967,9 +2891,6 @@ contains
 
   end function view_ndc_per_pixel
 
-  !> The Show All / Hide All / Toggle Show/Hide button row over the mask
-  !> shown; idsuffix makes the button IDs unique and what names the
-  !> items in the tooltips. Returns whether the mask changed.
   !> Draw the periodicity override of the object of editrep window w,
   !> for the objects drawn over the cells of the Display (atoms, unit
   !> cell, and a whole-cell isosurface) in crystals. Returns true if it
@@ -2987,6 +2908,102 @@ contains
 
   end function periodicity_widget
 
+  !> The table of the lattice points xpt (fractional; hkl if isrec)
+  !> of an object editor, with a Show checkbox in each row (shown) and
+  !> the Show All / Hide All / Toggle Show/Hide buttons under it (only
+  !> the visible rows are drawn). idsuffix makes the IDs unique,
+  !> tooltip is that of the checkboxes and what names the points in
+  !> the tooltips of the buttons. Returns whether shown changed.
+  function point_table(xpt,shown,isrec,idsuffix,tooltip,what,ttshown) result(changed)
+    use utils, only: iw_checkbox, iw_tooltip, iw_text, iw_table_column, iw_table_headers_row,&
+       iw_calcwidth, iw_calcheight, frac_point_string
+    use tools_io, only: string
+    real*8, intent(in) :: xpt(:,:)
+    logical, intent(inout) :: shown(:)
+    logical, intent(in) :: isrec
+    character(len=*), intent(in) :: idsuffix, tooltip, what
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    integer :: i, np, ncol
+    logical :: ch
+    integer(c_int) :: flags
+    type(ImVec2) :: sz
+    type(c_ptr) :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
+    character(kind=c_char,len=:), allocatable, target :: str1
+
+    changed = .false.
+    np = size(shown)
+    flags = ImGuiTableFlags_None
+    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+    flags = ior(flags,ImGuiTableFlags_RowBg)
+    flags = ior(flags,ImGuiTableFlags_Borders)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    str1 = "##table" // idsuffix // c_null_char
+    sz%x = iw_calcwidth(30,2)
+    sz%y = iw_calcheight(min(8,np+1),0,.false.)
+    if (igBeginTable(c_loc(str1),2,flags,sz,0._c_float)) then
+       ncol = -1
+       call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+       if (isrec) then
+          call iw_table_column("hkl",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+       else
+          call iw_table_column("Lattice point",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+       end if
+       call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+
+       clipper = ImGuiListClipper_ImGuiListClipper()
+       call ImGuiListClipper_Begin(clipper,int(np,c_int),-1._c_float)
+       do while(ImGuiListClipper_Step(clipper))
+          call c_f_pointer(clipper,clipper_f)
+          do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             if (igTableSetColumnIndex(0_c_int)) then
+                ch = iw_checkbox("##" // idsuffix // "shown" // string(i),shown(i))
+                call iw_tooltip(tooltip,ttshown)
+                changed = changed .or. ch
+             end if
+             if (igTableSetColumnIndex(1_c_int)) &
+                call iw_text(frac_point_string(xpt(:,i)),alignframe=.true.)
+          end do
+       end do
+       call ImGuiListClipper_End(clipper)
+       call ImGuiListClipper_destroy(clipper)
+       call igEndTable()
+    end if
+    ch = showhide_buttons(shown,idsuffix // "s",what,ttshown)
+    changed = changed .or. ch
+
+  end function point_table
+
+  !> Update the stored point list of an object from the table of points
+  !> xpt (fractional): the entries of list not in the table are kept,
+  !> followed by the table points selected in sel.
+  subroutine merge_point_list(list,xpt,sel)
+    use representations, only: point_in_list
+    real*8, allocatable, intent(inout) :: list(:,:)
+    real*8, allocatable, intent(in) :: xpt(:,:)
+    logical, intent(in) :: sel(:)
+
+    integer :: i
+    logical, allocatable :: listed(:)
+    real*8, allocatable :: xkeep(:,:)
+
+    if (.not.allocated(list)) allocate(list(3,0))
+    allocate(listed(size(list,2)))
+    do i = 1, size(list,2)
+       listed(i) = point_in_list(xpt,list(:,i))
+    end do
+    xkeep = list(:,pack((/(i,i=1,size(listed))/),.not.listed))
+    list = reshape((/xkeep,xpt(:,pack((/(i,i=1,size(sel))/),sel))/),(/3,size(xkeep,2)+count(sel)/))
+
+  end subroutine merge_point_list
+
+  !> The Show All / Hide All / Toggle Show/Hide button row over the mask
+  !> shown; idsuffix makes the button IDs unique and what names the
+  !> items in the tooltips. Returns whether the mask changed.
   function showhide_buttons(shown,idsuffix,what,ttshown) result(changed)
     use utils, only: iw_button, iw_tooltip
     logical, intent(inout) :: shown(:)
