@@ -86,7 +86,7 @@ contains
        repstyle_sticks, reptype_cps, repflavor_cps, reptype_gpaths, repflavor_gpaths,&
        reptype_planar, reptype_legend, repflavor_legend, reptype_scalebar, repflavor_scalebar,&
        reptype_colorbar, repflavor_colorbar, reptype_slice, repflavor_slice, reptype_wscell,&
-       repflavor_wscell
+       repflavor_wscell, reptype_latvec, repflavor_latvec
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -581,6 +581,10 @@ contains
              if (iw_menuitem("Wigner-Seitz Cell")) &
                 call w%add_rep_and_edit(reptype_wscell,repflavor_wscell)
              call iw_tooltip("Display the Wigner-Seitz cell of the lattice",ttshown)
+
+             if (iw_menuitem("Lattice Vectors")) &
+                call w%add_rep_and_edit(reptype_latvec,repflavor_latvec)
+             call iw_tooltip("Draw a sphere at each lattice point",ttshown)
           end if
 
           if (iw_menuitem("Axes")) &
@@ -777,6 +781,8 @@ contains
           ! cursor, and the one captured by a pick press
           w%mousepos_cp = 0
           w%measure_pend_cp = 0
+          w%mousepos_lat = 0
+          w%measure_pend_lat = 0
           w%mousepos_anchor = w%mousepos_idx
        end if
        if (chbuild) w%sc%forcebuildlists = .true.
@@ -941,6 +947,7 @@ contains
        w%mousepos_idx = 0
        w%mousepos_bidx = 0
        w%mousepos_cp = 0
+       w%mousepos_lat = 0
        w%mousepos_anchor = 0
        w%mousepos_lastpick = pos
        call w%mousepos_to_texpos(pos)
@@ -970,6 +977,11 @@ contains
                 if (w%mousepos_anchor(1) /= 0) w%mousepos_anchor(5) = w%mousepos_idx(1)
              end if
              w%mousepos_idx = 0
+          elseif (w%sc%obj%sph(w%mousepos_idx(1))%latidx(4) > 0) then
+             ! a lattice point: its own identity, no atom under the mouse
+             ! (nothing while a rebuild is pending, as for the CPs)
+             if (.not.w%sc%forcebuildlists) w%mousepos_lat = w%sc%obj%sph(w%mousepos_idx(1))%latidx
+             w%mousepos_idx = 0
           else
              ! transform to atom cell ID and lattice vector
              w%mousepos_idx(1:4) = w%sc%obj%sph(w%mousepos_idx(1))%idx
@@ -983,6 +995,7 @@ contains
        w%mousepos_idx = 0
        w%mousepos_bidx = 0
        w%mousepos_cp = 0
+       w%mousepos_lat = 0
        w%mousepos_anchor = 0
        ! forget where the last pick was taken: the cursor can leave the view
        ! and come back to the very same pixel, and the "has it moved" test
@@ -1336,6 +1349,7 @@ contains
     w%mousepos_lastpick%y = 0._c_float
     w%mousepos_idx = 0
     w%mousepos_cp = 0
+    w%mousepos_lat = 0
     w%mousepos_anchor = 0
 
     ! reset the viewmodes; the annotation tools work on the objects of
@@ -1393,6 +1407,7 @@ contains
              w%vmdata%idx = 0
              w%vmdata%bidx = 0
              w%vmdata%cpidx = 0
+             w%vmdata%latidx = 0
           end if
           call viewmode_to_navigate(w)
           return
@@ -1472,6 +1487,7 @@ contains
     w%vmdata%idx = 0
     w%vmdata%bidx = 0
     w%vmdata%cpidx = 0
+    w%vmdata%latidx = 0
     w%vmdata%xpos = 0._c_float
     w%vmdata%flag = 0
     w%vmdata%tooltip_iz = 0
@@ -1523,6 +1539,7 @@ contains
     w%vmdata%idx = 0
     w%vmdata%bidx = 0
     w%vmdata%cpidx = 0
+    w%vmdata%latidx = 0
     call objedit_drop_picks(w)
     call viewmode_to_navigate(w)
     w%measure_pend = pend_none
@@ -1884,6 +1901,34 @@ contains
 
   end function cp_hover_identity
 
+  !> The view-bar identity of the lattice point latidx (cell and
+  !> centering vector, as in dl_sphere%latidx) under the cursor: its
+  !> fractional and Cartesian coordinates.
+  function lat_hover_identity(w,latidx) result(msg)
+    use systems, only: sys, ok_system, sys_init
+    use global, only: dunit0, iunit_ang
+    use utils, only: frac_point_string
+    use tools_io, only: string
+    class(window), intent(in) :: w
+    integer(c_int), intent(in) :: latidx(4)
+    character(len=:), allocatable :: msg
+
+    real*8 :: x(3), x0(3)
+
+    msg = ""
+    if (latidx(4) <= 0) return
+    if (.not.ok_system(w%isys,sys_init)) return
+    associate(c => sys(w%isys)%c)
+      if (latidx(4) > c%ncv) return
+      x = latidx(1:3) + c%cen(:,latidx(4))
+      x0 = (c%x2c(x) + c%molx0) * dunit0(iunit_ang)
+      msg = "Lattice point " // frac_point_string(x) // " " //&
+         string(x0(1),'f',decimal=4) // " " // string(x0(2),'f',decimal=4) // " " //&
+         string(x0(3),'f',decimal=4) // " (Å)"
+    end associate
+
+  end function lat_hover_identity
+
   !> The image drawn at the mouse cursor for the current view mode: itex
   !> is the icon texture saying what the next click does (0 = none), txt
   !> is a short label drawn instead when the cue is a chemical symbol
@@ -2096,6 +2141,7 @@ contains
     ! instruction.
     idmsg = hover_identity(w,w%mousepos_idx)
     if (len_trim(idmsg) == 0) idmsg = cp_hover_identity(w,w%mousepos_cp)
+    if (len_trim(idmsg) == 0) idmsg = lat_hover_identity(w,w%mousepos_lat)
     if (len_trim(w%errmsg) > 0) then
        ! an edit failed (e.g. a drag that could not be applied): the error
        ! outranks any hint, and stays until the next action clears it
@@ -2248,6 +2294,7 @@ contains
 
     integer(c_int), parameter :: izerob(8) = 0_c_int ! "no bond", for the picks that cannot target one
     integer(c_int), parameter :: izerocp(5) = 0_c_int ! "no critical point", likewise
+    integer(c_int), parameter :: izerolat(4) = 0_c_int ! "no lattice point", likewise
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
@@ -2450,9 +2497,10 @@ contains
                 w%measure_pend_idx = w%mousepos_idx
                 w%measure_pend_bidx = w%mousepos_bidx
                 w%measure_pend_cp = w%mousepos_cp
+                w%measure_pend_lat = w%mousepos_lat
                 w%press_p0 = mousepos
              else
-                call deliver_pick(w%mousepos_idx(1:4),w%mousepos_bidx,w%mousepos_cp,.false.)
+                call deliver_pick(w%mousepos_idx(1:4),w%mousepos_bidx,w%mousepos_cp,w%mousepos_lat,.false.)
              end if
           elseif (hover .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.,iview=w%id)) then
              if (bind_mouse_button(BIND_PICKATOM_ALT) >= 0) then
@@ -2490,7 +2538,8 @@ contains
                    call w%sc%toggle_measurement_sel()
                    w%forcerender = .true.
                 elseif (w%measure_pend == pend_pick) then
-                   call deliver_pick(w%measure_pend_idx(1:4),w%measure_pend_bidx,w%measure_pend_cp,.false.)
+                   call deliver_pick(w%measure_pend_idx(1:4),w%measure_pend_bidx,w%measure_pend_cp,&
+                      w%measure_pend_lat,.false.)
                 elseif (w%measure_pend == pend_pick_alt) then
                    w%measure_pend = pend_none
                    if (resolve_alt_pick(w%measure_pend_idx(1:4))) return
@@ -2507,7 +2556,7 @@ contains
        ! point under the cursor is not empty space)
        if (.not.forcedpick .and. .not.editexit .and. hover .and.&
           is_bind_event(BIND_NAV_MEASURE,iview=w%id) .and. w%mousepos_idx(1) == 0 .and.&
-          w%mousepos_cp(1) == 0) then
+          w%mousepos_cp(1) == 0 .and. w%mousepos_lat(4) == 0) then
           call sysc(w%isys)%highlight_clear(.false.)
           w%forcerender = .true.
        end if
@@ -2918,12 +2967,13 @@ contains
       integer, intent(in) :: bindid
       logical :: exit_on_empty
 
-      ! a bond or a critical point under the cursor is not empty space,
+      ! a bond, a critical point or a lattice point under the cursor is not empty space,
       ! even though they leave mousepos_idx zero: without this a
       ! double-click meant to cycle a bond order twice would also leave
       ! the mode
       exit_on_empty = hover .and. is_bind_event(bindid,norepeat=.true.,iview=w%id) .and.&
-         w%mousepos_idx(1) == 0 .and. w%mousepos_bidx(1) == 0 .and. w%mousepos_cp(1) == 0
+         w%mousepos_idx(1) == 0 .and. w%mousepos_bidx(1) == 0 .and. w%mousepos_cp(1) == 0 .and.&
+         w%mousepos_lat(4) == 0
 
     end function exit_on_empty
 
@@ -2938,7 +2988,7 @@ contains
       if (exited) then
          call w%viewmode_exit_forced()
       else
-         call deliver_pick(idx,izerob,izerocp,.true.)
+         call deliver_pick(idx,izerob,izerocp,izerolat,.true.)
       end if
 
     end function resolve_alt_pick
@@ -2946,7 +2996,8 @@ contains
     ! Deliver a completed pick to the commanding window. bidx is the bond
     ! under the cursor, used by the bond modes; idx the atom, used by the
     ! rest (the two are mutually exclusive); cp the critical point (as
-    ! mousepos_cp), delivered with an empty-space click. Pick-bond
+    ! mousepos_cp) and lat the lattice point (as mousepos_lat), delivered
+    ! with an empty-space click. Pick-bond
     ! mode: deliver the bond (or nothing = cancelled; or, if the window
     ! accepts positions, the click as an empty-space one) and exit the
     ! mode. Pick-atom mode: deliver the atom (or zero = clicked on empty
@@ -2955,10 +3006,11 @@ contains
     ! clicks, with the click position), flag whether the main or the
     ! alternate pick bind fired, and stay in the mode for successive
     ! edits.
-    subroutine deliver_pick(idx,bidx,cp,alt)
+    subroutine deliver_pick(idx,bidx,cp,lat,alt)
       integer(c_int), intent(in) :: idx(4)
       integer(c_int), intent(in) :: bidx(8)
       integer(c_int), intent(in) :: cp(5)
+      integer(c_int), intent(in) :: lat(4)
       logical, intent(in) :: alt
 
       if (w%viewmode == vm_pick_bond) then
@@ -2970,6 +3022,7 @@ contains
          w%vmdata%bidx = 0
          w%vmdata%idx = 0
          w%vmdata%cpidx = 0
+         w%vmdata%latidx = 0
          if (.not.alt) then
             if (bidx(1) > 0) then
                w%vmdata%bidx = bidx
@@ -2993,12 +3046,17 @@ contains
          ! coordinates for unprojection via view_click_frame) only if the
          ! commanding window accepts it; otherwise it aborts the pick
          ! (flag stays 0). A window that accepts positions also gets the
-         ! critical point under the cursor (cpidx). The mode ends either way.
+         ! critical point (cpidx) or the lattice point (latidx) under the
+         ! cursor. The mode ends either way.
          w%vmdata%idx = 0
          w%vmdata%bidx = 0
          w%vmdata%cpidx = 0
+         w%vmdata%latidx = 0
          if (idx(1) > 0) w%vmdata%idx = idx
-         if (idx(1) == 0 .and. w%vmdata%acceptempty) w%vmdata%cpidx = cp
+         if (idx(1) == 0 .and. w%vmdata%acceptempty) then
+            w%vmdata%cpidx = cp
+            w%vmdata%latidx = lat
+         end if
          if (idx(1) > 0 .or. w%vmdata%acceptempty) then
             w%vmdata%flag = 1
             w%vmdata%xpos = (/texpos%x,texpos%y/)
@@ -4347,6 +4405,13 @@ contains
            xc = 0.5d0 * (c%x2c(c%atcel(b(1))%x + b(2:4)) + c%x2c(c%atcel(b(5))%x + b(6:8)))
          end associate
          ok = .true.
+      elseif (v%vmdata%latidx(4) > 0) then
+         ! a lattice point was clicked: its position
+         associate(c => sys(isys)%c, l => v%vmdata%latidx)
+           ok = (l(4) <= c%ncv)
+           if (ok) xc = c%x2c(l(1:3) + c%cen(:,l(4)))
+         end associate
+         if (.not.ok) call view_click_frame(iview,v%vmdata%xpos,xc,ok)
       else
          ! a critical point was clicked: its position (cpidx is a cell
          ! CP of the field, possibly stale)
@@ -4412,6 +4477,7 @@ contains
          v%vmdata%idx = 0
          v%vmdata%bidx = 0
          v%vmdata%cpidx = 0
+         v%vmdata%latidx = 0
          v%vmdata%flag = 0
       end if
     end associate
@@ -4449,6 +4515,7 @@ contains
          v%vmdata%idx = 0
          v%vmdata%bidx = 0
          v%vmdata%cpidx = 0
+         v%vmdata%latidx = 0
          v%vmdata%flag = 0
       end if
     end associate

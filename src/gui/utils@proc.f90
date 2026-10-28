@@ -3457,6 +3457,36 @@ contains
 
   end function string_nozeros
 
+  !> A fractional coordinate x as a fraction (1/2, -1/3, 2), or 0.
+  module function frac_string(x) result(str)
+    use tools_math, only: rational_approx
+    use tools_io, only: string
+    real*8, intent(in) :: x
+    character(len=:), allocatable :: str
+
+    integer*8 :: q, r
+
+    call rational_approx(x,q,r,1d-4)
+    if (q == 0) then
+       str = "0"
+    elseif (r == 1) then
+       str = string(int(q))
+    else
+       str = string(int(q)) // "/" // string(int(r))
+    end if
+
+  end function frac_string
+
+  !> A point in fractional coordinates x as (a, b, c), each component
+  !> a fraction (frac_string).
+  module function frac_point_string(x) result(str)
+    real*8, intent(in) :: x(3)
+    character(len=:), allocatable :: str
+
+    str = "(" // frac_string(x(1)) // ", " // frac_string(x(2)) // ", " // frac_string(x(3)) // ")"
+
+  end function frac_point_string
+
   !xx! private procedures !xx!
 
   !> Record str as the text of the current table cell while capturing

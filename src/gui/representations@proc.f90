@@ -85,7 +85,7 @@ contains
   !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes),
   !> 14 (critical points), 15 (gradient paths), 16 (planar shapes),
   !> 17 (legend), 18 (scale bar), 19 (color bar), 20 (plane map),
-  !> 21 (Wigner-Seitz cell).
+  !> 21 (Wigner-Seitz cell), 22 (lattice vectors).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -358,6 +358,11 @@ contains
        r%ws%pts = 0d0
     end if
 
+    ! lattice vectors
+    if (itype == 0 .or. itype == 22) then
+       r%lv = rep_latvec()
+    end if
+
     ! initialize the styles
     call r%reset_all_styles(itype)
 
@@ -369,7 +374,8 @@ contains
     logical :: ok
 
     ok = reptype_is_atombased(r%type) .or. r%type == reptype_unitcell .or. r%type == reptype_symelem .or.&
-       r%type == reptype_cps .or. r%type == reptype_gpaths .or. r%type == reptype_wscell
+       r%type == reptype_cps .or. r%type == reptype_gpaths .or. r%type == reptype_wscell .or.&
+       r%type == reptype_latvec
     if (r%type == reptype_isosurface) ok = r%iso%per0_built
 
   end function representation_uses_periodicity
@@ -385,37 +391,60 @@ contains
 
   end function reptype_is_atombased
 
-  !> The lattice points of system isys in the n(1) x n(2) x n(3)
-  !> displayed cells, borders included: the cell origins (lattice =
-  !> wslat_cell) or the cell origins plus the centering vectors
-  !> (wslat_primitive). Returns np points in ipt(:,1:np): the cell
-  !> (1:3) and the centering vector (4); the point is at ipt(1:3) +
-  !> c%cen(:,ipt(4)) (fractional).
-  module subroutine wscell_points(isys,lattice,n,np,ipt)
+  !> The lattice points of system isys in the region drawn by an
+  !> object with periodicity override ovr in a view with Display disp,
+  !> by the rule for the atoms: a point is drawn if it is in the
+  !> ncells cells starting at the display origin (tshift), and also on
+  !> the upper faces of the region if the Display draws borders. The
+  !> points are the cell origins (lattice = replat_cell) or the cell
+  !> origins plus the centering vectors (replat_primitive). Returns np
+  !> points in ipt(:,1:np): the cell (1:3) and the centering vector
+  !> (4); the point is at ipt(1:3) + c%cen(:,ipt(4)) (fractional).
+  module subroutine lattice_points(isys,lattice,disp,ovr,np,ipt)
     use systems, only: sys
     integer, intent(in) :: isys
     integer, intent(in) :: lattice
-    integer, intent(in) :: n(3)
+    type(scene_display), intent(in) :: disp
+    type(rep_display), intent(in) :: ovr
     integer, intent(out) :: np
     integer, allocatable, intent(inout) :: ipt(:,:)
 
-    real*8, parameter :: eps = 1d-5 ! on the border (fractional)
+    real*8, parameter :: eps = 1d-5 ! on a face of the region (fractional)
 
-    integer :: i1, i2, i3, k, ncv
-    real*8 :: x(3)
+    integer :: i1, i2, i3, k, ncv, n(3), l0(3), l1(3)
+    real*8 :: x(3), tshift(3), xhi(3)
+    logical :: border
 
     if (allocated(ipt)) deallocate(ipt)
+    np = 0
     associate(c => sys(isys)%c)
+      if (c%ismolecule) then
+         allocate(ipt(4,0))
+         return
+      end if
+      n = disp%ncells(ovr)
+      tshift = disp%tshift
+      border = disp%border
+      if (ovr%ignoresel) then
+         tshift = 0d0
+         border = .true.
+      end if
       ncv = 1
-      if (lattice == wslat_primitive) ncv = c%ncv
-      allocate(ipt(4,product(n+2)*ncv))
-      np = 0
-      do i1 = -1, n(1)
-         do i2 = -1, n(2)
-            do i3 = -1, n(3)
+      if (lattice == replat_primitive) ncv = c%ncv
+
+      ! the upper faces of the region are included only with borders
+      xhi = n + merge(eps,-eps,border)
+
+      ! the cell origins that can reach the region
+      l0 = floor(tshift) - 1
+      l1 = ceiling(tshift) + n
+      allocate(ipt(4,product(l1-l0+1)*ncv))
+      do i1 = l0(1), l1(1)
+         do i2 = l0(2), l1(2)
+            do i3 = l0(3), l1(3)
                do k = 1, ncv
-                  x = (/i1,i2,i3/) + c%cen(:,k)
-                  if (any(x < -eps) .or. any(x > n + eps)) cycle
+                  x = (/i1,i2,i3/) + c%cen(:,k) - tshift
+                  if (any(x < -eps) .or. any(x > xhi)) cycle
                   np = np + 1
                   ipt(:,np) = (/i1,i2,i3,k/)
                end do
@@ -424,7 +453,7 @@ contains
       end do
     end associate
 
-  end subroutine wscell_points
+  end subroutine lattice_points
 
   !> Whether the Wigner-Seitz cell object ws draws a cell at the
   !> lattice point with fractional coordinates x.
@@ -448,9 +477,9 @@ contains
   end function wscell_isdrawn
 
   !> The Wigner-Seitz cell of system isys around the origin lattice
-  !> point: the lattice of the unit cell (lattice = wslat_cell, the
+  !> point: the lattice of the unit cell (lattice = replat_cell, the
   !> cell calculated by critic2 with the crystal structure) or the
-  !> lattice of the cell and its centering vectors (wslat_primitive).
+  !> lattice of the cell and its centering vectors (replat_primitive).
   !> Returns the number of faces (nf) and vertices (nv), the number of
   !> vertices of each face (nside) with their indices in cyclic order
   !> (iside), and the vertices (xv, cartesian bohr). nf = 0 if there
@@ -472,7 +501,7 @@ contains
     nv = 0
     associate(c => sys(isys)%c)
       if (c%ismolecule) return
-      if (lattice == wslat_primitive .and. c%ncv > 1) then
+      if (lattice == replat_primitive .and. c%ncv > 1) then
          ! the primitive lattice (no cell if no basis is found)
          call primitive_lattice(c%m_x2c,c%ncv,c%cen,m_x2cp,okp)
          if (.not.okp) return
@@ -897,6 +926,7 @@ contains
     r%colorbar = rep_colorbar()
     r%slice = rep_slice()
     r%ws = rep_wscell()
+    r%lv = rep_latvec()
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -1728,6 +1758,9 @@ contains
     elseif (r%type == reptype_wscell) then
        !!! Wigner-Seitz cell !!!
        call append_wscell()
+    elseif (r%type == reptype_latvec) then
+       !!! lattice vectors !!!
+       call append_latvec()
     elseif (r%type == reptype_axes) then
        !!! cartesian axes representation !!!
 
@@ -4123,7 +4156,7 @@ contains
       if (nf <= 0) return
 
       ! the selected lattice points of the displayed cells
-      call wscell_points(r%id,r%ws%lattice,disp%ncells(r%disp),np,ipt)
+      call lattice_points(r%id,r%ws%lattice,disp,r%disp,np,ipt)
       allocate(xsel(3,np))
       nsel = 0
       do ip = 1, np
@@ -4190,6 +4223,25 @@ contains
       end if
 
     end subroutine append_wscell
+
+    !> One sphere at each lattice point in the region drawn, carrying
+    !> its identity (latidx: cell and centering vector) for the pick.
+    subroutine append_latvec()
+      integer :: np, ip
+      integer, allocatable :: ipt(:,:)
+      type(dl_sphere) :: dlat
+
+      call lattice_points(r%id,r%lv%lattice,disp,r%disp,np,ipt)
+      do ip = 1, np
+         dlat = dl_sphere(x=real(c%x2c(ipt(1:3,ip) + c%cen(:,ipt(4,ip))),c_float),r=real(r%lv%rad,c_float),&
+            rgb=r%lv%rgb,idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
+            border=real(r%lv%border_size,c_float),rgbborder=r%lv%border_rgb,&
+            alpha=real(r%lv%alpha,c_float),latidx=ipt(:,ip))
+         if (r%lv%usecenrgb .and. ipt(4,ip) > 1) dlat%rgb = r%lv%cenrgb
+         call dl_append(obj%sph,obj%nsph,dlat)
+      end do
+
+    end subroutine append_latvec
 
   end subroutine add_draw_elements
 

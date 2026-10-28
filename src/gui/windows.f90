@@ -1167,6 +1167,7 @@ module windows
      integer(c_int) :: bidx(8) = 0 ! bond identifier under mouse position: the two atom images it
                                    ! joins, each a cell index + lattice vector (as in dl_cylinder%bidx)
      integer(c_int) :: cpidx(5) = 0 ! critical point clicked in pick-atom mode with acceptempty (as in dl_sphere%cpidx)
+     integer(c_int) :: latidx(4) = 0 ! lattice point clicked in pick-atom mode with acceptempty (as in dl_sphere%latidx)
      integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate; 0 = nothing delivered/cancelled)
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms and pick-atom modes)
      logical :: acceptempty = .false. ! pick-atom mode: an empty-space click delivers a position instead of aborting
@@ -1257,6 +1258,7 @@ module windows
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      integer(c_int) :: mousepos_cp(5) = 0 ! critical point under mouse position (dl_sphere%cpidx; 0 = none)
+     integer(c_int) :: mousepos_lat(4) = 0 ! lattice point under mouse position (dl_sphere%latidx; 0 = none)
      integer(c_int) :: mousepos_anchor(5) = 0 ! measurement anchor under mouse position: the atom (as
                                               ! mousepos_idx) or the critical point (idx(1) < 0, see
                                               ! cp_anchor_make) with the sphere index in (5); 0 = none
@@ -1278,6 +1280,7 @@ module windows
      integer :: measure_pend_idx(5) = 0 ! atom captured at the press for the pending measurement/pick
      integer :: measure_pend_bidx(8) = 0 ! bond captured at the press for the pending pick
      integer :: measure_pend_cp(5) = 0 ! critical point captured at the press for the pending pick
+     integer :: measure_pend_lat(4) = 0 ! lattice point captured at the press for the pending pick
      real*8 :: timelast_view_getpixel = 0d0 ! time the pick buffer was last queried for atom ID
      ! dialog parameters
      type(dialog_userdata), pointer :: dialog_data => null() ! for the side pane callback
@@ -1594,6 +1597,7 @@ module windows
      procedure :: draw_editrep_polyhedra
      procedure :: draw_editrep_unitcell
      procedure :: draw_editrep_wscell
+     procedure :: draw_editrep_latvec
      procedure :: draw_editrep_axes
      procedure :: draw_editrep_symelem
      procedure :: draw_editrep_text
@@ -2339,6 +2343,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_wscell
+     module function draw_editrep_latvec(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_latvec
      module function draw_editrep_axes(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

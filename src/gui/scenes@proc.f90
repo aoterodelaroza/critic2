@@ -2217,7 +2217,7 @@ contains
     call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
     call setuniform_vec3((/0._c_float,0._c_float,0._c_float/),idxi=uniloc(u_displ))
 
-    ! draw the atoms and critical points, each with its loop index
+    ! draw the atoms, critical points and lattice points, each with its loop index
     ! encoded into the pick color
     ! with bondpick and atoms, both the bonds and the atoms are pickable
     onlybonds = bondpick
@@ -2226,9 +2226,10 @@ contains
        call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph)
        n = 0
        do i = 1, s%obj%nsph
-          if (s%obj%sph(i)%cpidx(1) > 0) then
-             ! critical points: pickable (hover identity), but not when
-             ! picking only bonds, since the bond CPs sit on the bonds
+          if (s%obj%sph(i)%cpidx(1) > 0 .or. s%obj%sph(i)%latidx(4) > 0) then
+             ! critical points and lattice points: pickable (hover
+             ! identity), but not when picking only bonds (the bond
+             ! CPs sit on the bonds; neither is a bond)
              if (onlybonds) cycle
           else
              ! draw the sphere, no gradient paths
@@ -2519,7 +2520,7 @@ contains
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
        reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar, reptype_legend,&
-       reptype_scalebar, reptype_colorbar, reptype_slice, reptype_wscell
+       reptype_scalebar, reptype_colorbar, reptype_slice, reptype_wscell, reptype_latvec
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -2677,6 +2678,8 @@ contains
              str3 = "plane map" // c_null_char
           elseif (s%rep(i)%type == reptype_wscell) then
              str3 = "ws cell" // c_null_char
+          elseif (s%rep(i)%type == reptype_latvec) then
+             str3 = "lattice vectors" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then

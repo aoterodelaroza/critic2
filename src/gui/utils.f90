@@ -173,6 +173,8 @@ module utils
   public :: file_name_dir
   public :: file_name_abs
   public :: string_nozeros
+  public :: frac_string
+  public :: frac_point_string
   !xx! math submodule !xx!
   public :: infiniteperspective
   public :: ortho
@@ -652,6 +654,14 @@ module utils
        integer, intent(in) :: decimal
        character(len=:), allocatable :: str
      end function string_nozeros
+     module function frac_string(x) result(str)
+       real*8, intent(in) :: x
+       character(len=:), allocatable :: str
+     end function frac_string
+     module function frac_point_string(x) result(str)
+       real*8, intent(in) :: x(3)
+       character(len=:), allocatable :: str
+     end function frac_point_string
      !xx! math submodule !xx!
      module subroutine infiniteperspective(m,fovy,aspect,znear)
        use iso_c_binding, only: c_float

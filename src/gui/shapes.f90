@@ -104,6 +104,7 @@ module shapes
      real(c_float) :: pie_rgb(3,3) = 0._c_float ! colors of pie sectors 2,3,4 (mixed sites)
      logical :: ghost = .false. ! invisible pick-only target (atoms hidden, bonds shown)
      integer(c_int) :: cpidx(5) = 0 ! critical point: complete CP list index, lattice vector, and field (0 = not a CP)
+     integer(c_int) :: latidx(4) = 0 ! lattice point: cell (1:3) and centering vector (4; 0 = not a lattice point)
      logical :: rim = .false. ! translucent: drawn as a volume, the opacity growing toward the rim
      logical :: fitpoly = .false. ! shrink to fit inside the coordination polyhedron centered on this atom image
   end type dl_sphere

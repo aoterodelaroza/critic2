@@ -154,7 +154,7 @@ contains
       case (reptype_wscell)
          call io%obj(p,'wscell',q,found)
          if (.not.found) return
-         call io%x(q,'lattice',r%ws%lattice,wslat_cell,wslat_primitive)
+         call io%x(q,'lattice',r%ws%lattice,replat_cell,replat_primitive)
          call io%x(q,'origin',r%ws%origin)
          call io%x(q,'showfaces',r%ws%showfaces)
          call io%x(q,'rgb',r%ws%rgb)
@@ -171,6 +171,18 @@ contains
             r%ws%pts = 0d0
          end if
          if (n > 0) call io%x(q,'pts',r%ws%pts)
+
+      case (reptype_latvec)
+         call io%obj(p,'latvec',q,found)
+         if (.not.found) return
+         call io%x(q,'lattice',r%lv%lattice,replat_cell,replat_primitive)
+         call io%x(q,'rad',r%lv%rad,lo=0d0)
+         call io%x(q,'rgb',r%lv%rgb)
+         call io%x(q,'alpha',r%lv%alpha,lo=0d0,hi=1d0)
+         call io%x(q,'usecenrgb',r%lv%usecenrgb)
+         call io%x(q,'cenrgb',r%lv%cenrgb)
+         call io%x(q,'border_size',r%lv%border_size,lo=0d0)
+         call io%x(q,'border_rgb',r%lv%border_rgb)
 
       case (reptype_axes)
          call io%obj(p,'axes',q,found)

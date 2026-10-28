@@ -60,13 +60,18 @@ module representations
   real*8, parameter, public :: uc_radius_def = 0.08d0 / bohrtoa ! radius of sticks
   real*8, parameter, public :: uc_radiusinner_def = 0.08d0 / bohrtoa ! radius of inner sticks
   real*8, parameter, public :: uc_innersteplen_def = 1.0d0 / bohrtoa ! length of stipple
+  !--> lattice of the Wigner-Seitz cell and lattice vectors objects
+  integer, parameter, public :: replat_cell = 0 ! the lattice of the unit cell
+  integer, parameter, public :: replat_primitive = 1 ! the lattice of the cell and its centering vectors
   !--> Wigner-Seitz cell
-  integer, parameter, public :: wslat_cell = 0 ! the lattice of the unit cell
-  integer, parameter, public :: wslat_primitive = 1 ! the lattice of the cell and its centering vectors
   real*8, parameter, public :: wsalpha_def = 0.3d0 ! face opacity (1 = opaque)
   real*8, parameter, public :: wsedgerad_def = 0.05d0 / bohrtoa ! edge cylinder radius
   real(c_float), parameter, public :: wsface_rgb_def(3) = (/0.55_c_float,0.75_c_float,0.95_c_float/) ! face color
   real(c_float), parameter, public :: wsedge_rgb_def(3) = 0._c_float ! edge color
+  !--> lattice vectors
+  real*8, parameter, public :: latvec_rad_def = 0.3d0 / bohrtoa ! sphere radius
+  real(c_float), parameter, public :: latvec_rgb_def(3) = (/0._c_float,1._c_float,168._c_float/255._c_float/) ! sphere color (#00FFA8)
+  real(c_float), parameter, public :: latvec_cenrgb_def(3) = (/0.15_c_float,0.35_c_float,0.85_c_float/) ! centering points
   !--> axes
   real*8, parameter, public :: axes_length_def = 1.0d0 / bohrtoa ! length of each axis
   real*8, parameter, public :: axes_radius_def = 0.06d0 / bohrtoa ! radius of the axis shafts
@@ -435,7 +440,8 @@ module representations
   integer, parameter, public :: reptype_slice = 18 ! colored map of a field on a plane ("Plane Map" in
                                                    ! the UI, "planemap" in the scene files)
   integer, parameter, public :: reptype_wscell = 19 ! Wigner-Seitz cell of the lattice
-  integer, parameter, public :: reptype_NUM = 19
+  integer, parameter, public :: reptype_latvec = 20 ! spheres at the lattice points
+  integer, parameter, public :: reptype_NUM = 20
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -463,7 +469,8 @@ module representations
   integer, parameter, public :: repflavor_colorbar = 22
   integer, parameter, public :: repflavor_slice = 23
   integer, parameter, public :: repflavor_wscell = 24
-  integer, parameter, public :: repflavor_NUM = 24
+  integer, parameter, public :: repflavor_latvec = 25
+  integer, parameter, public :: repflavor_NUM = 25
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -483,7 +490,7 @@ module representations
      reptype_bonds, reptype_labels, reptype_polyhedra, reptype_unitcell, reptype_axes,&
      reptype_symelem, reptype_text, reptype_measure, reptype_shapes, reptype_isosurface,&
      reptype_cps, reptype_gpaths, reptype_planar, reptype_legend, reptype_scalebar,&
-     reptype_colorbar, reptype_slice, reptype_wscell/)
+     reptype_colorbar, reptype_slice, reptype_wscell, reptype_latvec/)
 
   ! default name of an object, by flavor (each flavor belongs to exactly
   ! one kind, so this is also the name of the kind for its basic flavor)
@@ -512,7 +519,8 @@ module representations
      "Scale Bar        ",& ! repflavor_scalebar
      "Color Bar        ",& ! repflavor_colorbar
      "Plane Map        ",& ! repflavor_slice
-     "Wigner-Seitz Cell"/) ! repflavor_wscell
+     "Wigner-Seitz Cell",& ! repflavor_wscell
+     "Lattice Vectors  "/) ! repflavor_latvec
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -583,7 +591,7 @@ module representations
 
   !> Wigner-Seitz cell options (reptype_wscell; accessed as r%ws%...)
   type rep_wscell
-     integer :: lattice = wslat_primitive ! lattice whose WS cell is drawn (wslat_*)
+     integer :: lattice = replat_primitive ! lattice whose WS cell is drawn (replat_*)
      real*8 :: origin(3) = 0d0 ! origin shift applied to all cells (fractional)
      logical :: showfaces = .true. ! draw the faces
      real(c_float) :: rgb(3) = wsface_rgb_def ! face color
@@ -598,6 +606,19 @@ module representations
      integer :: cache_lattice = -1, cache_rev = -1
   end type rep_wscell
   public :: rep_wscell
+
+  !> Lattice vectors options (reptype_latvec; accessed as r%lv%...)
+  type rep_latvec
+     integer :: lattice = replat_primitive ! lattice whose points are drawn (replat_*)
+     real*8 :: rad = latvec_rad_def ! sphere radius (bohr)
+     real(c_float) :: rgb(3) = latvec_rgb_def ! sphere color
+     real*8 :: alpha = 1d0 ! sphere opacity (1 = opaque)
+     logical :: usecenrgb = .false. ! the points at a centering vector other than the origin have their own color
+     real(c_float) :: cenrgb(3) = latvec_cenrgb_def ! color of the centering points
+     real*8 :: border_size = atomborder_def ! sphere border size (bohr)
+     real(c_float) :: border_rgb(3) = 0._c_float ! sphere border color
+  end type rep_latvec
+  public :: rep_latvec
 
   !> Cartesian/crystallographic axes options (reptype_axes; accessed as r%axes%...)
   type rep_axes
@@ -1439,6 +1460,7 @@ module representations
      type(rep_colorbar) :: colorbar ! color bar options
      type(rep_slice) :: slice ! plane map options
      type(rep_wscell) :: ws ! Wigner-Seitz cell options
+     type(rep_latvec) :: lv ! lattice vectors options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -1469,7 +1491,7 @@ module representations
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
   public :: wscell_geometry
-  public :: wscell_points
+  public :: lattice_points
   public :: wscell_isdrawn
   public :: labels_row
   public :: cps_field
@@ -1535,13 +1557,14 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
-     module subroutine wscell_points(isys,lattice,n,np,ipt)
+     module subroutine lattice_points(isys,lattice,disp,ovr,np,ipt)
        integer, intent(in) :: isys
        integer, intent(in) :: lattice
-       integer, intent(in) :: n(3)
+       type(scene_display), intent(in) :: disp
+       type(rep_display), intent(in) :: ovr
        integer, intent(out) :: np
        integer, allocatable, intent(inout) :: ipt(:,:)
-     end subroutine wscell_points
+     end subroutine lattice_points
      module function wscell_isdrawn(ws,x) result(ok)
        type(rep_wscell), intent(in) :: ws
        real*8, intent(in) :: x(3)

@@ -69,7 +69,7 @@ contains
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
        reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
        reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar, reptype_slice, field_has_cps,&
-       reptype_wscell
+       reptype_wscell, reptype_latvec
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sysc, sys_init, ok_system
@@ -144,6 +144,9 @@ contains
           changed = changed .or. ch
        elseif (w%rep%type == reptype_wscell) then
           ch = w%draw_editrep_wscell(ttshown)
+          changed = changed .or. ch
+       elseif (w%rep%type == reptype_latvec) then
+          ch = w%draw_editrep_latvec(ttshown)
           changed = changed .or. ch
        elseif (w%rep%type == reptype_axes) then
           ch = w%draw_editrep_axes(ttshown)
@@ -1274,10 +1277,10 @@ contains
   !> Draw the editrep window, Wigner-Seitz cell options. Returns
   !> true if the scene needs to be rendered again.
   module function draw_editrep_wscell(w,ttshown) result(changed)
-    use representations, only: wscell_geometry, wscell_points, wscell_isdrawn
+    use representations, only: wscell_geometry, lattice_points, wscell_isdrawn
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
        iw_separatortext, iw_combo_simple, iw_table_column, iw_table_headers_row, iw_calcwidth,&
-       iw_calcheight
+       iw_calcheight, frac_point_string
     use systems, only: sys, sysc
     use tools_io, only: string
     use param, only: bohrtoa
@@ -1323,7 +1326,7 @@ contains
        iview = w%anchor_view()
        np = 0
        if (iview > 0) &
-          call wscell_points(w%isys,w%rep%ws%lattice,win(iview)%sc%disp%ncells(w%rep%disp),np,ipt)
+          call lattice_points(w%isys,w%rep%ws%lattice,win(iview)%sc%disp,w%rep%disp,np,ipt)
        allocate(shown(np),xpt(3,np))
        associate(c => sys(w%isys)%c)
          do i = 1, np
@@ -1362,8 +1365,7 @@ contains
 
                 ! position
                 if (igTableSetColumnIndex(1_c_int)) &
-                   call iw_text("(" // frac_string(xpt(1,i)) // ", " // frac_string(xpt(2,i)) // ", " //&
-                      frac_string(xpt(3,i)) // ")",alignframe=.true.)
+                   call iw_text(frac_point_string(xpt(:,i)),alignframe=.true.)
              end do
              call igEndTable()
           end if
@@ -1441,6 +1443,135 @@ contains
        call iw_text("The Wigner-Seitz cell could not be calculated",danger=.true.)
 
   end function draw_editrep_wscell
+
+  !> Draw the editrep window, lattice vectors class. Returns true if
+  !> the scene needs rendering again.
+  module function draw_editrep_latvec(w,ttshown) result(changed)
+    use representations, only: lattice_points, replat_primitive
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
+       iw_separatortext, iw_combo_simple, iw_table_column, iw_table_headers_row, iw_calcwidth,&
+       iw_calcheight, frac_point_string
+    use systems, only: sys
+    use tools_io, only: string
+    use param, only: bohrtoa
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch
+    integer :: i, iview, np, ncol
+    character(kind=c_char,len=:), allocatable, target :: str1
+    integer, allocatable :: ipt(:,:)
+    integer(c_int) :: flags
+    type(ImVec2) :: sz
+    type(c_ptr) :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
+
+    ! initialize
+    changed = .false.
+
+    !! the lattice
+    ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
+    ! and a widget skipped because changed is already true is a widget not drawn
+    call iw_separatortext("Lattice",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       call iw_text("Lattice",alignframe=.true.)
+       call iw_combo_simple("##lvlattice","Unit cell" // c_null_char // "Primitive (centered)" // c_null_char,&
+          w%rep%lv%lattice,changed=ch,sameline=.true.)
+       call iw_tooltip("Lattice whose points are drawn: the lattice of the unit cell, &
+          &or the lattice of the unit cell and its centering vectors (the same for a primitive cell)",ttshown)
+       changed = changed .or. ch
+
+       ! the lattice points in the region drawn
+       iview = w%anchor_view()
+       np = 0
+       if (iview > 0) &
+          call lattice_points(w%isys,w%rep%lv%lattice,win(iview)%sc%disp,w%rep%disp,np,ipt)
+       call iw_text("Lattice points: " // string(np))
+       if (np > 0) then
+          flags = ImGuiTableFlags_None
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_RowBg)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          str1 = "##tablelvpoints" // c_null_char
+          sz%x = iw_calcwidth(30,1)
+          sz%y = iw_calcheight(min(8,np+1),0,.false.)
+          if (igBeginTable(c_loc(str1),1,flags,sz,0._c_float)) then
+             ncol = -1
+             call iw_table_column("Lattice point",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+             call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+             ! only the visible rows are formatted
+             clipper = ImGuiListClipper_ImGuiListClipper()
+             call ImGuiListClipper_Begin(clipper,int(np,c_int),-1._c_float)
+             associate(c => sys(w%isys)%c)
+               do while(ImGuiListClipper_Step(clipper))
+                  call c_f_pointer(clipper,clipper_f)
+                  do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                     call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                     if (igTableSetColumnIndex(0_c_int)) &
+                        call iw_text(frac_point_string(ipt(1:3,i) + c%cen(:,ipt(4,i))))
+                  end do
+               end do
+             end associate
+             call ImGuiListClipper_End(clipper)
+             call ImGuiListClipper_destroy(clipper)
+             call igEndTable()
+          end if
+       end if
+    end if
+
+    !! the spheres
+    call iw_separatortext("Spheres",w%editrep_sec(2),hasmore=.true.)
+    if (w%editrep_sec(2)%open) then
+       call iw_text("Radius (Å)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##lvrad",x1=w%rep%lv%rad,speed=0.002d0,min=0d0,max=5d0,scale=bohrtoa,&
+          decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Radius of the lattice point spheres",ttshown)
+       changed = changed .or. ch
+
+       call iw_text("Color",alignframe=.true.,gap=.true.)
+       ch = iw_coloredit("##lvcolor",rgb=w%rep%lv%rgb,sameline=.true.)
+       call iw_tooltip("Color of the lattice point spheres",ttshown)
+       changed = changed .or. ch
+
+       call iw_text("Opacity",alignframe=.true.,gap=.true.)
+       ch = iw_dragfloat_real8("##lvalpha",x1=w%rep%lv%alpha,speed=0.005d0,min=0d0,max=1d0,&
+          decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Opacity of the spheres (0 = transparent, 1 = opaque)",ttshown)
+       changed = changed .or. ch
+
+       ! the points at the centering vectors, if there are any drawn
+       if (w%rep%lv%lattice == replat_primitive .and. sys(w%isys)%c%ncv > 1) then
+          ch = iw_checkbox("Separate centering color",w%rep%lv%usecenrgb,labelleft=.true.)
+          call iw_tooltip("Draw the lattice points at a centering vector (other than the cell &
+             &origins) in their own color",ttshown)
+          changed = changed .or. ch
+          if (w%rep%lv%usecenrgb) then
+             call iw_text("Centering color",alignframe=.true.,gap=.true.)
+             ch = iw_coloredit("##lvcencolor",rgb=w%rep%lv%cenrgb,sameline=.true.)
+             call iw_tooltip("Color of the lattice points at a centering vector",ttshown)
+             changed = changed .or. ch
+          end if
+       end if
+
+       ! border size and color
+       if (w%editrep_sec(2)%more) then
+          call iw_text("Border size (Å)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##lvborder",x1=w%rep%lv%border_size,speed=0.002d0,min=0d0,max=1d0,&
+             scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Thickness of the sphere borders",ttshown)
+          changed = changed .or. ch
+
+          call iw_text("Border color",alignframe=.true.,gap=.true.)
+          ch = iw_coloredit("##lvbordercolor",rgb=w%rep%lv%border_rgb,sameline=.true.)
+          call iw_tooltip("Color of the sphere borders",ttshown)
+          changed = changed .or. ch
+       end if
+    end if
+
+  end function draw_editrep_latvec
 
   !> Draw the editrep window, legend class. Returns true if the scene
   !> needs rendering again. ttshown = the tooltip flag.
@@ -7008,26 +7139,6 @@ contains
 
   !> The tooltip for atom tool itool (objtool_kind0 + atomtool_*) in the
   !> toolbar. The keys are those bound in the object editing mode.
-  !> A fractional coordinate as a short fraction (1/2, 2/3, 0).
-  function frac_string(x) result(str)
-    use tools_math, only: rational_approx
-    use tools_io, only: string
-    real*8, intent(in) :: x
-    character(len=:), allocatable :: str
-
-    integer*8 :: q, r
-
-    call rational_approx(x,q,r,1d-4)
-    if (q == 0) then
-       str = "0"
-    elseif (r == 1) then
-       str = string(int(q))
-    else
-       str = string(int(q)) // "/" // string(int(r))
-    end if
-
-  end function frac_string
-
   function atom_tool_hint(itool) result(str)
     use keybindings, only: BIND_OBJEDIT_DRAW
     integer, intent(in) :: itool
