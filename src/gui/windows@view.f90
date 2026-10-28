@@ -333,16 +333,14 @@ contains
     call iw_tooltip("Cycle the labels objects: none, atom name, atom index, Wyckoff site ("//&
        trim(get_bind_keyname(BIND_VIEW_CYCLE_LABELS)) // ").",ttshown)
 
-    if (.not.enabled .or. .not.ismol) then
-       if (iw_icon_togglebutton("celltoggle",icon_tex(icon_ui_cell),"Cl",isuc,disabled=.not.enabledr,&
-          sameline=.true.,caption="Cell")) then
-          call apply_displayflags(cell=.true.)
-          chbuild = .true.
-          call note_undo("Show/hide unit cell")
-       end if
-       call iw_tooltip("Show or hide the unit cell ("//&
-          trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
+    if (iw_icon_togglebutton("celltoggle",icon_tex(icon_ui_cell),"Cl",isuc,disabled=(.not.enabledr .or. ismol),&
+       sameline=.true.,caption="Cell")) then
+       call apply_displayflags(cell=.true.)
+       chbuild = .true.
+       call note_undo("Show/hide unit cell")
     end if
+    call iw_tooltip("Show or hide the unit cell ("//&
+       trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // "; crystals only).",ttshown,whendisabled=.true.)
 
     if (iw_icon_togglebutton("polytoggle",icon_tex(icon_ui_polyhedra),"Ph",ispoly,disabled=.not.enabledr,&
        sameline=.true.,caption="Poly")) then
@@ -354,50 +352,50 @@ contains
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_POLYHEDRA)) // ").",ttshown)
 
     ! toolbar: periodicity button with live a×b×c label
-    if (.not.enabled .or. .not.ismol) then
-       if (associated(w%sc)) then
-          msg = string(w%sc%disp%ncell(1)) // "×" // string(w%sc%disp%ncell(2)) // "×" //&
-             string(w%sc%disp%ncell(3))
-       else
-          msg = "1×1×1"
-       end if
-       call igSameLine(0._c_float,2._c_float * g%Style%ItemSpacing%x)
-       ! as tall as the icon buttons it sits between, or it would be a
-       ! short frame in the middle of the row (popped before the popup
-       ! below, which is not part of the toolbar row)
-       call iw_push_iconrow_frame()
-       ldum = iw_button(msg // "###viewperiodicity",disabled=.not.enabledr,popupcontext=ok,&
-          popupflags=ImGuiPopupFlags_MouseButtonLeft,caption="Cells")
-       call iw_pop_iconrow_frame()
-       call iw_tooltip("Number of unit cells displayed along the a, b, and c axes",ttshown)
-       if (ok) then
-          if (associated(w%sc)) then
-             if (iw_periodicity_widget(w%sc%disp%ncell,ttshown)) then
-                chbuild = .true.
-                call note_undo("Change number of cells")
-             end if
-
-             ! make the displayed supercell the new unit cell
-             if (iw_button("Transform to Supercell##periodicity",danger=.true.,&
-                disabled=.not.can_transform_supercell())) &
-                call transform_to_supercell()
-             call iw_tooltip("Apply the displayed periodicity as a cell transformation, so the "//&
-                "supercell on screen becomes the new unit cell ("//&
-                trim(get_bind_keyname(BIND_VIEW_TRANSFORM_SUPERCELL))//")",ttshown)
-             if (len_trim(w%errmsg) > 0) &
-                call iw_text(w%errmsg,danger=.true.,wrap=.true.)
-          end if
-          call igEndPopup()
-       end if
-
-       ! toolbar: switch between the real-space and the reciprocal-space
-       ! scenes of the system
-       ldum = w%kspace
-       if (iw_icon_togglebutton("kspacetoggle",0_c_int,"k",ldum,disabled=.not.enabled,&
-          sameline=.true.,caption="k-space")) call w%view_set_kspace(.not.w%kspace)
-       call iw_tooltip("Switch between the real-space and the reciprocal-space objects of &
-          &this crystal (" // trim(get_bind_keyname(BIND_VIEW_TOGGLE_KSPACE)) // ")",ttshown)
+    if (associated(w%sc)) then
+       msg = string(w%sc%disp%ncell(1)) // "×" // string(w%sc%disp%ncell(2)) // "×" //&
+          string(w%sc%disp%ncell(3))
+    else
+       msg = "1×1×1"
     end if
+    call igSameLine(0._c_float,2._c_float * g%Style%ItemSpacing%x)
+    ! as tall as the icon buttons it sits between, or it would be a
+    ! short frame in the middle of the row (popped before the popup
+    ! below, which is not part of the toolbar row)
+    call iw_push_iconrow_frame()
+    ldum = iw_button(msg // "###viewperiodicity",disabled=(.not.enabledr .or. ismol),popupcontext=ok,&
+       popupflags=ImGuiPopupFlags_MouseButtonLeft,caption="Cells")
+    call iw_pop_iconrow_frame()
+    call iw_tooltip("Number of unit cells displayed along the a, b, and c axes (crystals only)",ttshown,&
+       whendisabled=.true.)
+    if (ok) then
+       if (associated(w%sc)) then
+          if (iw_periodicity_widget(w%sc%disp%ncell,ttshown)) then
+             chbuild = .true.
+             call note_undo("Change number of cells")
+          end if
+
+          ! make the displayed supercell the new unit cell
+          if (iw_button("Transform to Supercell##periodicity",danger=.true.,&
+             disabled=.not.can_transform_supercell())) &
+             call transform_to_supercell()
+          call iw_tooltip("Apply the displayed periodicity as a cell transformation, so the "//&
+             "supercell on screen becomes the new unit cell ("//&
+             trim(get_bind_keyname(BIND_VIEW_TRANSFORM_SUPERCELL))//")",ttshown)
+          if (len_trim(w%errmsg) > 0) &
+             call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+       end if
+       call igEndPopup()
+    end if
+
+    ! toolbar: switch between the real-space and the reciprocal-space
+    ! scenes of the system
+    ldum = w%kspace
+    if (iw_icon_togglebutton("kspacetoggle",0_c_int,"k",ldum,disabled=(.not.enabled .or. ismol),&
+       sameline=.true.,caption="k-space")) call w%view_set_kspace(.not.w%kspace)
+    call iw_tooltip("Switch between the real-space and the reciprocal-space objects of &
+       &this crystal (" // trim(get_bind_keyname(BIND_VIEW_TOGGLE_KSPACE)) // "; crystals only)",ttshown,&
+       whendisabled=.true.)
 
     ! toolbar: camera button, with the projection, camera position, and
     ! camera lock controls in a popup
