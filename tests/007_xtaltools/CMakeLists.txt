@@ -44,6 +44,7 @@ set(TESTS
   046_newcell_nice           ## newcell nice keyword
   048_compare_methods        ## compare keyword, gpwdf/powder methods (emd omitted: stack overflow in src/emd/emd.c)
   050_newcell_reach          ## newcell reach keyword
+  051_bz_special             ## bz keyword, special k-points
   )
 
 ## these tests use the variable-cell comparison (COMPAREVC/vcgpwdf) and XRPD

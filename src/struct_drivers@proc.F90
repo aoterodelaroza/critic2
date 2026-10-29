@@ -6899,13 +6899,15 @@ contains
   end subroutine struct_kpoints
 
   !> Calculate and print information about the Brilloun zone.
-  module subroutine struct_bz(s)
+  module subroutine struct_bz(s,line)
     use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr, c_loc
     use global, only: iunitname0, iunit, dunit0
-    use tools_math, only: matinv, cellpar_from_metric
-    use tools_io, only: uout, faterr, ferror, string, ioj_right, ioj_center
+    use tools_math, only: matinv, cellpar_from_metric, det3
+    use tools_io, only: uout, faterr, ferror, string, ioj_right, ioj_center, lgetword,&
+       equal, ioj_left, warning
     use tools, only: delaunay_reduction
     type(system), intent(in) :: s
+    character*(*), intent(in) :: line
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
@@ -6941,6 +6943,34 @@ contains
 
     real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
     character*2, parameter :: lvecname(3) = (/"a*","b*","c*"/)
+
+    integer :: lp, spgnum, itab, ntab
+    logical :: dospecial, issuper
+    character(len=:), allocatable :: word, errmsg, str
+    character(len=3) :: ext
+    character(len=8), allocatable :: lbl(:)
+    real*8, allocatable :: xk(:,:), xkp(:,:), xw(:,:)
+    real*8 :: mkp(3,3)
+    integer, allocatable :: ipath(:,:)
+
+    ! parse the options
+    dospecial = .false.
+    lp = 1
+    do while (.true.)
+       word = lgetword(line,lp)
+       if (equal(word,"special")) then
+          dospecial = .true.
+       elseif (len_trim(word) > 0) then
+          call ferror('struct_bz','Unknown extra keyword in BZ: ' // word,faterr,syntax=.true.)
+          return
+       else
+          exit
+       end if
+    end do
+    if (dospecial .and. s%c%ismolecule) then
+       call ferror('struct_bz','BZ SPECIAL requires a crystal',faterr,syntax=.true.)
+       return
+    end if
 
     ! header
     write (uout,'("* BZ: calculate Brillouin-Zone geometry.")')
@@ -7040,6 +7070,65 @@ contains
           (string(bz_ineighx(j,i),length=2,justify=ioj_right),j=1,3)
     end do
     write (uout,*)
+
+    ! special k-points and band path
+    if (dospecial) then
+       call s%c%special_kpoints(ext,spgnum,lbl,xk,xkp,mkp,ipath,issuper,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_bz','Cannot calculate the special k-points: ' // errmsg,faterr)
+          return
+       end if
+       write (uout,'("+ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)")')
+       write (uout,'("  Space group number: ",A)') string(spgnum)
+       write (uout,'("  Extended Bravais lattice: ",A)') ext
+       if (issuper) &
+          call ferror('struct_bz','The lattice of this crystal is a superlattice of the one found &
+          &by spglib: the special k-points refer to the Brillouin zone of the latter',warning)
+       write (uout,*)
+
+       ! one table if the reciprocal cell of the crystal is primitive,
+       ! another in the primitive reciprocal cell of HPKOT otherwise
+       ntab = merge(1,2,nint(abs(det3(mkp))) == 1)
+       do itab = 1, ntab
+          if (itab == 1) then
+             write (uout,'("+ Special k-points in the reciprocal cell of the crystal")')
+             xw = xk
+          else
+             write (uout,'("+ Special k-points in the primitive reciprocal cell")')
+             write (uout,'("# Primitive reciprocal lattice vectors (reciprocal cryst. coords. of the crystal)")')
+             do i = 1, 3
+                write (uout,'("    ",A,": ",3(A," "))') lvecname(i),&
+                   (string(mkp(j,i),'f',length=11,decimal=6,justify=4),j=1,3)
+             end do
+             xw = xkp
+          end if
+          write (uout,'("# xyz = point cryst. coords. d = point distance to origin (",A,"^-1).")') iunitname0(iunit)
+          write (uout,'(5("  ",A))') string("label",length=8,justify=ioj_left),&
+             string("x",length=11,justify=ioj_center),&
+             string("y",length=11,justify=ioj_center),&
+             string("z",length=11,justify=ioj_center),&
+             string("d ("//iunitname0(iunit)//"^-1)",length=14,justify=ioj_center)
+          do i = 1, size(lbl,1)
+             x0 = matmul(m_x2c_r,xk(:,i))
+             write (uout,'(5("  ",A))') string(lbl(i),length=8,justify=ioj_left), &
+                (string(xw(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
+                string(norm2(x0)/dunit0(iunit),'f',length=14,decimal=8,justify=4)
+          end do
+          write (uout,*)
+       end do
+
+       write (uout,'("+ Suggested band path (",A," segments)")') string(size(ipath,2))
+       str = trim(lbl(ipath(1,1)))
+       do i = 1, size(ipath,2)
+          if (i > 1) then
+             if (ipath(1,i) /= ipath(2,i-1)) &
+                str = str // " | " // trim(lbl(ipath(1,i)))
+          end if
+          str = str // "-" // trim(lbl(ipath(2,i)))
+       end do
+       write (uout,'("  ",A)') str
+       write (uout,*)
+    end if
 
   end subroutine struct_bz
 

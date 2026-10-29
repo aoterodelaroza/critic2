@@ -64,6 +64,14 @@ copyright notice is included in the corresponding files.
   method. Part of the phonopy code has been adapted in the vibrations
   module.
 
+* SeeK-path: the special k-points and band-structure paths in the
+  Brillouin zone (BZ SPECIAL) follow the method of Y. Hinuma,
+  G. Pizzi, Y. Kumagai, F. Oba, and I. Tanaka, Comput. Mater. Sci. 128
+  (2017) 140. The tables of points and paths and the choice of the
+  extended Bravais lattice are ported from SeeK-path, by Giovanni
+  Pizzi and others (https://github.com/giovannipizzi/seekpath),
+  distributed under the MIT license (see src/crystalmod@kpath.f90).
+
 * cubpack: a package for the automatic integration of n-dimensional
   integration regions by numerical cubature. The authors are Alan Genz
   and Ronald Cools. Adapted by J. Burkardt.

@@ -164,8 +164,9 @@ module struct_drivers
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_kpoints
-     module subroutine struct_bz(s)
+     module subroutine struct_bz(s,line)
        type(system), intent(in) :: s
+       character*(*), intent(in) :: line
      end subroutine struct_bz
      module subroutine struct_xrpd(line0)
        character*(*), intent(in) :: line0

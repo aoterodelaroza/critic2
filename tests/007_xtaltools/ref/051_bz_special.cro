@@ -1,0 +1,1182 @@
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.0938224192    -0.0000000000    -0.0000000000  
+    b*:   -0.0000000000     0.0938224192    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.0938224192  
+  Reciprocal lattice parameters (bohr^-1): 0.093822  0.093822  0.093822  
+  Reciprocal lattice angles (degrees): 90.000  90.000  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (8)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.500000     0.500000     0.500000     0.08125260  
+    2    0.500000    -0.500000     0.500000     0.08125260  
+    3    0.500000     0.500000    -0.500000     0.08125260  
+    4   -0.500000     0.500000     0.500000     0.08125260  
+    5   -0.500000    -0.500000     0.500000     0.08125260  
+    6    0.500000    -0.500000    -0.500000     0.08125260  
+    7   -0.500000    -0.500000    -0.500000     0.08125260  
+    8   -0.500000     0.500000    -0.500000     0.08125260  
+
++ Faces of the BZ cell (6)
+# Face ID: vertexID1 vertexID2 ...
+   1: 5  2  1  4  
+   2: 1  3  8  4  
+   3: 6  2  1  3  
+   4: 5  4  8  7  
+   5: 3  8  7  6  
+   6: 2  5  7  6  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0  1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4: -1  0  0 
+   5:  0  0 -1 
+   6:  0 -1  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 225
+  Extended Bravais lattice: cF2
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  X           0.000000     1.000000     0.000000     0.09382242  
+  L           0.500000     0.500000     0.500000     0.08125260  
+  W           0.500000     1.000000     0.000000     0.10489665  
+  W_2         0.000000     1.000000     0.500000     0.10489665  
+  K           0.750000     0.750000     0.000000     0.09951370  
+  U           0.250000     1.000000     0.250000     0.09951370  
+
++ Special k-points in the primitive reciprocal cell
+# Primitive reciprocal lattice vectors (reciprocal cryst. coords. of the crystal)
+    a*:  -1.000000    1.000000    1.000000  
+    b*:   1.000000   -1.000000    1.000000  
+    c*:   1.000000    1.000000   -1.000000  
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  X           0.500000     0.000000     0.500000     0.09382242  
+  L           0.500000     0.500000     0.500000     0.08125260  
+  W           0.500000     0.250000     0.750000     0.10489665  
+  W_2         0.750000     0.250000     0.500000     0.10489665  
+  K           0.375000     0.375000     0.750000     0.09951370  
+  U           0.625000     0.250000     0.625000     0.09951370  
+
++ Suggested band path (6 segments)
+  GAMMA-X-U | K-GAMMA-L-W-X
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.1529413898    -0.0000000000    -0.0000000000  
+    b*:   -0.0000000000     0.1529413898    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.1529413898  
+  Reciprocal lattice parameters (bohr^-1): 0.152941  0.152941  0.152941  
+  Reciprocal lattice angles (degrees): 90.000  90.000  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (8)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.500000     0.500000     0.500000     0.13245113  
+    2    0.500000     0.500000    -0.500000     0.13245113  
+    3    0.500000    -0.500000     0.500000     0.13245113  
+    4   -0.500000     0.500000     0.500000     0.13245113  
+    5   -0.500000     0.500000    -0.500000     0.13245113  
+    6    0.500000    -0.500000    -0.500000     0.13245113  
+    7   -0.500000    -0.500000    -0.500000     0.13245113  
+    8   -0.500000    -0.500000     0.500000     0.13245113  
+
++ Faces of the BZ cell (6)
+# Face ID: vertexID1 vertexID2 ...
+   1: 1  3  8  4  
+   2: 5  2  1  4  
+   3: 6  2  1  3  
+   4: 4  8  7  5  
+   5: 7  6  3  8  
+   6: 7  6  2  5  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0  1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4: -1  0  0 
+   5:  0 -1  0 
+   6:  0  0 -1 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 229
+  Extended Bravais lattice: cI1
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  H           0.000000     1.000000     0.000000     0.15294139  
+  P           0.500000     0.500000     0.500000     0.13245113  
+  N           0.500000     0.500000     0.000000     0.10814589  
+
++ Special k-points in the primitive reciprocal cell
+# Primitive reciprocal lattice vectors (reciprocal cryst. coords. of the crystal)
+    a*:   0.000000    1.000000    1.000000  
+    b*:   1.000000    0.000000    1.000000  
+    c*:   1.000000    1.000000    0.000000  
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  H           0.500000    -0.500000     0.500000     0.15294139  
+  P           0.250000     0.250000     0.250000     0.13245113  
+  N           0.000000     0.000000     0.500000     0.10814589  
+
++ Suggested band path (6 segments)
+  GAMMA-H-N-GAMMA-P-H | P-N
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.1575401038    -0.0000000000    -0.0000000000  
+    b*:   -0.0000000000     0.1575401038    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.1575401038  
+  Reciprocal lattice parameters (bohr^-1): 0.157540  0.157540  0.157540  
+  Reciprocal lattice angles (degrees): 90.000  90.000  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (8)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.500000     0.500000     0.500000     0.13643373  
+    2    0.500000    -0.500000     0.500000     0.13643373  
+    3    0.500000     0.500000    -0.500000     0.13643373  
+    4   -0.500000     0.500000     0.500000     0.13643373  
+    5   -0.500000    -0.500000     0.500000     0.13643373  
+    6    0.500000    -0.500000    -0.500000     0.13643373  
+    7   -0.500000    -0.500000    -0.500000     0.13643373  
+    8   -0.500000     0.500000    -0.500000     0.13643373  
+
++ Faces of the BZ cell (6)
+# Face ID: vertexID1 vertexID2 ...
+   1: 5  2  1  4  
+   2: 1  3  8  4  
+   3: 6  2  1  3  
+   4: 5  4  8  7  
+   5: 3  8  7  6  
+   6: 2  5  7  6  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0  1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4: -1  0  0 
+   5:  0  0 -1 
+   6:  0 -1  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 221
+  Extended Bravais lattice: cP2
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  R           0.500000     0.500000     0.500000     0.13643373  
+  M           0.500000     0.500000     0.000000     0.11139768  
+  X           0.000000     0.500000     0.000000     0.07877005  
+  X_1         0.500000     0.000000     0.000000     0.07877005  
+
++ Suggested band path (6 segments)
+  GAMMA-X-M-GAMMA-R-X | R-M
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.1179750772    -0.0000000000    -0.0000000000  
+    b*:   -0.0000000000     0.1179750772    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.1179750772  
+  Reciprocal lattice parameters (bohr^-1): 0.117975  0.117975  0.117975  
+  Reciprocal lattice angles (degrees): 90.000  90.000  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (8)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.500000     0.500000     0.500000     0.10216941  
+    2   -0.500000     0.500000     0.500000     0.10216941  
+    3    0.500000     0.500000    -0.500000     0.10216941  
+    4    0.500000    -0.500000     0.500000     0.10216941  
+    5   -0.500000    -0.500000     0.500000     0.10216941  
+    6    0.500000    -0.500000    -0.500000     0.10216941  
+    7   -0.500000    -0.500000    -0.500000     0.10216941  
+    8   -0.500000     0.500000    -0.500000     0.10216941  
+
++ Faces of the BZ cell (6)
+# Face ID: vertexID1 vertexID2 ...
+   1: 5  2  1  4  
+   2: 8  2  1  3  
+   3: 1  3  6  4  
+   4: 4  5  7  6  
+   5: 7  8  3  6  
+   6: 2  5  7  8  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0  1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4:  0 -1  0 
+   5:  0  0 -1 
+   6: -1  0  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 198
+  Extended Bravais lattice: cP1
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  R           0.500000     0.500000     0.500000     0.10216941  
+  M           0.500000     0.500000     0.000000     0.08342098  
+  X           0.000000     0.500000     0.000000     0.05898754  
+  X_1         0.500000     0.000000     0.000000     0.05898754  
+
++ Suggested band path (7 segments)
+  GAMMA-X-M-GAMMA-R-X | R-M-X_1
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.2314860930     0.1336485581    -0.0000000000  
+    b*:   -0.0000000000     0.2672971162    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.1476375327  
+  Reciprocal lattice parameters (bohr^-1): 0.267297  0.267297  0.147638  
+  Reciprocal lattice angles (degrees): 90.000  90.000  60.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (12)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1   -0.333333     0.666667    -0.500000     0.17107053  
+    2    0.333333     0.333333    -0.500000     0.17107053  
+    3   -0.333333     0.666667     0.500000     0.17107053  
+    4   -0.666667     0.333333     0.500000     0.17107053  
+    5   -0.666667     0.333333    -0.500000     0.17107053  
+    6    0.333333     0.333333     0.500000     0.17107053  
+    7   -0.333333    -0.333333     0.500000     0.17107053  
+    8   -0.333333    -0.333333    -0.500000     0.17107053  
+    9    0.333333    -0.666667     0.500000     0.17107053  
+   10    0.666667    -0.333333    -0.500000     0.17107053  
+   11    0.333333    -0.666667    -0.500000     0.17107053  
+   12    0.666667    -0.333333     0.500000     0.17107053  
+
++ Faces of the BZ cell (8)
+# Face ID: vertexID1 vertexID2 ...
+   1: 12 9  11 10 
+   2: 7  9  11 8  
+   3: 11 8  5  1  2  10 
+   4: 8  5  4  7  
+   5: 1  3  6  2  
+   6: 7  4  3  6  12 9  
+   7: 1  5  4  3  
+   8: 10 2  6  12 
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  1 -1  0 
+   2:  0 -1  0 
+   3:  0  0 -1 
+   4: -1  0  0 
+   5:  0  1  0 
+   6:  0  0  1 
+   7: -1  1  0 
+   8:  1  0  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 194
+  Extended Bravais lattice: hP2
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  A           0.000000     0.000000     0.500000     0.07381877  
+  K           0.333333     0.333333     0.000000     0.15432406  
+  H           0.333333     0.333333     0.500000     0.17107053  
+  H_2         0.333333     0.333333    -0.500000     0.17107053  
+  M           0.500000     0.000000     0.000000     0.13364856  
+  L           0.500000     0.000000     0.500000     0.15267989  
+
++ Suggested band path (9 segments)
+  GAMMA-M-K-GAMMA-A-L-H-A | L-M | H-K
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.1407461058     0.0812598021    -0.0000000000  
+    b*:   -0.0000000000     0.1625196041    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.0501708659  
+  Reciprocal lattice parameters (bohr^-1): 0.162520  0.162520  0.050171  
+  Reciprocal lattice angles (degrees): 90.000  90.000  60.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (12)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1   -0.333333     0.666667    -0.500000     0.09712614  
+    2    0.333333     0.333333    -0.500000     0.09712614  
+    3   -0.333333     0.666667     0.500000     0.09712614  
+    4   -0.666667     0.333333     0.500000     0.09712614  
+    5   -0.666667     0.333333    -0.500000     0.09712614  
+    6    0.333333     0.333333     0.500000     0.09712614  
+    7   -0.333333    -0.333333     0.500000     0.09712614  
+    8   -0.333333    -0.333333    -0.500000     0.09712614  
+    9    0.333333    -0.666667     0.500000     0.09712614  
+   10    0.666667    -0.333333    -0.500000     0.09712614  
+   11    0.333333    -0.666667    -0.500000     0.09712614  
+   12    0.666667    -0.333333     0.500000     0.09712614  
+
++ Faces of the BZ cell (8)
+# Face ID: vertexID1 vertexID2 ...
+   1: 9  12 10 11 
+   2: 7  9  11 8  
+   3: 11 8  5  1  2  10 
+   4: 4  7  8  5  
+   5: 1  3  6  2  
+   6: 7  4  3  6  12 9  
+   7: 1  5  4  3  
+   8: 10 2  6  12 
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  1 -1  0 
+   2:  0 -1  0 
+   3:  0  0 -1 
+   4: -1  0  0 
+   5:  0  1  0 
+   6:  0  0  1 
+   7: -1  1  0 
+   8:  1  0  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 166
+  Extended Bravais lattice: hR1
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  T           0.000000     0.000000     1.500000     0.07525630  
+  L           0.500000     0.000000     0.500000     0.08504372  
+  L_2         0.500000    -0.500000    -0.500000     0.08504372  
+  L_4         0.000000     0.500000    -0.500000     0.08504372  
+  F           0.500000    -0.500000     1.000000     0.09550011  
+  F_2         0.000000     0.500000     1.000000     0.09550011  
+  S_0         0.730200    -0.365100     0.000000     0.10277278  
+  S_2         0.634900    -0.365100     1.000000     0.10277278  
+  S_4         0.365100     0.365100     0.000000     0.10277278  
+  S_6         0.269800     0.365100     1.000000     0.10277278  
+  H_0         0.730200    -0.460400     0.500000     0.10691774  
+  H_2         0.539600    -0.269800     1.500000     0.10691774  
+  H_4         0.269800     0.269800     1.500000     0.10691774  
+  H_6         0.269800     0.460400     0.500000     0.10691774  
+  M_0         0.595300    -0.595300     0.500000     0.09994714  
+  M_2         0.404700    -0.404700     1.500000     0.09994714  
+  M_4         0.404700     0.000000     1.500000     0.09994714  
+  M_6         0.000000     0.404700     1.500000     0.09994714  
+  M_8         0.000000     0.595300     0.500000     0.09994714  
+
++ Special k-points in the primitive reciprocal cell
+# Primitive reciprocal lattice vectors (reciprocal cryst. coords. of the crystal)
+    a*:   1.000000    0.000000    1.000000  
+    b*:  -1.000000    1.000000    1.000000  
+    c*:   0.000000   -1.000000    1.000000  
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  T           0.500000     0.500000     0.500000     0.07525630  
+  L           0.500000     0.000000     0.000000     0.08504372  
+  L_2         0.000000    -0.500000     0.000000     0.08504372  
+  L_4         0.000000     0.000000    -0.500000     0.08504372  
+  F           0.500000     0.000000     0.500000     0.09550011  
+  F_2         0.500000     0.500000     0.000000     0.09550011  
+  S_0         0.365100    -0.365100     0.000000     0.10277278  
+  S_2         0.634900     0.000000     0.365100     0.10277278  
+  S_4         0.365100     0.000000    -0.365100     0.10277278  
+  S_6         0.634900     0.365100     0.000000     0.10277278  
+  H_0         0.500000    -0.230200     0.230200     0.10691774  
+  H_2         0.769800     0.230200     0.500000     0.10691774  
+  H_4         0.769800     0.500000     0.230200     0.10691774  
+  H_6         0.500000     0.230200    -0.230200     0.10691774  
+  M_0         0.365100    -0.230200     0.365100     0.09994714  
+  M_2         0.634900     0.230200     0.634900     0.09994714  
+  M_4         0.769800     0.365100     0.365100     0.09994714  
+  M_6         0.634900     0.634900     0.230200     0.09994714  
+  M_8         0.365100     0.365100    -0.230200     0.09994714  
+
++ Suggested band path (7 segments)
+  GAMMA-T-H_2 | H_0-L-GAMMA-S_0 | S_2-F-GAMMA
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.0907399445    -0.0000000000    -0.0000000000  
+    b*:   -0.0000000000     0.0907399445    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.1663085605  
+  Reciprocal lattice parameters (bohr^-1): 0.090740  0.090740  0.166309  
+  Reciprocal lattice angles (degrees): 90.000  90.000  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (8)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.500000     0.500000     0.500000     0.10503096  
+    2    0.500000     0.500000    -0.500000     0.10503096  
+    3    0.500000    -0.500000     0.500000     0.10503096  
+    4   -0.500000    -0.500000     0.500000     0.10503096  
+    5   -0.500000     0.500000     0.500000     0.10503096  
+    6    0.500000    -0.500000    -0.500000     0.10503096  
+    7   -0.500000    -0.500000    -0.500000     0.10503096  
+    8   -0.500000     0.500000    -0.500000     0.10503096  
+
++ Faces of the BZ cell (6)
+# Face ID: vertexID1 vertexID2 ...
+   1: 1  5  4  3  
+   2: 5  1  2  8  
+   3: 1  2  6  3  
+   4: 6  7  4  3  
+   5: 7  6  2  8  
+   6: 7  4  5  8  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0  1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4:  0 -1  0 
+   5:  0  0 -1 
+   6: -1  0  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 141
+  Extended Bravais lattice: tI1
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  M           1.000000     0.000000     0.000000     0.09073994  
+  X           0.500000     0.500000     0.000000     0.06416283  
+  P           0.500000     0.500000     0.500000     0.10503096  
+  Z           0.000000     0.000000     0.648846     0.10790868  
+  Z_0         1.000000     0.000000     0.351154     0.10790868  
+  N           0.500000     0.000000     0.500000     0.09472628  
+
++ Special k-points in the primitive reciprocal cell
+# Primitive reciprocal lattice vectors (reciprocal cryst. coords. of the crystal)
+    a*:   0.000000    1.000000    1.000000  
+    b*:   1.000000    0.000000    1.000000  
+    c*:   1.000000    1.000000    0.000000  
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  M          -0.500000     0.500000     0.500000     0.09073994  
+  X           0.000000     0.000000     0.500000     0.06416283  
+  P           0.250000     0.250000     0.250000     0.10503096  
+  Z           0.324423     0.324423    -0.324423     0.10790868  
+  Z_0        -0.324423     0.675577     0.324423     0.10790868  
+  N           0.000000     0.500000     0.000000     0.09472628  
+
++ Suggested band path (8 segments)
+  GAMMA-X-M-GAMMA-Z | Z_0-M | X-P-N-GAMMA
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.1398385943    -0.0000000000    -0.0000000000  
+    b*:   -0.0000000000     0.1398385943    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.0556173889  
+  Reciprocal lattice parameters (bohr^-1): 0.139839  0.139839  0.055617  
+  Reciprocal lattice angles (degrees): 90.000  90.000  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (8)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.500000    -0.500000     0.500000     0.10271679  
+    2   -0.500000     0.500000     0.500000     0.10271679  
+    3    0.500000     0.500000     0.500000     0.10271679  
+    4    0.500000     0.500000    -0.500000     0.10271679  
+    5    0.500000    -0.500000    -0.500000     0.10271679  
+    6   -0.500000    -0.500000     0.500000     0.10271679  
+    7   -0.500000    -0.500000    -0.500000     0.10271679  
+    8   -0.500000     0.500000    -0.500000     0.10271679  
+
++ Faces of the BZ cell (6)
+# Face ID: vertexID1 vertexID2 ...
+   1: 6  1  3  2  
+   2: 4  8  2  3  
+   3: 3  4  5  1  
+   4: 8  7  5  4  
+   5: 5  7  6  1  
+   6: 7  8  2  6  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0  1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4:  0  0 -1 
+   5:  0 -1  0 
+   6: -1  0  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 141
+  Extended Bravais lattice: tI2
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  M           0.000000     0.000000     1.000000     0.05561739  
+  X           0.500000     0.500000     0.000000     0.09888082  
+  P           0.500000     0.500000     0.500000     0.10271679  
+  N           0.500000     0.000000     0.500000     0.07524647  
+  S_0         0.579093     0.000000     0.000000     0.08097953  
+  S           0.420907     0.000000     1.000000     0.08097953  
+  R           0.579093     0.420907     0.000000     0.10011031  
+  G           0.420907     0.420907     1.000000     0.10011031  
+
++ Special k-points in the primitive reciprocal cell
+# Primitive reciprocal lattice vectors (reciprocal cryst. coords. of the crystal)
+    a*:   0.000000    1.000000    1.000000  
+    b*:   1.000000    0.000000    1.000000  
+    c*:   1.000000    1.000000    0.000000  
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  M           0.500000     0.500000    -0.500000     0.05561739  
+  X           0.000000     0.000000     0.500000     0.09888082  
+  P           0.250000     0.250000     0.250000     0.10271679  
+  N           0.000000     0.500000     0.000000     0.07524647  
+  S_0        -0.289546     0.289546     0.289546     0.08097953  
+  S           0.289546     0.710454    -0.289546     0.08097953  
+  R          -0.079093     0.079093     0.500000     0.10011031  
+  G           0.500000     0.500000    -0.079093     0.10011031  
+
++ Suggested band path (9 segments)
+  GAMMA-X-P-N-GAMMA-M-S | S_0-GAMMA | X-R | G-M
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.1151955401    -0.0000000000    -0.0000000000  
+    b*:   -0.0000000000     0.1151955401    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.1788897031  
+  Reciprocal lattice parameters (bohr^-1): 0.115196  0.115196  0.178890  
+  Reciprocal lattice angles (degrees): 90.000  90.000  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (8)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.500000     0.500000     0.500000     0.12097681  
+    2    0.500000     0.500000    -0.500000     0.12097681  
+    3    0.500000    -0.500000     0.500000     0.12097681  
+    4   -0.500000    -0.500000     0.500000     0.12097681  
+    5   -0.500000     0.500000     0.500000     0.12097681  
+    6    0.500000    -0.500000    -0.500000     0.12097681  
+    7   -0.500000    -0.500000    -0.500000     0.12097681  
+    8   -0.500000     0.500000    -0.500000     0.12097681  
+
++ Faces of the BZ cell (6)
+# Face ID: vertexID1 vertexID2 ...
+   1: 1  5  4  3  
+   2: 5  1  2  8  
+   3: 1  2  6  3  
+   4: 6  7  4  3  
+   5: 7  6  2  8  
+   6: 7  4  5  8  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0  1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4:  0 -1  0 
+   5:  0  0 -1 
+   6: -1  0  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 136
+  Extended Bravais lattice: tP1
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  Z           0.000000     0.000000     0.500000     0.08944485  
+  M           0.500000     0.500000     0.000000     0.08145555  
+  A           0.500000     0.500000     0.500000     0.12097681  
+  R           0.000000     0.500000     0.500000     0.10638555  
+  X           0.000000     0.500000     0.000000     0.05759777  
+
++ Suggested band path (9 segments)
+  GAMMA-X-M-GAMMA-Z-R-A-Z | X-R | M-A
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.0505567219    -0.0000000000    -0.0000000000  
+    b*:   -0.0000000000     0.0411171102    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.0216052427  
+  Reciprocal lattice parameters (bohr^-1): 0.050557  0.041117  0.021605  
+  Reciprocal lattice angles (degrees): 90.000  90.000  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (8)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.500000    -0.500000     0.500000     0.03432705  
+    2   -0.500000     0.500000    -0.500000     0.03432705  
+    3    0.500000     0.500000    -0.500000     0.03432705  
+    4    0.500000     0.500000     0.500000     0.03432705  
+    5   -0.500000     0.500000     0.500000     0.03432705  
+    6    0.500000    -0.500000    -0.500000     0.03432705  
+    7   -0.500000    -0.500000    -0.500000     0.03432705  
+    8   -0.500000    -0.500000     0.500000     0.03432705  
+
++ Faces of the BZ cell (6)
+# Face ID: vertexID1 vertexID2 ...
+   1: 8  5  4  1  
+   2: 4  3  2  5  
+   3: 4  3  6  1  
+   4: 7  6  3  2  
+   5: 6  7  8  1  
+   6: 8  7  2  5  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0  1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4:  0  0 -1 
+   5:  0 -1  0 
+   6: -1  0  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 70
+  Extended Bravais lattice: oF1
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  T           0.000000     1.000000     1.000000     0.04644786  
+  Z           0.000000     0.000000     1.000000     0.02160524  
+  Y           0.000000     1.000000     0.000000     0.04111711  
+  SIGMA_0     0.922030     0.000000     0.000000     0.04661482  
+  U_0         0.077970     1.000000     1.000000     0.04661482  
+  A_0         0.739405     0.000000     1.000000     0.04317630  
+  C_0         0.260595     1.000000     0.000000     0.04317630  
+  L           0.500000     0.500000     0.500000     0.03432705  
+
++ Special k-points in the primitive reciprocal cell
+# Primitive reciprocal lattice vectors (reciprocal cryst. coords. of the crystal)
+    a*:  -1.000000    1.000000    1.000000  
+    b*:   1.000000   -1.000000    1.000000  
+    c*:   1.000000    1.000000   -1.000000  
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  T           1.000000     0.500000     0.500000     0.04644786  
+  Z           0.500000     0.500000     0.000000     0.02160524  
+  Y           0.500000     0.000000     0.500000     0.04111711  
+  SIGMA_0     0.000000     0.461015     0.461015     0.04661482  
+  U_0         1.000000     0.538985     0.538985     0.04661482  
+  A_0         0.500000     0.869703     0.369703     0.04317630  
+  C_0         0.500000     0.130297     0.630297     0.04317630  
+  L           0.500000     0.500000     0.500000     0.03432705  
+
++ Suggested band path (9 segments)
+  GAMMA-Y-T-Z-GAMMA-SIGMA_0 | U_0-T | Y-C_0 | A_0-Z | GAMMA-L
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.1854354728    -0.0000000000    -0.0000000000  
+    b*:   -0.0000000000     0.0901571188    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.1068009221  
+  Reciprocal lattice parameters (bohr^-1): 0.185435  0.090157  0.106801  
+  Reciprocal lattice angles (degrees): 90.000  90.000  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (8)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.500000     0.500000     0.500000     0.11610454  
+    2   -0.500000     0.500000     0.500000     0.11610454  
+    3   -0.500000     0.500000    -0.500000     0.11610454  
+    4    0.500000     0.500000    -0.500000     0.11610454  
+    5    0.500000    -0.500000    -0.500000     0.11610454  
+    6   -0.500000    -0.500000    -0.500000     0.11610454  
+    7   -0.500000    -0.500000     0.500000     0.11610454  
+    8    0.500000    -0.500000     0.500000     0.11610454  
+
++ Faces of the BZ cell (6)
+# Face ID: vertexID1 vertexID2 ...
+   1: 2  7  8  1  
+   2: 2  1  4  3  
+   3: 1  8  5  4  
+   4: 8  7  6  5  
+   5: 3  6  5  4  
+   6: 2  7  6  3  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0  1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4:  0 -1  0 
+   5:  0  0 -1 
+   6: -1  0  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 63
+  Extended Bravais lattice: oC1
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  Y           0.000000     1.000000     0.000000     0.09015712  
+  T           0.000000     1.000000     0.500000     0.10478509  
+  Z           0.000000     0.000000     0.500000     0.05340046  
+  S           0.500000     0.500000     0.000000     0.10309537  
+  R           0.500000     0.500000     0.500000     0.11610454  
+  SIGMA_0     0.618191     0.000000     0.000000     0.11463454  
+  C_0         0.381809     1.000000     0.000000     0.11463454  
+  A_0         0.618191     0.000000     0.500000     0.12646220  
+  E_0         0.381809     1.000000     0.500000     0.12646220  
+
++ Special k-points in the primitive reciprocal cell
+# Primitive reciprocal lattice vectors (reciprocal cryst. coords. of the crystal)
+    a*:   1.000000   -1.000000    0.000000  
+    b*:   1.000000    1.000000    0.000000  
+    c*:   0.000000    0.000000    1.000000  
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  Y          -0.500000     0.500000     0.000000     0.09015712  
+  T          -0.500000     0.500000     0.500000     0.10478509  
+  Z           0.000000     0.000000     0.500000     0.05340046  
+  S           0.000000     0.500000     0.000000     0.10309537  
+  R           0.000000     0.500000     0.500000     0.11610454  
+  SIGMA_0     0.309096     0.309096     0.000000     0.11463454  
+  C_0        -0.309096     0.690904     0.000000     0.11463454  
+  A_0         0.309096     0.309096     0.500000     0.12646220  
+  E_0        -0.309096     0.690904     0.500000     0.12646220  
+
++ Suggested band path (11 segments)
+  GAMMA-Y-C_0 | SIGMA_0-GAMMA-Z-A_0 | E_0-T-Y | GAMMA-S-R-Z-T
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.0405686299    -0.0000000000    -0.0000000000  
+    b*:   -0.0000000000     0.0557263278    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.1387459907  
+  Reciprocal lattice parameters (bohr^-1): 0.040569  0.055726  0.138746  
+  Reciprocal lattice angles (degrees): 90.000  90.000  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (8)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.500000     0.500000     0.500000     0.07746239  
+    2    0.500000     0.500000    -0.500000     0.07746239  
+    3   -0.500000     0.500000     0.500000     0.07746239  
+    4   -0.500000    -0.500000     0.500000     0.07746239  
+    5    0.500000    -0.500000    -0.500000     0.07746239  
+    6    0.500000    -0.500000     0.500000     0.07746239  
+    7   -0.500000    -0.500000    -0.500000     0.07746239  
+    8   -0.500000     0.500000    -0.500000     0.07746239  
+
++ Faces of the BZ cell (6)
+# Face ID: vertexID1 vertexID2 ...
+   1: 7  8  2  5  
+   2: 2  1  3  8  
+   3: 2  1  6  5  
+   4: 7  4  3  8  
+   5: 1  6  4  3  
+   6: 6  5  7  4  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0 -1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4: -1  0  0 
+   5:  0  0  1 
+   6:  0 -1  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 19
+  Extended Bravais lattice: oP1
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  X           0.000000     0.000000    -0.500000     0.06937300  
+  Z          -0.500000     0.000000     0.000000     0.02028431  
+  U          -0.500000     0.000000    -0.500000     0.07227770  
+  Y           0.000000    -0.500000     0.000000     0.02786316  
+  S           0.000000    -0.500000    -0.500000     0.07475940  
+  T          -0.500000    -0.500000     0.000000     0.03446461  
+  R          -0.500000    -0.500000    -0.500000     0.07746239  
+
++ Suggested band path (12 segments)
+  GAMMA-X-S-Y-GAMMA-Z-U-R-T-Z | X-U | Y-T | S-R
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.0542968611    -0.0000000000     0.0151906065  
+    b*:   -0.0000000000     0.0594647948    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.1046461058  
+  Reciprocal lattice parameters (bohr^-1): 0.056382  0.059465  0.104646  
+  Reciprocal lattice angles (degrees): 90.000  74.370  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (12)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.269536     0.500000    -0.539126     0.06193464  
+    2   -0.269536     0.500000    -0.460874     0.06193464  
+    3   -0.269536    -0.500000     0.539126     0.06193464  
+    4    0.269536    -0.500000     0.460874     0.06193464  
+    5    0.730464     0.500000    -0.460874     0.06193464  
+    6   -0.730464     0.500000     0.460874     0.06193464  
+    7    0.730464    -0.500000    -0.460874     0.06193464  
+    8   -0.269536     0.500000     0.539126     0.06193464  
+    9    0.269536     0.500000     0.460874     0.06193464  
+   10   -0.730464    -0.500000     0.460874     0.06193464  
+   11    0.269536    -0.500000    -0.539126     0.06193464  
+   12   -0.269536    -0.500000    -0.460874     0.06193464  
+
++ Faces of the BZ cell (8)
+# Face ID: vertexID1 vertexID2 ...
+   1: 11 7  5  1  
+   2: 5  9  8  6  2  1  
+   3: 5  9  4  7  
+   4: 10 6  2  12 
+   5: 10 6  8  3  
+   6: 11 7  4  3  10 12 
+   7: 12 11 1  2  
+   8: 8  9  4  3  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  1  0 -1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4: -1  0  0 
+   5: -1  0  1 
+   6:  0 -1  0 
+   7:  0  0 -1 
+   8:  0  0  1 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 15
+  Extended Bravais lattice: mC1
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  Y_2        -1.000000     0.000000     0.000000     0.05638177  
+  Y_4         1.000000     0.000000     0.000000     0.05638177  
+  A           0.000000     0.000000     0.500000     0.05232305  
+  M_2        -1.000000     0.000000     0.500000     0.06577969  
+  V           0.500000     0.500000     0.000000     0.04097245  
+  V_2        -0.500000     0.500000     0.000000     0.04097245  
+  L_2        -0.500000     0.500000     0.500000     0.06017993  
+  C           0.000000     0.949498     0.000000     0.05646169  
+  C_2        -1.000000     0.050502     0.000000     0.05646169  
+  C_4         1.000000     0.050502     0.000000     0.05646169  
+  D          -1.000000     0.275277     0.500000     0.06778586  
+  D_2         0.000000     0.724723     0.500000     0.06778586  
+  E          -1.191328     0.000000     0.382612     0.06830552  
+  E_2        -0.808672     0.000000     0.617388     0.06830552  
+  E_4         0.808672     0.000000     0.382612     0.06830552  
+
++ Special k-points in the primitive reciprocal cell
+# Primitive reciprocal lattice vectors (reciprocal cryst. coords. of the crystal)
+    a*:   1.000000    1.000000    0.000000  
+    b*:  -1.000000    1.000000    0.000000  
+    c*:   0.000000    0.000000    1.000000  
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  Y_2        -0.500000     0.500000     0.000000     0.05638177  
+  Y_4         0.500000    -0.500000     0.000000     0.05638177  
+  A           0.000000     0.000000     0.500000     0.05232305  
+  M_2        -0.500000     0.500000     0.500000     0.06577969  
+  V           0.500000     0.000000     0.000000     0.04097245  
+  V_2         0.000000     0.500000     0.000000     0.04097245  
+  L_2         0.000000     0.500000     0.500000     0.06017993  
+  C           0.474749     0.474749     0.000000     0.05646169  
+  C_2        -0.474749     0.525251     0.000000     0.05646169  
+  C_4         0.525251    -0.474749     0.000000     0.05646169  
+  D          -0.362361     0.637639     0.500000     0.06778586  
+  D_2         0.362361     0.362361     0.500000     0.06778586  
+  E          -0.595664     0.595664     0.382612     0.06830552  
+  E_2        -0.404336     0.404336     0.617388     0.06830552  
+  E_4         0.404336    -0.404336     0.382612     0.06830552  
+
++ Suggested band path (9 segments)
+  GAMMA-C | C_2-Y_2-GAMMA-M_2-D | D_2-A-GAMMA | L_2-GAMMA-V_2
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.0741601559    -0.0000000000     0.0434051771  
+    b*:   -0.0000000000     0.0427818459    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.0854734990  
+  Reciprocal lattice parameters (bohr^-1): 0.085929  0.042782  0.085473  
+  Reciprocal lattice angles (degrees): 90.000  59.660  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (12)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.333993    -0.500000     0.330391     0.05382847  
+    2   -0.333993    -0.500000     0.669609     0.05382847  
+    3    0.666007     0.500000    -0.330391     0.05382847  
+    4    0.666007    -0.500000    -0.330391     0.05382847  
+    5    0.333993     0.500000     0.330391     0.05382847  
+    6   -0.333993     0.500000     0.669609     0.05382847  
+    7    0.333993     0.500000    -0.669609     0.05382847  
+    8    0.333993    -0.500000    -0.669609     0.05382847  
+    9   -0.333993     0.500000    -0.330391     0.05382847  
+   10   -0.666007    -0.500000     0.330391     0.05382847  
+   11   -0.333993    -0.500000    -0.330391     0.05382847  
+   12   -0.666007     0.500000     0.330391     0.05382847  
+
++ Faces of the BZ cell (8)
+# Face ID: vertexID1 vertexID2 ...
+   1: 5  1  2  6  
+   2: 5  3  7  9  12 6  
+   3: 5  3  4  1  
+   4: 2  10 11 8  4  1  
+   5: 3  7  8  4  
+   6: 6  12 10 2  
+   7: 7  9  11 8  
+   8: 12 10 11 9  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  0  1 
+   2:  0  1  0 
+   3:  1  0  0 
+   4:  0 -1  0 
+   5:  1  0 -1 
+   6: -1  0  1 
+   7:  0  0 -1 
+   8: -1  0  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 15
+  Extended Bravais lattice: mC2
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  Y           0.000000    -1.000000     0.000000     0.04278185  
+  A           0.000000     0.000000     0.500000     0.04273675  
+  M           0.000000    -1.000000     0.500000     0.06047079  
+  V_2         0.500000    -0.500000    -0.500000     0.04769633  
+  L_2         0.500000    -0.500000     0.000000     0.04799486  
+  F           0.832405     0.000000    -0.414892     0.06173487  
+  F_2         0.167595    -1.000000     0.414892     0.06173487  
+  F_4        -0.167595    -1.000000     0.585108     0.06173487  
+  H           0.500391     0.000000     0.245891     0.05659960  
+  H_2         0.499609    -1.000000    -0.245891     0.05659960  
+  H_4        -0.500391     0.000000     0.754109     0.05659960  
+  G           0.666398     0.000000    -0.584500     0.05371023  
+  G_2         0.333602    -1.000000    -0.415500     0.05371023  
+  G_4        -0.666398     0.000000     0.584500     0.05371023  
+  G_6        -0.333602    -1.000000     0.415500     0.05371023  
+
++ Special k-points in the primitive reciprocal cell
+# Primitive reciprocal lattice vectors (reciprocal cryst. coords. of the crystal)
+    a*:  -1.000000   -1.000000    1.000000  
+    b*:   1.000000   -1.000000   -1.000000  
+    c*:   0.000000    0.000000    1.000000  
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  Y           0.500000     0.500000     0.000000     0.04278185  
+  A           0.000000     0.000000     0.500000     0.04273675  
+  M           0.500000     0.500000     0.500000     0.06047079  
+  V_2         0.000000     0.500000     0.000000     0.04769633  
+  L_2         0.000000     0.500000     0.500000     0.04799486  
+  F          -0.416202     0.416202     0.417513     0.06173487  
+  F_2         0.416202     0.583798     0.582487     0.06173487  
+  F_4         0.583798     0.416202     0.417513     0.06173487  
+  H          -0.250196     0.250196     0.746282     0.05659960  
+  H_2         0.250196     0.749804     0.253718     0.05659960  
+  H_4         0.250196    -0.250196     0.253718     0.05659960  
+  G          -0.333199     0.333199     0.081898     0.05371023  
+  G_2         0.333199     0.666801    -0.081898     0.05371023  
+  G_4         0.333199    -0.333199    -0.081898     0.05371023  
+  G_6         0.666801     0.333199     0.081898     0.05371023  
+
++ Suggested band path (6 segments)
+  GAMMA-Y-M-A-GAMMA | L_2-GAMMA-V_2
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.0443271242    -0.0000000000     0.0265292365  
+    b*:   -0.0000000000     0.0427583394    -0.0000000000  
+    c*:   -0.0000000000    -0.0000000000     0.1687212740  
+  Reciprocal lattice parameters (bohr^-1): 0.051659  0.042758  0.168721  
+  Reciprocal lattice angles (degrees): 90.000  59.100  90.000  
+
++ Vertex of the BZ in reciprocal cryst. coords. (12)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.684719     0.500000    -0.513916     0.07795188  
+    2    1.315281     0.500000    -0.486084     0.07795188  
+    3   -0.315281     0.500000     0.486084     0.07795188  
+    4   -0.684719     0.500000     0.513916     0.07795188  
+    5    0.315281     0.500000    -0.486084     0.07795188  
+    6   -1.315281     0.500000     0.486084     0.07795188  
+    7   -0.315281    -0.500000     0.486084     0.07795188  
+    8   -0.684719    -0.500000     0.513916     0.07795188  
+    9    1.315281    -0.500000    -0.486084     0.07795188  
+   10    0.684719    -0.500000    -0.513916     0.07795188  
+   11    0.315281    -0.500000    -0.486084     0.07795188  
+   12   -1.315281    -0.500000     0.486084     0.07795188  
+
++ Faces of the BZ cell (8)
+# Face ID: vertexID1 vertexID2 ...
+   1: 5  6  12 11 
+   2: 4  3  2  1  5  6  
+   3: 12 6  4  8  
+   4: 9  10 11 12 8  7  
+   5: 3  4  8  7  
+   6: 1  10 11 5  
+   7: 2  1  10 9  
+   8: 2  3  7  9  
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1: -1  0  0 
+   2:  0  1  0 
+   3: -2  0  1 
+   4:  0 -1  0 
+   5: -1  0  1 
+   6:  1  0 -1 
+   7:  2  0 -1 
+   8:  1  0  0 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 14
+  Extended Bravais lattice: mP1
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  Z           0.000000     0.500000     0.000000     0.02137917  
+  B           0.500000     0.000000     0.000000     0.02582970  
+  B_2        -0.500000     0.000000     0.000000     0.02582970  
+  Y           1.000000     0.000000    -0.500000     0.07286539  
+  Y_2        -1.000000     0.000000     0.500000     0.07286539  
+  C           1.000000     0.500000    -0.500000     0.07593704  
+  C_2        -1.000000     0.500000     0.500000     0.07593704  
+  D           0.500000     0.500000     0.000000     0.03352973  
+  D_2        -0.500000     0.500000     0.000000     0.03352973  
+  A          -0.500000     0.000000     0.500000     0.07447058  
+  E          -0.500000     0.500000     0.500000     0.07747862  
+  H          -0.315281     0.000000     0.486084     0.07496284  
+  H_2        -0.684719     0.000000     0.513916     0.07496284  
+  H_4        -1.315281     0.000000     0.486084     0.07496284  
+  M          -0.315281     0.500000     0.486084     0.07795188  
+  M_2        -0.684719     0.500000     0.513916     0.07795188  
+  M_4        -1.315281     0.500000     0.486084     0.07795188  
+
++ Suggested band path (10 segments)
+  GAMMA-Z-D-B-GAMMA-A-E-Z-C_2-Y_2-GAMMA
+
+* BZ: calculate Brillouin-Zone geometry.
++ Reciprocal lattice vectors (bohr^-1)
+    a*:    0.1037602370     0.0127401551    -0.0095107634  
+    b*:   -0.0000000000     0.0859921350    -0.0145275549  
+    c*:   -0.0000000000    -0.0000000000     0.0736967376  
+  Reciprocal lattice parameters (bohr^-1): 0.104971  0.087211  0.073697  
+  Reciprocal lattice angles (degrees): 99.589  95.198  82.255  
+
++ Vertex of the BZ in reciprocal cryst. coords. (24)
+# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (bohr^-1).
+   id       x            y            z        d (bohr^-1)  
+    1    0.434222     0.377546    -0.369538     0.06950977  
+    2   -0.474663     0.512202    -0.460288     0.07230027  
+    3   -0.516820     0.446394    -0.478701     0.07242135  
+    4   -0.434222    -0.377546    -0.630462     0.06950977  
+    5    0.565778    -0.377546     0.369538     0.06950977  
+    6    0.516820    -0.446394     0.478701     0.07242135  
+    7    0.516820    -0.446394    -0.521299     0.07242135  
+    8    0.525337    -0.487798    -0.460288     0.07230027  
+    9    0.474663    -0.512202    -0.539712     0.07230027  
+   10    0.483180    -0.553606    -0.478701     0.07242135  
+   11    0.434222    -0.622454    -0.369538     0.06950977  
+   12    0.474663    -0.512202     0.460288     0.07230027  
+   13   -0.434222     0.622454     0.369538     0.06950977  
+   14    0.434222     0.377546     0.630462     0.06950977  
+   15    0.474663     0.487798     0.460288     0.07230027  
+   16    0.483180     0.446394     0.521299     0.07242135  
+   17   -0.483180    -0.446394    -0.521299     0.07242135  
+   18   -0.474663    -0.487798    -0.460288     0.07230027  
+   19   -0.434222    -0.377546     0.369538     0.06950977  
+   20   -0.565778     0.377546    -0.369538     0.06950977  
+   21   -0.483180     0.553606     0.478701     0.07242135  
+   22   -0.474663     0.512202     0.539712     0.07230027  
+   23   -0.525337     0.487798     0.460288     0.07230027  
+   24   -0.516820     0.446394     0.521299     0.07242135  
+
++ Faces of the BZ cell (14)
+# Face ID: vertexID1 vertexID2 ...
+   1: 1  15 13 2  
+   2: 1  7  9  4  3  2  
+   3: 1  7  8  5  16 15 
+   4: 2  3  20 23 21 13 
+   5: 3  20 17 4  
+   6: 4  9  10 11 18 17 
+   7: 5  16 14 6  
+   8: 5  8  10 11 12 6  
+   9: 6  12 19 24 22 14 
+  10: 7  8  10 9  
+  11: 11 18 19 12 
+  12: 13 21 22 14 16 15 
+  13: 17 18 19 24 23 20 
+  14: 21 23 24 22 
+
++ Lattice vectors for the BZ neighbors
+# FaceID: Voronoi lattice vector (cryst. coords.)
+   1:  0  1  0 
+   2:  0  0 -1 
+   3:  1  0  0 
+   4: -1  1  0 
+   5: -1  0 -1 
+   6:  0 -1 -1 
+   7:  1  0  1 
+   8:  1 -1  0 
+   9:  0  0  1 
+  10:  1 -1 -1 
+  11:  0 -1  0 
+  12:  0  1  1 
+  13: -1  0  0 
+  14: -1  1  1 
+
++ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)
+  Space group number: 2
+  Extended Bravais lattice: aP3
+
++ Special k-points in the reciprocal cell of the crystal
+# xyz = point cryst. coords. d = point distance to origin (bohr^-1).
+  label          x            y            z        d (bohr^-1)  
+  GAMMA       0.000000     0.000000     0.000000     0.00000000  
+  Z           0.000000     0.500000     0.000000     0.04360532  
+  Y           0.000000     0.000000    -0.500000     0.03684837  
+  Y_2         0.000000     0.000000     0.500000     0.03684837  
+  X           0.500000     0.000000     0.000000     0.05248560  
+  V_2         0.500000     0.000000     0.500000     0.06133583  
+  U_2        -0.500000     0.500000     0.000000     0.06355550  
+  T_2         0.000000     0.500000     0.500000     0.05219109  
+  R_2        -0.500000     0.500000     0.500000     0.07219587  
+
++ Suggested band path (7 segments)
+  GAMMA-X | Y-GAMMA-Z | R_2-GAMMA-T_2 | U_2-GAMMA-V_2
+

@@ -432,6 +432,7 @@ module crystalmod
      procedure :: vdw_volume !< Calculate the van der waals volume
      procedure :: get_kpoints !< k-point grid for a given rklength
      procedure :: get_kpoints_ranges !< rklength ranges that give the same k-point grid
+     procedure :: special_kpoints !< special k-points and band path (HPKOT)
 
      ! changes to the crystal/molecular structure (edit)
      procedure :: makeseed !< make a crystal seed from a crystal
@@ -1039,6 +1040,18 @@ module crystalmod
        real*8, allocatable, intent(out) :: rk1(:), rk2(:)
        integer, allocatable, intent(out) :: nk(:,:)
      end subroutine get_kpoints_ranges
+     module subroutine special_kpoints(c,ext,spgnum,lbl,xk,xkp,mkp,ipath,issuper,errmsg)
+       class(crystal), intent(in) :: c
+       character(len=3), intent(out) :: ext
+       integer, intent(out) :: spgnum
+       character(len=8), allocatable, intent(out) :: lbl(:)
+       real*8, allocatable, intent(out) :: xk(:,:)
+       real*8, allocatable, intent(out) :: xkp(:,:)
+       real*8, intent(out) :: mkp(3,3)
+       integer, allocatable, intent(out) :: ipath(:,:)
+       logical, intent(out) :: issuper
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine special_kpoints
      module subroutine bulk_rattle_seeds(c,nstruct,mag,seed,nseed)
        use crystalseedmod, only: crystalseed
        type(crystal), intent(in) :: c

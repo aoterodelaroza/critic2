@@ -1,0 +1,40 @@
+## check: 051_bz_special.cro -a1e-10
+## labels: regression quick nodata
+
+# special k-points of the HPKOT extended Bravais lattices
+crystal library Cu
+bz special
+crystal library Li
+bz special
+crystal library alpha-Po
+bz special
+crystal library FeSi
+bz special
+crystal library Be
+bz special
+crystal library arsenic
+bz special
+crystal library beta-Sn
+bz special
+crystal library anatase
+bz special
+crystal library rutile
+bz special
+crystal library sulfur
+bz special
+crystal library alpha-uranium
+bz special
+crystal library cytosine
+bz special
+crystal library diopside
+bz special
+crystal library coesite
+bz special
+crystal library uracil
+bz special
+crystal
+ spg P -1
+ cell 5.1 6.2 7.3 81 86 97 ang
+ neq 0.1 0.2 0.3 C
+endcrystal
+bz special

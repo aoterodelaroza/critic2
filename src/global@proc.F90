@@ -543,7 +543,7 @@ contains
        elseif (equal(word,'bz')) then
           call check_structure_defined(ok)
           if (.not.ok) cycle
-          call struct_bz(sy)
+          call struct_bz(sy,line(lp:))
 
           ! xrpd
        elseif (equal(word,'xrpd')) then
