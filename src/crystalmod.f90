@@ -40,6 +40,10 @@ module crystalmod
   integer, parameter, public :: iperiod_mol_cluster = 8  ! a molecular cluster
   real*8,  parameter, public :: iperiod_vacthr = 15d0    ! threshold for vacuum detection
 
+  ! rklength scan of the table of k-point grids (get_kpoints_ranges, bohr)
+  real*8, parameter, public :: kpoints_rkstep = 0.1d0 ! step
+  real*8, parameter, public :: kpoints_rkmax_def = 100d0 ! default end of the scan
+
   ! holohedry identifier
   integer, parameter, public :: holo_unk = 0 ! unknown
   integer, parameter, public :: holo_tric = 1 ! triclinic
@@ -427,6 +431,7 @@ module crystalmod
      procedure :: get_pack_ratio !< Calculate the packing ratio
      procedure :: vdw_volume !< Calculate the van der waals volume
      procedure :: get_kpoints !< k-point grid for a given rklength
+     procedure :: get_kpoints_ranges !< rklength ranges that give the same k-point grid
 
      ! changes to the crystal/molecular structure (edit)
      procedure :: makeseed !< make a crystal seed from a crystal
@@ -1028,6 +1033,12 @@ module crystalmod
        real*8, intent(in) :: rk
        integer, intent(out) :: nk(3)
      end subroutine get_kpoints
+     pure module subroutine get_kpoints_ranges(c,rkmax,rk1,rk2,nk)
+       class(crystal), intent(in) :: c
+       real*8, intent(in) :: rkmax
+       real*8, allocatable, intent(out) :: rk1(:), rk2(:)
+       integer, allocatable, intent(out) :: nk(:,:)
+     end subroutine get_kpoints_ranges
      module subroutine bulk_rattle_seeds(c,nstruct,mag,seed,nseed)
        use crystalseedmod, only: crystalseed
        type(crystal), intent(in) :: c

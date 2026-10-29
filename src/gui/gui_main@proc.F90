@@ -909,8 +909,8 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
-       wintype_rattle, wintype_mo, wintype_voids, wintype_cp, wintype_gpaths, wintype_point,&
-       wintype_line, wintype_cube, win
+       wintype_rattle, wintype_mo, wintype_voids, wintype_kpoints, wintype_cp, wintype_gpaths,&
+       wintype_point, wintype_line, wintype_cube, win
     use utils, only: iw_tooltip, iw_menuitem, iw_beginmenu
     use representations, only: reptype_slice, repflavor_slice, reptype_isosurface,&
        repflavor_isosurface
@@ -982,6 +982,12 @@ contains
        if (iw_menuitem("Crystal Voids...",enabled=ok)) &
           idum = stack_create_window(wintype_voids,.true.,idparent=idparent,orraise=-1)
        call iw_tooltip("Measure the volume of the empty space (voids) in this crystal",ttshown)
+
+       ! dimensions of a uniform k-point grid (KPOINTS)
+       if (iw_menuitem("K-Point Grid...",enabled=ok)) &
+          idum = stack_create_window(wintype_kpoints,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Calculate the dimensions of a uniform k-point grid from a length&
+          & parameter (KPOINTS)",ttshown)
        call igEndMenu()
     end if
 

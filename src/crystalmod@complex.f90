@@ -934,6 +934,46 @@ contains
 
   end subroutine get_kpoints
 
+  !> Ranges of the rklength (bohr) that give the same k-point grid
+  !> (get_kpoints), scanning rk = kpoints_rkstep, 2*kpoints_rkstep, ...,
+  !> rkmax. The i-th range goes from rk1(i) to rk2(i) with grid nk(:,i).
+  pure module subroutine get_kpoints_ranges(c,rkmax,rk1,rk2,nk)
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: rkmax
+    real*8, allocatable, intent(out) :: rk1(:), rk2(:)
+    integer, allocatable, intent(out) :: nk(:,:)
+
+    integer, parameter :: maxstep = 100000000 ! longest scan (avoids integer overflow)
+
+    integer :: j, n, nstep, ipass, nkj(3), nkold(3)
+
+    ! the scan counts steps, so rounding does not accumulate along it;
+    ! count the ranges in the first pass, fill them in the second
+    nstep = nint(max(min(rkmax / kpoints_rkstep,real(maxstep,8)),1d0))
+    do ipass = 1, 2
+       call c%get_kpoints(kpoints_rkstep,nkold)
+       n = 1
+       if (ipass == 2) then
+          rk1(1) = kpoints_rkstep
+          nk(:,1) = nkold
+       end if
+       do j = 2, nstep
+          call c%get_kpoints(j*kpoints_rkstep,nkj)
+          if (all(nkj == nkold)) cycle
+          nkold = nkj
+          if (ipass == 2) rk2(n) = (j-1)*kpoints_rkstep
+          n = n + 1
+          if (ipass == 2) then
+             rk1(n) = j*kpoints_rkstep
+             nk(:,n) = nkj
+          end if
+       end do
+       if (ipass == 1) allocate(rk1(n),rk2(n),nk(3,n))
+    end do
+    rk2(n) = nstep*kpoints_rkstep
+
+  end subroutine get_kpoints_ranges
+
   !> Rattle the atoms of crystal c: append nstruct new seeds to seed(:), each
   !> a copy of c with every atom displaced by mag (bohr) in a random direction.
   !> nseed is the number of seeds already in the list, and is updated.

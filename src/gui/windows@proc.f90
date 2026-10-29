@@ -371,6 +371,7 @@ contains
              if (ok.and.type == wintype_extract.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_rattle.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_voids.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_kpoints.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_cp.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_gpaths.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_point.and.present(idparent)) ok = (win(i)%parent() == idparent)
@@ -961,6 +962,10 @@ contains
        ! crystal voids window
        if (.not.present(idparent)) &
           call ferror('window_init','voids requires idparent',faterr)
+    elseif (type == wintype_kpoints) then
+       ! k-point grid window
+       if (.not.present(idparent)) &
+          call ferror('window_init','kpoints requires idparent',faterr)
     elseif (type == wintype_cp) then
        ! critical points window
        if (.not.present(idparent)) &
@@ -1855,6 +1860,8 @@ contains
           call init_window("Rattle Structure",55)
        elseif (w%type == wintype_voids) then
           call init_window("Crystal Voids",62,35)
+       elseif (w%type == wintype_kpoints) then
+          call init_window("K-Point Grid",50,30)
        elseif (w%type == wintype_cp) then
           call init_window("Critical Points",70,30,grow=.true.)
        elseif (w%type == wintype_gpaths) then
@@ -2061,6 +2068,8 @@ contains
                 call w%draw_rattle()
              elseif (w%type == wintype_voids) then
                 call w%draw_voids()
+             elseif (w%type == wintype_kpoints) then
+                call w%draw_kpoints()
              elseif (w%type == wintype_cp) then
                 call w%draw_cp()
              elseif (w%type == wintype_gpaths) then

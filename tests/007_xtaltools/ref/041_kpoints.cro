@@ -31,7 +31,7 @@
 # ---  Rk  ---   -- kpts --
   0.1 ->   8.8    1  1  1  
   8.9 ->  14.8    1  1  2  
- 14.9 ->  19.9    1  1  3  
+ 14.9 ->  20.0    1  1  3  
 
 * KPOINTS: calculate dimensions of uniform k-point grid.
 

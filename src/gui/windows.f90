@@ -828,6 +828,15 @@ module windows
   integer, parameter :: voidsjob_packing = 2 ! volume covered by the atomic spheres
   public :: voids_state
 
+  !> Per-window state of the k-point grid window (KPOINTS). The table of
+  !> rklength ranges is not kept: it is cheap, and calculated every frame.
+  type kpoints_state
+     real*8 :: rk = 40d0 ! rklength (bohr)
+     real*8 :: rkmax = 100d0 ! the table goes up to this rklength (bohr)
+     type(iw_section) :: secgrid, secranges ! the sections of the window
+  end type kpoints_state
+  public :: kpoints_state
+
   !> Per-window state of the metal melting demonstration window.
   type melting_state
      ! the form
@@ -1497,6 +1506,8 @@ module windows
      logical :: color_preferences_reset_reps = .true. ! whether changing the element colors resets current representations
      ! crystal voids parameters
      type(voids_state) :: vd ! the form and results of the crystal voids window
+     ! k-point grid window
+     type(kpoints_state) :: kp ! the form of the k-point grid window
      ! critical points window
      type(cp_state) :: cp ! the AUTO form, pending job, and results
      ! trace gradient paths window
@@ -1645,6 +1656,8 @@ module windows
      procedure :: draw_voids
      procedure :: block_voids
      procedure :: run_voids
+     ! k-point grid
+     procedure :: draw_kpoints
      ! critical points
      procedure :: draw_cp
      procedure :: block_cp
@@ -1734,6 +1747,7 @@ module windows
   integer, parameter, public :: wintype_line = 31
   ! 32: unused (was the plane map window)
   integer, parameter, public :: wintype_cube = 33
+  integer, parameter, public :: wintype_kpoints = 34
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -2507,6 +2521,10 @@ module windows
      module subroutine run_voids(w)
        class(window), intent(inout), target :: w
      end subroutine run_voids
+     !xx! kpoints submodule !xx!
+     module subroutine draw_kpoints(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_kpoints
      module function window_request_block(w) result(ok)
        class(window), intent(inout), target :: w
        logical :: ok
