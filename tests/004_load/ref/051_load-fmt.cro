@@ -6,16 +6,16 @@
   Grid dimensions : 16  15  15  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.65717  
-  First elements... 1.562573388889E-02  5.218778611111E-03  2.535985000000E-03  
-  Last elements... 2.624136111111E-03  3.612493055556E-03  2.593831666667E-03  
-  Sum of elements... 8.000000003889E+00
-  Sum of squares of elements... 2.759385767751E-02
+  First elements... 1.955791055440E-01  6.532071133753E-02  3.174159252294E-02  
+  Last elements... 3.284493368991E-02  4.521567854754E-02  3.246562887258E-02  
+  Sum of elements... 1.001317990079E+02
+  Sum of squares of elements... 4.322912882052E+00
   Grid domain/cell volume = 287.6209/287.6209
-  Grid domain integral (1) = 0.63915760
-  Cell integral (1) = 0.63915760
-  Min: 2.33821389E-04
-  Average: 2.22222222E-03
-  Max: 1.56257339E-02
+  Grid domain integral (1) = 8.00000000
+  Cell integral (1) = 8.00000000
+  Min: 2.92661954E-03
+  Average: 2.78143886E-02
+  Max: 1.95579106E-01
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F

@@ -1072,9 +1072,8 @@ contains
 
   !> Read a grid in CASTEP fmt format
   module subroutine read_fmt(f,cptr,file,x2c,errmsg,ti)
-    use tools_math, only: matinv
-    use tools_io, only: fopen_read, getline_raw, lgetword, equal, fclose
-    use types, only: realloc
+    use tools_math, only: det3
+    use tools_io, only: fopen_read, getline_raw, fclose, string
     class(grid3), intent(inout) :: f
     type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: file !< Input file
@@ -1083,7 +1082,10 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer :: luc
-    integer :: istat, i, j, k, idum(3)
+    integer :: istat, n, idx(3)
+    logical :: scalevol
+    real*8 :: val
+    character(len=:), allocatable :: line
 
     errmsg = "Error reading file: " // trim(file)
     call f%end()
@@ -1092,29 +1094,49 @@ contains
     luc = fopen_read(file,errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
-    ! skip most of the header and get the n
-    do i = 1, 8
-       read (luc,*,err=999,end=999)
+    ! Header: find the grid size and the END header line, which says
+    ! what the data are. Densities (den_fmt) are written as rho * V_cell
+    ! ("electrons/grid_point * number of grid_points"); potentials
+    ! (pot_fmt, Hartree) and ELF (elf_fmt) need no scaling.
+    f%n = 0
+    scalevol = .false.
+    do while (getline_raw(luc,line))
+       if (index(line,"fine FFT grid") > 0) then
+          read (line,*,err=999,end=999) f%n
+       elseif (index(line,"END header") > 0) then
+          scalevol = index(line,"electrons/grid_point") > 0
+          exit
+       end if
     end do
-    read (luc,*,err=999,end=999) f%n
+    if (any(f%n <= 0)) then
+       errmsg = "Grid size not found in file: " // trim(file)
+       goto 999
+    end if
     allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
     if (istat /= 0) then
        errmsg = "Error allocating grid"
        goto 999
     end if
 
-    ! read the grid
-    do i = 1, 2
-       read (luc,*,err=999,end=999)
+    ! Read the grid. Each line is "ia ib ic value(s)". The order of the
+    ! points depends on how CASTEP was run (a fastest in serial, c
+    ! fastest in parallel), so place every value by its indices and
+    ! check afterwards that all points were visited.
+    f%f = huge(1d0)
+    do n = 1, f%n(1)*f%n(2)*f%n(3)
+       read (luc,*,err=999,end=999) idx, val
+       if (any(idx < 1) .or. any(idx > f%n)) then
+          errmsg = "Grid point (" // string(idx(1)) // "," // string(idx(2)) // "," //&
+             string(idx(3)) // ") outside the grid in file: " // trim(file)
+          goto 999
+       end if
+       f%f(idx(1),idx(2),idx(3)) = val
     end do
-    do k = 1, f%n(3)
-       do j = 1, f%n(2)
-          do i = 1, f%n(1)
-             read(luc,*,err=999,end=999) idum, f%f(i,j,k)
-          end do
-       end do
-    end do
-    f%f = f%f / (f%n(1)*f%n(2)*f%n(3))
+    if (any(f%f == huge(1d0))) then
+       errmsg = "Missing or repeated grid points in file: " // trim(file)
+       goto 999
+    end if
+    if (scalevol) f%f = f%f / abs(det3(x2c))
 
     ! wrap up
     call fclose(luc)
