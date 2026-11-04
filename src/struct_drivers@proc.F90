@@ -582,361 +582,261 @@ contains
   ! atom names when writing an xyz file.
   module subroutine struct_write(s,line,usexyznames)
     use systemmod, only: system
+    use crystalmod, only: struct_detect_write_format
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
-       string, isreal
+       string, isreal, splitext
+    use param, only: isformat_w_unknown, isformat_w_xyz, isformat_w_gjf, isformat_w_cml,&
+       isformat_w_gaussian_periodic, isformat_w_qein, isformat_w_aimsin, isformat_w_vasp,&
+       isformat_w_abinit, isformat_w_tessel, isformat_w_critic, isformat_w_crystal,&
+       isformat_w_shelx, isformat_w_octave, isformat_w_dcpdb, isformat_w_gulp,&
+       isformat_w_siesta_struct, isformat_w_tinkerfrac, isformat_w_pdb, isformat_w_castepcell,&
+       isformat_w_alamode, isformat_write_usesym, isformat_write_userk, isformat_write_is3d
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: usexyznames
 
-    character(len=:), allocatable :: word, wext, file, wroot
-    integer :: lp, ix(3), lp2, iaux, nmer, idx
-    logical :: doborder, molmotif, dosym, docell, domolcell, ok, isqe, isalm
-    logical :: onemotif, environ, lnmer, doexternal, cartesian
-    real*8 :: rsph, xsph(3), rcub, xcub(3), renv, rk
+    character(len=:), allocatable :: word, wext, file, wroot, fmtname, errmsg
+    integer :: lp, ix(3), lp2, lpaux, iaux, nmer, isformat, i2, i3
+    logical :: doborder, molmotif, dosym, docell, domolcell, ok, is3d, hasrk
+    logical :: onemotif, environ, lnmer, doexternal, cartesian, usefrag
+    real*8 :: rsph, xsph(3), rcub, xcub(3), renv, rkaux
+    real*8, allocatable :: rk
 
+    ! file name, extension and format
     lp = 1
     file = getword(line,lp)
-    wext = lower(file(index(file,'.',.true.)+1:))
-    wroot = file(:index(file,'.',.true.)-1)
-
-    if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml').or.&
-        equal(wext,'obj').or.equal(wext,'ply').or.equal(wext,'off')) then
-       ! xyz, gjf, cml, obj, ply, off
-       doborder = .false.
-       lnmer = .false.
-       onemotif = .false.
-       molmotif = .false.
-       environ = .false.
-       docell = .false.
-       domolcell = .false.
-       nmer = 1
-       ix = 1
-       rsph = -1d0
-       xsph = 0d0
-       rcub = -1d0
-       xcub = 0d0
-       renv = 0d0
-       do while(.true.)
-          word = lgetword(line,lp)
-          lp2 = 1
-          if (equal(word,'border')) then
-             doborder = .true.
-          elseif (equal(word,'onemotif')) then
-             onemotif = .true.
-          elseif (equal(word,'molmotif')) then
-             molmotif = .true.
-          elseif (equal(word,'environ')) then
-             environ = .true.
-             ok = eval_next(renv,line,lp)
-             if (.not.ok) &
-                call ferror('struct_write','incorrect ENVIRON',faterr,line,syntax=.true.)
-             renv = renv / dunit0(iunit)
-          elseif (equal(word,'nmer')) then
-             lnmer = .true.
-             ok = eval_next(nmer,line,lp)
-             if (.not.ok) &
-                call ferror('struct_write','incorrect NMER',faterr,line,syntax=.true.)
-          elseif (equal(word,'cell')) then
-             docell = .true.
-          elseif (equal(word,'molcell')) then
-             domolcell = .true.
-          elseif (equal(word,'sphere')) then
-             ok = eval_next(rsph,line,lp)
-             ok = ok .and. eval_next(xsph(1),line,lp)
-             if (ok) then
-                ok = ok .and. eval_next(xsph(2),line,lp)
-                ok = ok .and. eval_next(xsph(3),line,lp)
-                if (.not.ok) then
-                   call ferror('struct_write','incorrect WRITE SPHERE syntax',faterr,line,syntax=.true.)
-                   return
-                end if
-             else
-                xsph = 0d0
-             end if
-             ! convert units and coordinates
-             rsph = rsph / dunit0(iunit)
-             if (s%c%ismolecule) then
-                xsph = xsph / dunit0(iunit) - s%c%molx0
-                xsph = s%c%c2x(xsph)
-             endif
-          elseif (equal(word,'cube')) then
-             ok = eval_next(rcub,line,lp)
-             ok = ok .and. eval_next(xcub(1),line,lp)
-             if (ok) then
-                ok = ok .and. eval_next(xcub(2),line,lp)
-                ok = ok .and. eval_next(xcub(3),line,lp)
-                if (.not.ok) then
-                   call ferror('struct_write','incorrect WRITE CUBE syntax',faterr,line,syntax=.true.)
-                   return
-                end if
-             else
-                xcub = 0d0
-             end if
-             ! convert units and coordinates
-             rcub = rcub / dunit0(iunit)
-             if (s%c%ismolecule) then
-                xcub = xcub / dunit0(iunit) - s%c%molx0
-                xcub = s%c%c2x(xcub)
-             endif
-          elseif (eval_next(iaux,word,lp2)) then
-             ix(1) = iaux
-             ok = eval_next(ix(2),line,lp)
-             ok = ok .and. eval_next(ix(3),line,lp)
-             if (.not.ok) then
-                call ferror('struct_write','incorrect WRITE syntax',faterr,line,syntax=.true.)
-                return
-             end if
-          elseif (len_trim(word) > 1) then
-             call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
-             return
-          else
-             exit
-          end if
-       end do
-       if ((onemotif.and.environ).or.(onemotif.and.molmotif).or.(molmotif.and.environ)) then
-          call ferror('struct_write','Only one of onemotif, molmotif, environ is allowed',&
-             faterr,line,syntax=.true.)
-       end if
-
-       if (.not.lnmer) then
-          write (uout,'("* WRITE ",A," file: ",A)') trim(wext), string(file)
-       else
-          write (uout,'("* WRITE ",A," files: ",A,"_*.",A)') trim(wext), &
-             string(wroot), trim(wext)
-       end if
-
-       if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml')) then
-          call s%c%write_mol(file,wext,ix,doborder,onemotif,molmotif,&
-             environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,usexyznames)
-       else
-          call s%c%write_3dmodel(file,wext,ix,doborder,onemotif,molmotif,&
-             docell,domolcell,rsph,xsph,rcub,xcub)
-       end if
-    elseif (equal(wext,'gau')) then
-       ! gaussian periodic boundary conditions
-       write (uout,'("* WRITE Gaussian file: ",A)') string(file)
-       call s%c%write_gaussian(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'in')) then
-       ! quantum espresso (scf.in) and FHI aims (geometry.in)
-       idx = index(wroot,'.',.true.)
-       isqe = .false.
-       isalm = .false.
-       if (idx > 0) then
-          wext = lower(wroot(idx+1:))
-          isqe = equal(wext,'scf')
-          isalm = equal(wext,'alm')
-       endif
-
-       rk = -1d0
-       cartesian = .false.
-       do while (.true.)
-          word = lgetword(line,lp)
-          if (len_trim(word) == 0) then
-             exit
-          elseif (equal(word,'cartesian')) then
-             cartesian = .true.
-          else
-             ok = isreal(rk,word)
-             if (.not.ok) &
-                call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
-          end if
-       end do
-
-       ! espresso
-       if (isqe) then
-          write (uout,'("* WRITE espresso file: ",A)') string(file)
-          if (rk > 0d0) then
-             call s%c%write_espresso(file,rk)
-          else
-             call s%c%write_espresso(file)
-          end if
-       elseif (isalm) then
-          write (uout,'("* WRITE alamode file: ",A)') string(file)
-          call s%c%write_alamode(file)
-       else
-          write (uout,'("* WRITE FHIaims file: ",A)') string(file)
-          if (rk > 0d0) then
-             call s%c%write_fhi(file,.not.cartesian,rk)
-          else
-             call s%c%write_fhi(file,.not.cartesian)
-          end if
-       end if
-
-    elseif (equal(wext,'pwi')) then
-       ! quantum espresso input
-       ok = eval_next(rk,line,lp)
-       write (uout,'("* WRITE espresso file: ",A)') string(file)
-       if (ok) then
-          call s%c%write_espresso(file,rk)
-       else
-          call s%c%write_espresso(file)
-       end if
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'cell')) then
-       ! CASTEP cell
-       ok = eval_next(rk,line,lp)
-       write (uout,'("* WRITE CASTEP cell file: ",A)') string(file)
-       if (ok) then
-          call s%c%write_castep_cell(file,rk)
-       else
-          call s%c%write_castep_cell(file)
-       end if
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
-       ! vasp
-       write (uout,'("* WRITE VASP file: ",A)') string(file)
-       call s%c%write_vasp(file,.true.)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'abin')) then
-       ! abinit
-       write (uout,'("* WRITE abinit file: ",A)') string(file)
-       call s%c%write_abinit(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'elk')) then
-       ! elk
-       write (uout,'("* WRITE elk file: ",A)') string(file)
-       call s%c%write_elk(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'tess')) then
-       ! tessel
-       write (uout,'("* WRITE tess file: ",A)') string(file)
-       call s%c%write_tessel(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'incritic').or.equal(wext,'cri')) then
-       ! critic2
-       write (uout,'("* WRITE critic2 input file: ",A)') string(file)
-       call s%c%write_critic(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'cif') .or. equal(wext,'d12') .or. equal(wext,'res')) then
-       ! cif and d12
-       dosym = .true.
-       doexternal = .false.
-       do while(.true.)
-          word = lgetword(line,lp)
-          if (equal(word,'nosym').or.equal(word,'nosymm')) then
-             dosym = .false.
-          elseif (equal(word,'external')) then
-             doexternal = .true.
-          elseif (len_trim(word) > 1) then
-             call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
-             return
-          else
-             exit
-          end if
-       end do
-
-       if (equal(wext,'cif')) then
-          write (uout,'("* WRITE cif file: ",A)') string(file)
-          call s%c%write_cif(file,dosym)
-       elseif (equal(wext,'d12')) then
-          write (uout,'("* WRITE crystal file: ",A)') string(file)
-          if (doexternal) &
-             write (uout,'(/"+ WRITE fort.34 file: ",A)') file(:index(file,'.',.true.)-1) // ".fort.34"
-          call s%c%write_d12(file,dosym,doexternal)
-       elseif (equal(wext,'res')) then
-          write (uout,'("* WRITE res file: ",A)') string(file)
-          if (dosym) then
-             call s%c%write_res(file,1)
-          else
-             call s%c%write_res(file,0)
-          end if
-       end if
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'m')) then
-       ! escher
-       write (uout,'("* WRITE escher file: ",A)') string(file)
-       call s%c%write_escher(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'db')) then
-       ! db
-       write (uout,'("* WRITE db file: ",A)') string(file)
-       call s%c%write_db(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'gin')) then
-       ! gulp
-       write (uout,'("* WRITE gulp file: ",A)') string(file)
-       call s%c%write_gulp(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'lammps')) then
-       write (uout,'("* WRITE lammps file: ",A)') string(file)
-       call s%c%write_lammps(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'fdf')) then
-       write (uout,'("* WRITE fdf file: ",A)') string(file)
-       call s%c%write_siesta_fdf(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'struct_in')) then
-       write (uout,'("* WRITE STRUCT_IN file: ",A)') string(file)
-       call s%c%write_siesta_in(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'hsd')) then
-       write (uout,'("* WRITE hsd file: ",A)') string(file)
-       call s%c%write_dftbp_hsd(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'gen')) then
-       write (uout,'("* WRITE gen file: ",A)') string(file)
-       call s%c%write_dftbp_gen(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'pyscf')) then
-       ! pyscf (python script)
-       write (uout,'("* WRITE pyscf file: ",A)') string(file)
-       call s%c%write_pyscf(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'frac')) then
-       ! tinker
-       write (uout,'("* WRITE TINKER frac file: ",A)') string(file)
-       call s%c%write_tinkerfrac(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'pdb')) then
-       ! pdb
-       write (uout,'("* WRITE PDB file: ",A)') string(file)
-       call s%c%write_pdb(s%c,file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    else
+    call splitext(file,wroot,wext)
+    wext = lower(wext)
+    call struct_detect_write_format(file,isformat)
+    if (isformat == isformat_w_unknown) then
        call ferror('struct_write','unrecognized file format',faterr,line,syntax=.true.)
        return
+    end if
+    is3d = isformat_write_is3d(isformat)
+    hasrk = isformat_write_userk(isformat)
+    fmtname = format_name()
+
+    ! defaults
+    doborder = .false.
+    lnmer = .false.
+    onemotif = .false.
+    molmotif = .false.
+    environ = .false.
+    docell = .false.
+    domolcell = .false.
+    dosym = .true.
+    doexternal = .false.
+    cartesian = .false.
+    nmer = 1
+    ix = 1
+    rsph = -1d0
+    xsph = 0d0
+    rcub = -1d0
+    xcub = 0d0
+    renv = 0d0
+
+    ! parse the options. The fragment options (BORDER, SPHERE, CUBE,
+    ! MOLMOTIF, ONEMOTIF, ENVIRON, NMER, ix iy iz, CELL, MOLCELL) are
+    ! accepted for every format; the rest only for the formats that
+    ! use them.
+    ! rk (k-point length) is allocated only if given, so that it is
+    ! absent in the calls below otherwise.
+    do while(.true.)
+       word = lgetword(line,lp)
+       lp2 = 1
+       if (equal(word,'border')) then
+          doborder = .true.
+       elseif (equal(word,'onemotif')) then
+          onemotif = .true.
+       elseif (equal(word,'molmotif')) then
+          molmotif = .true.
+       elseif (equal(word,'environ')) then
+          environ = .true.
+          ok = eval_next(renv,line,lp)
+          if (.not.ok) then
+             call ferror('struct_write','incorrect ENVIRON',faterr,line,syntax=.true.)
+             return
+          end if
+          renv = renv / dunit0(iunit)
+       elseif (equal(word,'nmer')) then
+          lnmer = .true.
+          ok = eval_next(nmer,line,lp)
+          if (.not.ok) then
+             call ferror('struct_write','incorrect NMER',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,'sphere')) then
+          ok = eval_next(rsph,line,lp)
+          ok = ok .and. eval_next(xsph(1),line,lp)
+          if (ok) then
+             ok = ok .and. eval_next(xsph(2),line,lp)
+             ok = ok .and. eval_next(xsph(3),line,lp)
+             if (.not.ok) then
+                call ferror('struct_write','incorrect WRITE SPHERE syntax',faterr,line,syntax=.true.)
+                return
+             end if
+          else
+             xsph = 0d0
+          end if
+          ! convert units and coordinates
+          rsph = rsph / dunit0(iunit)
+          if (s%c%ismolecule) then
+             xsph = xsph / dunit0(iunit) - s%c%molx0
+             xsph = s%c%c2x(xsph)
+          endif
+       elseif (equal(word,'cube')) then
+          ok = eval_next(rcub,line,lp)
+          ok = ok .and. eval_next(xcub(1),line,lp)
+          if (ok) then
+             ok = ok .and. eval_next(xcub(2),line,lp)
+             ok = ok .and. eval_next(xcub(3),line,lp)
+             if (.not.ok) then
+                call ferror('struct_write','incorrect WRITE CUBE syntax',faterr,line,syntax=.true.)
+                return
+             end if
+          else
+             xcub = 0d0
+          end if
+          ! convert units and coordinates
+          rcub = rcub / dunit0(iunit)
+          if (s%c%ismolecule) then
+             xcub = xcub / dunit0(iunit) - s%c%molx0
+             xcub = s%c%c2x(xcub)
+          endif
+       elseif (equal(word,'cell')) then
+          ! only has an effect in 3D models
+          docell = .true.
+       elseif (equal(word,'molcell')) then
+          domolcell = .true.
+       elseif (isformat_write_usesym(isformat) .and. (equal(word,'nosym').or.equal(word,'nosymm'))) then
+          dosym = .false.
+       elseif (isformat == isformat_w_crystal .and. equal(word,'external')) then
+          doexternal = .true.
+       elseif (isformat == isformat_w_aimsin .and. equal(word,'cartesian')) then
+          cartesian = .true.
+       elseif (equal(word,'primitive')) then
+          ! accepted and ignored (legacy)
+       elseif (hasrk .and. isreal(rkaux,word)) then
+          ! for the formats that write a k-point grid, a single number
+          ! is the k-point length and three numbers are ix iy iz
+          lpaux = lp
+          ok = eval_next(i2,line,lpaux)
+          ok = ok .and. eval_next(i3,line,lpaux)
+          if (ok) then
+             ix = (/nint(rkaux),i2,i3/)
+             lp = lpaux
+          elseif (rkaux <= 0d0) then
+             call ferror('struct_write','incorrect WRITE rklength',faterr,line,syntax=.true.)
+             return
+          else
+             rk = rkaux
+          end if
+       elseif (eval_next(iaux,word,lp2)) then
+          ix(1) = iaux
+          ok = eval_next(ix(2),line,lp)
+          ok = ok .and. eval_next(ix(3),line,lp)
+          if (.not.ok) then
+             call ferror('struct_write','incorrect WRITE syntax',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (len_trim(word) > 0) then
+          call ferror('struct_write','Unknown extra keyword or keyword not allowed for this format: ' // &
+             trim(word),faterr,line,syntax=.true.)
+          return
+       else
+          exit
+       end if
+    end do
+    if ((onemotif.and.environ).or.(onemotif.and.molmotif).or.(molmotif.and.environ)) then
+       call ferror('struct_write','Only one of onemotif, molmotif, environ is allowed',&
+          faterr,line,syntax=.true.)
+       return
+    end if
+    usefrag = doborder .or. onemotif .or. molmotif .or. environ .or. lnmer .or.&
+       rsph > 0d0 .or. rcub > 0d0 .or. any(ix /= 1)
+
+    ! header (the fort.34 file is written for crystals only)
+    if (.not.lnmer) then
+       write (uout,'("* WRITE ",A," file: ",A)') fmtname, string(file)
+    else
+       if (len(wext) > 0) then
+          write (uout,'("* WRITE ",A," files: ",A,"_*.",A)') fmtname, string(wroot), trim(wext)
+       else
+          write (uout,'("* WRITE ",A," files: ",A,"_*")') fmtname, string(wroot)
+       end if
+    end if
+    if (doexternal .and. .not.usefrag .and. .not.s%c%ismolecule) &
+       write (uout,'(/"+ WRITE fort.34 file: ",A)') wroot // ".fort.34"
+
+    ! write the file(s)
+    if (is3d) then
+       ! 3D models handle the fragment options themselves
+       call s%c%write_3dmodel(file,wext,ix,doborder,onemotif,molmotif,&
+          docell,domolcell,rsph,xsph,rcub,xcub)
+    elseif (usefrag .or. isformat == isformat_w_xyz .or. isformat == isformat_w_gjf .or.&
+       isformat == isformat_w_cml) then
+       ! fragment(s) of the structure in any format
+       call s%c%write_mol(file,isformat,ix,doborder,onemotif,molmotif,environ,renv,&
+          lnmer,nmer,rsph,xsph,rcub,xcub,usexyznames,rklength0=rk,nosym0=.not.dosym,&
+          cartesian0=cartesian,verbose0=.true.,external0=doexternal)
+    else
+       ! the whole structure
+       call s%c%write_any_file(file,errmsg,iwformat=isformat,rklength=rk,nosym=.not.dosym,&
+          cartesian=cartesian,verbose=.true.,external=doexternal)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_write',errmsg,faterr,line,syntax=.true.)
+          return
+       end if
     end if
     write (uout,*)
 
   contains
-    function check_no_extra_word()
-      character(len=:), allocatable :: aux2
-      logical :: check_no_extra_word
+    !> Name of the format for the output header: the extension unless
+    !> the format has a customary name.
+    function format_name() result(nm)
+      character(len=:), allocatable :: nm
 
-      check_no_extra_word = .true.
-      do while (.true.)
-         aux2 = getword(line,lp)
-         if (equal(aux2,'primitive')) cycle
-         if (len_trim(aux2) > 0) then
-            call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
-            check_no_extra_word = .false.
-         end if
-         exit
-      end do
+      select case (isformat)
+      case (isformat_w_gaussian_periodic)
+         nm = 'Gaussian'
+      case (isformat_w_qein)
+         nm = 'espresso'
+      case (isformat_w_aimsin)
+         nm = 'FHIaims'
+      case (isformat_w_castepcell)
+         nm = 'CASTEP cell'
+      case (isformat_w_vasp)
+         nm = 'VASP'
+      case (isformat_w_abinit)
+         nm = 'abinit'
+      case (isformat_w_alamode)
+         nm = 'alamode'
+      case (isformat_w_tessel)
+         nm = 'tess'
+      case (isformat_w_critic)
+         nm = 'critic2 input'
+      case (isformat_w_crystal)
+         nm = 'crystal'
+      case (isformat_w_shelx)
+         nm = 'res'
+      case (isformat_w_octave)
+         nm = 'escher'
+      case (isformat_w_dcpdb)
+         nm = 'db'
+      case (isformat_w_gulp)
+         nm = 'gulp'
+      case (isformat_w_siesta_struct)
+         nm = 'STRUCT_IN'
+      case (isformat_w_tinkerfrac)
+         nm = 'TINKER frac'
+      case (isformat_w_pdb)
+         nm = 'PDB'
+      case default
+         nm = trim(wext)
+      end select
 
-    end function check_no_extra_word
+    end function format_name
   end subroutine struct_write
 
   ! Write multiple structures to several files.

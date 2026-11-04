@@ -1962,10 +1962,6 @@ module windows
      end subroutine okfile_save_dir
      module subroutine build_write_format_combo()
      end subroutine build_write_format_combo
-     module function write_format_usesym(ifmt)
-       integer, intent(in) :: ifmt
-       logical :: write_format_usesym
-     end function write_format_usesym
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
      module subroutine objedit_cancel_views(isys)

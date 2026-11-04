@@ -760,6 +760,18 @@ module param
        integer, intent(in) :: isformat
        integer :: iwformat
      end function isformat_write_from_read
+     pure module function isformat_write_usesym(iwformat)
+       integer, intent(in) :: iwformat
+       logical :: isformat_write_usesym
+     end function isformat_write_usesym
+     pure module function isformat_write_userk(iwformat)
+       integer, intent(in) :: iwformat
+       logical :: isformat_write_userk
+     end function isformat_write_userk
+     pure module function isformat_write_is3d(iwformat)
+       integer, intent(in) :: iwformat
+       logical :: isformat_write_is3d
+     end function isformat_write_is3d
      pure module function ismetal(z)
        integer, intent(in) :: z
        logical :: ismetal

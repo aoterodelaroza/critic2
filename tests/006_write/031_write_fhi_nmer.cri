@@ -1,0 +1,20 @@
+## delete: 031_write_fhi_nmer.cro
+## check: 031_write_fhi_nmer_monomer_1.in -a1e-10
+## check: 031_write_fhi_nmer_monomer_2.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_1.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_2.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_3.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_4.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_5.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_6.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_7.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_8.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_9.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_10.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_11.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_12.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_13.in -a1e-10
+## check: 031_write_fhi_nmer_dimer_14.in -a1e-10
+## labels: regression quick nodata
+crystal library urea
+write 031_write_fhi_nmer.in molmotif nmer 2

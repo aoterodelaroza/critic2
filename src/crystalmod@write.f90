@@ -994,7 +994,7 @@ contains
   !> coordinates (FHIaims), and docell adds the unit cell to the 3D
   !> model (obj, ply, off).
   module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,&
-     docell,ti,forces)
+     docell,ti,forces,verbose,external)
     use tools_io, only: lower, equal, fopen_write, fclose
     use param, only: &
        isformat_w_unknown, isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
@@ -1016,15 +1016,21 @@ contains
     logical, intent(in), optional :: docell
     type(thread_info), intent(in), optional :: ti
     logical, intent(in), optional :: forces
+    logical, intent(in), optional :: verbose
+    logical, intent(in), optional :: external
 
     integer :: isformat, lu
-    logical :: dosym, frac
+    logical :: dosym, frac, verbose_, external_
 
     ! process the optional arguments
     dosym = .true.
     if (present(nosym)) dosym = .not.nosym
     frac = .true.
     if (present(cartesian)) frac = .not.cartesian
+    verbose_ = .false.
+    if (present(verbose)) verbose_ = verbose
+    external_ = .false.
+    if (present(external)) external_ = external
 
     ! detect the format
     errmsg = ""
@@ -1048,11 +1054,11 @@ contains
     call fclose(lu)
 
     if (isformat == isformat_w_xyz) then
-       call c%write_mol(file,'xyz',ti=ti)
+       call c%write_mol(file,isformat_w_xyz,ti=ti)
     elseif (isformat == isformat_w_gjf) then
-       call c%write_mol(file,'gjf',ti=ti)
+       call c%write_mol(file,isformat_w_gjf,ti=ti)
     elseif (isformat == isformat_w_cml) then
-       call c%write_mol(file,'cml',ti=ti)
+       call c%write_mol(file,isformat_w_cml,ti=ti)
     elseif (isformat == isformat_w_obj) then
        call c%write_3dmodel(file,'obj',docell0=docell,ti=ti)
     elseif (isformat == isformat_w_ply) then
@@ -1066,7 +1072,7 @@ contains
     elseif (isformat == isformat_w_aimsin) then
        call c%write_fhi(file,frac,rklength=rklength,ti=ti)
     elseif (isformat == isformat_w_vasp) then
-       call c%write_vasp(file,.false.,ti=ti)
+       call c%write_vasp(file,verbose_,ti=ti)
     elseif (isformat == isformat_w_abinit) then
        call c%write_abinit(file,ti=ti)
     elseif (isformat == isformat_w_elk) then
@@ -1078,9 +1084,14 @@ contains
     elseif (isformat == isformat_w_cif) then
        call c%write_cif(file,dosym,ti=ti)
     elseif (isformat == isformat_w_crystal) then
-       call c%write_d12(file,dosym,.false.,ti=ti)
+       call c%write_d12(file,dosym,external_,ti=ti)
     elseif (isformat == isformat_w_shelx) then
-       call c%write_res(file,merge(-1,0,dosym),ti=ti)
+       if (dosym) then
+          ! 1 = use symmetry and warn if the centering is not found; -1 = quiet
+          call c%write_res(file,merge(1,-1,verbose_),ti=ti)
+       else
+          call c%write_res(file,0,ti=ti)
+       end if
     elseif (isformat == isformat_w_octave) then
        call c%write_escher(file,ti=ti)
     elseif (isformat == isformat_w_dcpdb) then
@@ -1111,29 +1122,35 @@ contains
 
   end subroutine write_any_file
 
-  !> Write a xyz/gjf/cml file containing a finite piece of the crystal
-  !> structure. fmt can be one of xyz, gjf, or cml. ix is the number
-  !> of unit cells to plot.  If doborder is .true., add all atoms at
-  !> the border. If onemotif is .true., write all molecules in the
-  !> unit cell.  If molmotif is .true., complete molecules with atoms
-  !> in adjacent cells. If docell, add sticks for the unit cell
-  !> limits. If environ is true, write all molecules up to a distance
+  !> Write a file containing a finite piece of the crystal structure
+  !> in any of the writable formats (isformat_w_*). The xyz, gjf and
+  !> cml formats are written directly from the fragment; for any other
+  !> format, a molecular crystal is built from the fragment and written
+  !> with write_any_file (rklength0, nosym0, cartesian0, verbose0 and
+  !> external0 are passed to it). ix is the number of unit cells to
+  !> plot. If doborder is .true., add all atoms at the border. If
+  !> onemotif is .true., write all molecules in the unit cell. If
+  !> molmotif is .true., complete molecules with atoms in adjacent
+  !> cells. If environ is true, write all molecules up to a distance
   !> renv (bohr) from the origin. If lnmer, partition the resulting
   !> list of molecules into n-mers, up to nth order. If rsph (bohr) is
   !> positive, then use all atoms in a sphere around xsph (cryst.). If
   !> rcub (bohr) is positive, use all atoms in a cube around xcub
   !> (cryst.). If luout is present, return the LU in that argument
   !> and do not close the file.
-  module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
-     environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout,ti)
+  module subroutine write_mol(c,file,isformat,ix0,doborder0,onemotif0,molmotif0,&
+     environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,rklength0,&
+     nosym0,cartesian0,verbose0,external0,luout,ti)
+    use crystalseedmod, only: crystalseed
     use global, only: dunit0, iunit, iunitname0
     use tools_math, only: nchoosek, comb
     use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
-       equal
+       splitext
     use fragmentmod, only: fragment
+    use param, only: isformat_w_xyz, isformat_w_gjf, isformat_w_cml
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
-    character*3, intent(in) :: fmt
+    integer, intent(in) :: isformat
     integer, intent(in), optional :: ix0(3)
     logical, intent(in), optional :: doborder0, onemotif0, molmotif0, environ0
     real*8, intent(in), optional :: renv0
@@ -1142,6 +1159,8 @@ contains
     real*8, intent(in), optional :: rsph0, xsph0(3)
     real*8, intent(in), optional :: rcub0, xcub0(3)
     logical, intent(in), optional :: usenames0
+    real*8, intent(in), optional :: rklength0
+    logical, intent(in), optional :: nosym0, cartesian0, verbose0, external0
     integer, intent(out), optional :: luout
     type(thread_info), intent(in), optional :: ti
 
@@ -1151,7 +1170,7 @@ contains
     integer :: i, j, k, l, nmol
     integer :: ncomb, nlimj, icount, ic, iat
     integer, allocatable :: icomb(:), origmol(:), idmolf(:), lvecf(:,:), allcon(:,:)
-    character(len=:), allocatable :: wroot, file0, froot
+    character(len=:), allocatable :: wroot, wext, file0, froot
     real*8, allocatable :: cmlist(:,:), comc(:,:)
     real*8 :: xcm(3)
     integer :: ix(3)
@@ -1277,10 +1296,11 @@ contains
        ! normal write
        call dowrite(file,fr,ti=ti)
     else
-       wroot = file(:index(file,'.',.true.)-1)
+       call splitext(file,wroot,wext)
+       if (len(wext) > 0) wext = "." // wext
        do i = 1, nmer
           ! generate the n-mers of size i, write their files (named
-          ! <root>_<type>_<counter>.<fmt>) and store the list of constituent
+          ! <root>_<type>_<counter>.<ext>) and store the list of constituent
           ! monomers (allcon(1:i,counter)) for the tables below.
           froot = trim(wroot) // "_" // nmer_name(i) // "_"
           if (i == 1) then
@@ -1295,7 +1315,7 @@ contains
              do j = 1, nlimj
                 icount = icount + 1
                 allcon(1,icount) = j
-                file0 = froot // string(icount) // "." // fmt
+                file0 = froot // string(icount) // wext
                 call dowrite(file0,fr0(j),ti=ti)
              end do
           else
@@ -1316,7 +1336,7 @@ contains
                    do k = 1, i-1
                       call fr%append(fr0(icomb(k)))
                    end do
-                   file0 = froot // string(icount) // "." // fmt
+                   file0 = froot // string(icount) // wext
                    call dowrite(file0,fr,ti=ti)
                 end do
              end do
@@ -1336,18 +1356,35 @@ contains
       type(fragment) :: fro
       type(thread_info), intent(in), optional :: ti
 
-      if (equal(fmt,"xyz")) then
+      type(crystalseed) :: seed
+      type(crystal) :: caux
+      character(len=:), allocatable :: errmsg
+
+      if (isformat == isformat_w_xyz) then
          call fro%writexyz(fileo,usenames,ti=ti)
-      elseif (equal(fmt,"gjf")) then
+      elseif (isformat == isformat_w_gjf) then
          call fro%writegjf(fileo,ti=ti)
-      elseif (equal(fmt,"cml")) then
+      elseif (isformat == isformat_w_cml) then
          if (c%ismolecule) then
             call fro%writecml(fileo,luout=luout,ti=ti)
          else
             call fro%writecml(fileo,c%m_x2c,luout=luout,ti=ti)
          end if
       else
-         call ferror("write_mol","Unknown format",faterr)
+         ! any other format: build a molecule from the fragment and
+         ! use the corresponding structure writer. A fragment from a
+         ! non-discrete molecule (chain, layer) is still a finite
+         ! list of atoms, so it is written as a molecule too. The
+         ! point group is not needed for writing.
+         call seed%from_fragment(fro,allow_nondiscrete0=.true.)
+         seed%findsym = 0
+         call caux%struct_new(seed,errmsg,ti=ti)
+         if (len_trim(errmsg) > 0) &
+            call ferror("write_mol",errmsg,faterr)
+         call caux%write_any_file(fileo,errmsg,iwformat=isformat,rklength=rklength0,&
+            nosym=nosym0,cartesian=cartesian0,verbose=verbose0,external=external0,ti=ti)
+         if (len_trim(errmsg) > 0) &
+            call ferror("write_mol",errmsg,faterr)
       endif
 
     end subroutine dowrite
@@ -1366,7 +1403,7 @@ contains
       nm = nmer_name(isize)
       lw = len(nm) + 7
       write (uout,'("+ List of ",A,"s written: ",A)') nm, string(ntot)
-      write (uout,'("# Files are named <root>_",A,"_<n>.",A)') nm, fmt
+      write (uout,'("# Files are named <root>_",A,"_<n>",A)') nm, wext
       write (uout,'("# id = index of the monomer in the main cell")')
       write (uout,'("# lvec = lattice vector")')
 
@@ -2922,7 +2959,7 @@ contains
           do k = 1, c%ncel
              if (c%atcel(k)%is == i) &
                 write (lu,'(99(A," "))') string(k), string(i), &
-                (string(c%atcel(k)%r(j)*bohrtoa,'f',20,12),j=1,3)
+                (string((c%atcel(k)%r(j)+c%molx0(j))*bohrtoa,'f',20,12),j=1,3)
           end do
        end do
     else
@@ -2969,9 +3006,10 @@ contains
        write (lu,'("mol.atom = ''''''")')
        do i = 1, c%ncel
           write (lu,'(A,3(" ",A))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.)),&
-             (string(c%atcel(i)%r(j),'f',18,10),j=1,3)
+             (string(c%atcel(i)%r(j)+c%molx0(j),'f',18,10),j=1,3)
        end do
        write (lu,'("''''''")')
+       write (lu,'("mol.unit = ''Bohr''")')
        write (lu,'("mol.basis = ''aug-cc-pvtz''")')
        write (lu,'("mol.verbose = 4")')
        write (lu,'("mol.spin = 0")')
@@ -3035,13 +3073,14 @@ contains
           write (lu,'("atom_frac ",4(" ",A))') (string(c%atcel(i)%x(j),'f',18,10),j=1,3),&
              name
        else
-          write (lu,'("atom ",4(" ",A))') (string(c%atcel(i)%r(j)*bohrtoa,'f',18,10),j=1,3),&
+          write (lu,'("atom ",4(" ",A))') (string((c%atcel(i)%r(j)+c%molx0(j))*bohrtoa,'f',18,10),j=1,3),&
              name
        end if
     end do
     call fclose(lu)
 
-    if (present(rklength) .and. all(nk > 0)) then
+    ! control.in template; a molecule has no k-point grid or cell relaxation
+    if (present(rklength) .and. (c%ismolecule .or. all(nk > 0))) then
        lu = fopen_write(trim(file) // "_control",ti=ti)
        write (lu,'("xc b86bpbe")')
        write (lu,'("spin none")')
@@ -3053,10 +3092,13 @@ contains
        write (lu,'("sc_accuracy_rho 1e-7")')
        write (lu,'("")')
        write (lu,'("relax_geometry bfgs 0.005")')
-       write (lu,'("relax_unit_cell full")')
+       if (.not.c%ismolecule) &
+          write (lu,'("relax_unit_cell full")')
        write (lu,'("max_relaxation_steps 200")')
-       write (lu,'("")')
-       write (lu,'("k_grid",3(" ",A))') (string(nk(i)),i=1,3)
+       if (.not.c%ismolecule) then
+          write (lu,'("")')
+          write (lu,'("k_grid",3(" ",A))') (string(nk(i)),i=1,3)
+       end if
        call fclose(lu)
     end if
 
@@ -3729,23 +3771,20 @@ contains
        isformat_w_siesta_fdf, isformat_w_siesta_struct, isformat_w_dftbp_hsd,&
        isformat_w_dftbp_gen, isformat_w_pyscf, isformat_w_tinkerfrac, isformat_w_pdb,&
        isformat_w_castepcell, isformat_w_alamode
-    use tools_io, only: equal, lower
+    use tools_io, only: equal, lower, splitext
     use param, only: dirsep
     character*(*), intent(in) :: file
     integer, intent(out) :: isformat
 
     character(len=:), allocatable :: wext, wext2, wroot
-    integer :: idx, idir
+    integer :: idx
 
-    ! find the extension in the base name only (a dot in a directory
-    ! name must not be mistaken for the extension separator)
-    idir = index(file,dirsep,back=.true.)
-    idx = index(file(idir+1:),'.',back=.true.)
-    if (idx > 0) then
-       wext = lower(file(idir+idx+1:))
-       wroot = file(:idir+idx-1)
+    ! the extension; for a file without one (POSCAR), the base name itself
+    call splitext(file,wroot,wext)
+    if (len(wext) > 0) then
+       wext = lower(wext)
     else
-       wext = lower(file(idir+1:))
+       wext = lower(wroot(index(wroot,dirsep,back=.true.)+1:))
        wroot = ""
     end if
     if (equal(wext,'xyz')) then

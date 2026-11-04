@@ -1,0 +1,13 @@
+## delete: 032_write_fragment_formats.cro
+## check: 032_write_fragment_formats_gen_monomer_1.gen -a1e-10
+## check: 032_write_fragment_formats_gen_monomer_2.gen -a1e-10
+## check: 032_write_fragment_formats_pyscf.pyscf -a1e-10
+## check: 032_write_fragment_formats_cif.cif -a1e-10
+## check: 032_write_fragment_formats_gin_monomer_1.gin -a1e-10
+## check: 032_write_fragment_formats_gin_monomer_2.gin -a1e-10
+## labels: regression quick nodata
+crystal library urea
+write 032_write_fragment_formats_gen.gen onemotif nmer 1
+write 032_write_fragment_formats_pyscf.pyscf molmotif
+write 032_write_fragment_formats_cif.cif onemotif
+write 032_write_fragment_formats_gin.gin onemotif nmer 1

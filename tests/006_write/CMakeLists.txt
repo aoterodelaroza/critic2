@@ -28,6 +28,8 @@ set(TESTS
   028_write_fhi        ## write FHIaims input files
   029_write_tinkerfrac ## write TINKER frac format
   030_write_cell       ## write CASTEP cell file
+  031_write_fhi_nmer   ## write FHIaims molecular fragments (molmotif, nmer)
+  032_write_fragment_formats ## fragment options (onemotif, molmotif, nmer) with non-xyz formats
   )
 
 runtests(${TESTS})

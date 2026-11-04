@@ -140,6 +140,39 @@ contains
 
   end function isformat_write_from_read
 
+  !> Whether write format iwformat (isformat_w_*) writes the structure
+  !> using its space group symmetry, so that the NOSYM option applies.
+  pure module function isformat_write_usesym(iwformat)
+    integer, intent(in) :: iwformat
+    logical :: isformat_write_usesym
+
+    isformat_write_usesym = (iwformat == isformat_w_cif .or. iwformat == isformat_w_crystal .or.&
+       iwformat == isformat_w_shelx)
+
+  end function isformat_write_usesym
+
+  !> Whether write format iwformat (isformat_w_*) takes a k-point
+  !> length (rklength) to write a k-point grid.
+  pure module function isformat_write_userk(iwformat)
+    integer, intent(in) :: iwformat
+    logical :: isformat_write_userk
+
+    isformat_write_userk = (iwformat == isformat_w_qein .or. iwformat == isformat_w_aimsin .or.&
+       iwformat == isformat_w_castepcell)
+
+  end function isformat_write_userk
+
+  !> Whether write format iwformat (isformat_w_*) is a 3D model
+  !> (obj, ply, off).
+  pure module function isformat_write_is3d(iwformat)
+    integer, intent(in) :: iwformat
+    logical :: isformat_write_is3d
+
+    isformat_write_is3d = (iwformat == isformat_w_obj .or. iwformat == isformat_w_ply .or.&
+       iwformat == isformat_w_off)
+
+  end function isformat_write_is3d
+
   !xx! private procedures
 
   ! from quadpack.

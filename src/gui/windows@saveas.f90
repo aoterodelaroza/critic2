@@ -32,6 +32,7 @@ contains
 
   !> Draw the save as window
   module subroutine draw_saveas(w)
+    use param, only: isformat_write_usesym, isformat_write_is3d
     use windows, only: wintype_dialog, wpurp_dialog_savefile
     use systems, only: sys, sysc, sys_init, ok_system
     use crystalmod, only: struct_detect_write_format
@@ -140,12 +141,11 @@ contains
        (ifmt == isformat_w_aimsin .and. .not.ismol))
 
     ! the unit cell can be shown in 3D model files (crystals only)
-    usecell = (ifmt == isformat_w_obj .or. ifmt == isformat_w_ply .or.&
-       ifmt == isformat_w_off) .and. .not.doquit
+    usecell = isformat_write_is3d(ifmt) .and. .not.doquit
     if (usecell) usecell = .not.sys(isys)%c%ismolecule
 
     ! options, only for the formats that support them
-    showopt = userk .or. usecell .or. write_format_usesym(ifmt)
+    showopt = userk .or. usecell .or. isformat_write_usesym(ifmt)
     if (showopt) then
        call iw_separatortext("Options",w%saveas_secopt)
        showopt = w%saveas_secopt%open
@@ -172,7 +172,7 @@ contains
     end if
 
     ! do not use symmetry
-    if (write_format_usesym(ifmt) .and. showopt) then
+    if (isformat_write_usesym(ifmt) .and. showopt) then
        ldum = iw_checkbox("Do not use symmetry##saveasnosym",w%saveas_nosym,labelleft=.true.)
        call iw_tooltip("Write the structure without using the space group symmetry (P1)",ttshown)
     end if

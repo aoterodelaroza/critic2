@@ -1765,7 +1765,7 @@ contains
        iw_combo_simple, iw_dragfloat_realc, file_name_root, iw_separatortext
     use crystalmod, only: struct_detect_write_format
     use tools_io, only: lower, fopen_write, fclose, string
-    use param, only: dirsep, isformat_w_unknown
+    use param, only: dirsep, isformat_w_unknown, isformat_write_is3d
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
     logical, intent(inout) :: ttshown
@@ -1838,8 +1838,7 @@ contains
     userk = (ifmt == isformat_w_qein .or. ifmt == isformat_w_castepcell .or.&
        (ifmt == isformat_w_aimsin .and. .not.ismol))
     usecart = (ifmt == isformat_w_aimsin .and. .not.ismol)
-    usecell = (ifmt == isformat_w_obj .or. ifmt == isformat_w_ply .or. ifmt == isformat_w_off)&
-       .and. .not.ismol
+    usecell = isformat_write_is3d(ifmt) .and. .not.ismol
     if (ichosen > 0 .and. ichosen /= iexp_json) then
        call iw_separatortext("Options",w%cp%secoptions)
        if (w%cp%secoptions%open) then

@@ -1600,7 +1600,7 @@ module crystalmod
        type(json_value), pointer, intent(inout) :: p
      end subroutine struct_write_json
      module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,&
-        docell,ti,forces)
+        docell,ti,forces,verbose,external)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
        character(len=:), allocatable, intent(inout) :: errmsg
@@ -1611,12 +1611,15 @@ module crystalmod
        logical, intent(in), optional :: docell
        type(thread_info), intent(in), optional :: ti
        logical, intent(in), optional :: forces
+       logical, intent(in), optional :: verbose
+       logical, intent(in), optional :: external
      end subroutine write_any_file
-     module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
-        environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout,ti)
+     module subroutine write_mol(c,file,isformat,ix0,doborder0,onemotif0,molmotif0,&
+        environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,rklength0,&
+        nosym0,cartesian0,verbose0,external0,luout,ti)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
-       character*3, intent(in) :: fmt
+       integer, intent(in) :: isformat
        integer, intent(in), optional :: ix0(3)
        logical, intent(in), optional :: doborder0, onemotif0, molmotif0, environ0
        real*8, intent(in), optional :: renv0
@@ -1625,6 +1628,8 @@ module crystalmod
        real*8, intent(in), optional :: rsph0, xsph0(3)
        real*8, intent(in), optional :: rcub0, xcub0(3)
        logical, intent(in), optional :: usenames0
+       real*8, intent(in), optional :: rklength0
+       logical, intent(in), optional :: nosym0, cartesian0, verbose0, external0
        integer, intent(out), optional :: luout
        type(thread_info), intent(in), optional :: ti
      end subroutine write_mol

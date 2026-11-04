@@ -1016,6 +1016,29 @@ contains
 
   endfunction lgetword
 
+  !> Split a file name into root and extension at the last dot of its
+  !> base name (a dot in a directory name is not an extension
+  !> separator). If the base name has no dot, root is the whole file
+  !> name and ext is empty. The case of ext is preserved.
+  module subroutine splitext(file,root,ext)
+    use param, only: dirsep
+    character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: root, ext
+
+    integer :: idir, idx
+
+    idir = index(file,dirsep,back=.true.)
+    idx = index(file(idir+1:),'.',back=.true.)
+    if (idx > 0) then
+       root = file(:idir+idx-1)
+       ext = file(idir+idx+1:)
+    else
+       root = file
+       ext = ""
+    end if
+
+  end subroutine splitext
+
   !> True if the input is a letter.
   module function isletter(a)
     character*(1), intent(in) :: a

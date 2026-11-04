@@ -671,18 +671,6 @@ contains
 
   end subroutine build_write_format_combo
 
-  !> Whether write format ifmt (isformat_w_*) writes the structure
-  !> using its space group symmetry, so that the NOSYM option applies.
-  module function write_format_usesym(ifmt)
-    use param, only: isformat_w_cif, isformat_w_crystal, isformat_w_shelx
-    integer, intent(in) :: ifmt
-    logical :: write_format_usesym
-
-    write_format_usesym = (ifmt == isformat_w_cif .or. ifmt == isformat_w_crystal .or.&
-       ifmt == isformat_w_shelx)
-
-  end function write_format_usesym
-
   !> Whether the system of demo window w (water cluster, melting) is
   !> still the one it made: not removed, and not another system loaded
   !> into its slot. The system must have at least initialization

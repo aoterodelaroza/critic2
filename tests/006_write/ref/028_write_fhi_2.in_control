@@ -8,7 +8,4 @@ relativistic atomic_zora scalar
 sc_accuracy_rho 1e-7
 
 relax_geometry bfgs 0.005
-relax_unit_cell full
 max_relaxation_steps 200
-
-k_grid 1 1 1

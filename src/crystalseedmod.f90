@@ -180,10 +180,11 @@ module crystalseedmod
        character*(*), intent(in), optional :: file
        type(thread_info), intent(in), optional :: ti
      end subroutine read_library
-     module subroutine from_fragment(seed,fr,order_by_cidx0)
+     module subroutine from_fragment(seed,fr,order_by_cidx0,allow_nondiscrete0)
        class(crystalseed), intent(inout) :: seed
        type(fragment), intent(in) :: fr
        logical, intent(in), optional :: order_by_cidx0
+       logical, intent(in), optional :: allow_nondiscrete0
      end subroutine from_fragment
      module subroutine strip_hydrogens(seed)
        class(crystalseed), intent(inout) :: seed

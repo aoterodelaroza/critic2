@@ -807,6 +807,7 @@ contains
   !> command to the tessel output (optional). If nosym, do not write
   !> the symmetry elements.
   subroutine flx_initialize(nosym,noballs,nocell)
+    use param, only: isformat_w_cml
     use systemmod, only: sy
     use global, only: fileroot
     use tools_io, only: faterr, ferror, uout, fopen_write
@@ -971,7 +972,7 @@ contains
        ! connect and initialize cml file
        outfile = trim(fileroot) // "_flux." // outfmt
        write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
-       call sy%c%write_mol(outfile,outfmt,doborder0=.true.,luout=luout)
+       call sy%c%write_mol(outfile,isformat_w_cml,doborder0=.true.,luout=luout)
     endif
 
   end subroutine flx_initialize

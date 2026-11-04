@@ -1348,7 +1348,7 @@ contains
   !> Create a crystal seed from a molecular fragment. If order_by_cidx0
   !> is present and .true., order the resulting seed in increasing value of
   !> cidx from the fragment.
-  module subroutine from_fragment(seed,fr,order_by_cidx0)
+  module subroutine from_fragment(seed,fr,order_by_cidx0,allow_nondiscrete0)
     use global, only: rborder_def
     use tools, only: qcksort
     use tools_io, only: ferror, faterr
@@ -1356,18 +1356,22 @@ contains
     class(crystalseed), intent(inout) :: seed
     type(fragment), intent(in) :: fr
     logical, intent(in), optional :: order_by_cidx0
+    logical, intent(in), optional :: allow_nondiscrete0
 
     integer :: i
-    logical :: order_by_cidx
+    logical :: order_by_cidx, allow_nondiscrete
     integer, allocatable :: iord(:), midx(:)
+
+    order_by_cidx = .false.
+    if (present(order_by_cidx0)) order_by_cidx = order_by_cidx0
+    allow_nondiscrete = .false.
+    if (present(allow_nondiscrete0)) allow_nondiscrete = allow_nondiscrete0
 
     call seed%end()
     if (fr%nat==0) &
        call ferror('from_fragment','fragment has zero atoms',faterr)
-    if (.not.fr%discrete) &
+    if (.not.fr%discrete .and. .not.allow_nondiscrete) &
        call ferror('from_fragment','cannot handle non-discrete fragments',faterr)
-    order_by_cidx = .false.
-    if (present(order_by_cidx0)) order_by_cidx = order_by_cidx0
 
     ! copy species
     seed%nspc = fr%nspc
@@ -1393,7 +1397,7 @@ contains
     seed%nat = fr%nat
     if (allocated(seed%x)) deallocate(seed%x)
     if (allocated(seed%is)) deallocate(seed%is)
-    if (allocated(seed%is)) deallocate(seed%atname)
+    if (allocated(seed%atname)) deallocate(seed%atname)
     allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     do i = 1, seed%nat
        seed%x(:,i) = fr%at(iord(i))%r

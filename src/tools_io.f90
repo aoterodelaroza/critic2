@@ -39,6 +39,7 @@ module tools_io
   public :: getword
   public :: quoteword
   public :: lgetword
+  public :: splitext
   public :: isletter
   public :: isdigit
   public :: isinteger
@@ -225,6 +226,10 @@ module tools_io
        integer, intent(inout) :: lp
        character(len=:), allocatable :: word
      endfunction lgetword
+     module subroutine splitext(file,root,ext)
+       character*(*), intent(in) :: file
+       character(len=:), allocatable, intent(out) :: root, ext
+     end subroutine splitext
      module function isletter(a)
        character*(1), intent(in) :: a
        logical :: isletter
