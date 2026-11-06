@@ -846,7 +846,8 @@ module windows
   integer, parameter :: nci_sec_results = 6
   integer, parameter :: nci_sec_scatter = 7
   integer, parameter :: nci_sec_domains = 8
-  integer, parameter :: nci_nsec = 8
+  integer, parameter :: nci_sec_output = 9
+  integer, parameter :: nci_nsec = 9
 
   ! a fragment of the NCI plot picked in the view: a molecule or an atom
   type nci_pickfrag
@@ -918,8 +919,12 @@ module windows
      ! the masked RDG colored by the signed density, and its color bar
      type(rep_ref) :: isoref
      type(rep_ref) :: cbref
-     ! blocking job (run_nci): the system
+     ! the output files (Write Files): complete the molecules in the xyz (MOLMOTIF)
+     logical :: molmotif = .false.
+     ! blocking job (run_nci): the system, and whether it writes the
+     ! files (root from w%okfile) instead of calculating
      integer :: jsys = 0
+     logical :: jwrite = .false.
   end type nci_state
   public :: nci_state
 
@@ -1871,6 +1876,7 @@ module windows
   integer, parameter, public :: wpurp_dialog_savegpathsfile = 16
   integer, parameter, public :: wpurp_dialog_savemapfile = 17
   integer, parameter, public :: wpurp_dialog_savegridfile = 18
+  integer, parameter, public :: wpurp_dialog_savencifiles = 19
 
   ! dialog token: the EAM potential file chosen with the Browse button of
   ! draw_ff_eam_potential (any window that draws the picker may receive it)

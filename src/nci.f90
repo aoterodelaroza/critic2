@@ -26,7 +26,7 @@ module nci
   public :: nci_options, nci_result
   public :: nci_options_init, nci_options_set_field, nci_dopromol, nci_compute, nci_masks
   public :: nci_in_dat, nci_domains
-  public :: nci_write_cubes, nci_write_dat, nci_write_vmd
+  public :: nci_write_cubes, nci_write_dat, nci_write_vmd, nci_write_files
   public :: nci_chk_read, nci_chk_write
 
   ! value of the reduced density gradient at the grid points removed
@@ -48,10 +48,8 @@ module nci
      logical :: periodic = .true. ! the grid spans whole unit cells (crystals; the plot wraps around)
      real*8 :: x0(3) = 0d0 ! origin
      real*8 :: xmat(3,3) = 0d0 ! step vectors (columns)
-     integer :: nstep(3) = 0 ! number of points along each step vector
-     real*8 :: x1(3) = 0d0 ! non-periodic grids only: far corner of the axis-aligned region box. The atoms
-                           ! written to the cube headers and the xyz file are the ones inside the box, which
-                           ! the grid may overshoot by up to one step (a step length that does not divide it)
+     integer :: nstep(3) = 0 ! number of points along each step vector (the files list the atoms inside
+                              ! the box around the grid, non-periodic grids only)
      ! the fragments: only the regions between them are plotted
      integer :: nfrag = 0 ! number of fragments
      type(fragment), allocatable :: fr(:) ! the fragments
@@ -150,14 +148,27 @@ module nci
        logical(1), intent(in) :: inter(:,:,:)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine nci_write_dat
-     module subroutine nci_write_vmd(oname,opts,s,domolmotif,errmsg)
+     module subroutine nci_write_vmd(oname,opts,s,domolmotif,errmsg,refroot)
        use systemmod, only: system
        character*(*), intent(in) :: oname
        type(nci_options), intent(in) :: opts
        type(system), intent(inout) :: s
        logical, intent(in) :: domolmotif
        character(len=:), allocatable, intent(out) :: errmsg
+       character*(*), intent(in), optional :: refroot
      end subroutine nci_write_vmd
+     module subroutine nci_write_files(root,opts,s,res,inter,splot,domolmotif,errmsg,refroot)
+       use systemmod, only: system
+       character*(*), intent(in) :: root
+       type(nci_options), intent(in) :: opts
+       type(system), intent(inout) :: s
+       type(nci_result), intent(in) :: res
+       logical(1), intent(in) :: inter(:,:,:)
+       real*8, intent(in) :: splot(:,:,:)
+       logical, intent(in) :: domolmotif
+       character(len=:), allocatable, intent(out) :: errmsg
+       character*(*), intent(in), optional :: refroot
+     end subroutine nci_write_files
      module function nci_chk_read(file,opts,s,res) result(ok)
        use systemmod, only: system
        character*(*), intent(in) :: file

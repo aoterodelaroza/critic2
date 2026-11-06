@@ -1442,8 +1442,7 @@ contains
             sys(i)%f(id)%id = id
             sys(i)%f(id)%name = trim(sys(i)%f(k)%name) // " (copy)"
             ! made again (scene files) as a copy of the field, with its options
-            sys(i)%f(id)%loadcmd = "copy " // string(k)
-            if (allocated(sys(i)%f(id)%loadfiles)) deallocate(sys(i)%f(id)%loadfiles)
+            call sys(i)%f(id)%set_recipe("copy " // string(k))
             call sysc(i)%post_event(lastchange_cplist)
          end if
          call iw_tooltip("Load a copy of this field as a new field",ttshown)

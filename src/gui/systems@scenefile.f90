@@ -441,6 +441,9 @@ contains
       call json%add(p,o)
       do k = 1, n
          i = ord(k)
+         ! a grid field with no recipe (made in the GUI): its data go
+         ! to a cube next to the scene file, which becomes its recipe
+         if (i > 0) call write_generated_grid(i)
          if (i > 0 .and. .not.allocated(sy%f(i)%loadcmd)) then
             write (uout,'("!! Warning !! Field ",A," (",A,") is not in the scene: it was not loaded from a file or a command")') &
                string(i), trim(sy%f(i)%name)
@@ -494,6 +497,39 @@ contains
       end do
       if (iref >= 0) call json%add(p,'reference_field',iref)
     end associate
+
+  contains
+
+    !> Write grid field i of the system, if it has no recipe (or its
+    !> recipe is the cube this writes: a scene saved again), as a
+    !> binary cube file next to the scene file
+    !> (<scene root>_field<i>.bincube) and make that file the field's
+    !> recipe. A failure is reported to the output and leaves the
+    !> field as it was.
+    subroutine write_generated_grid(i)
+      use fieldmod, only: type_grid
+      integer, intent(in) :: i
+
+      logical :: ok
+      character(len=:), allocatable :: cubefile
+
+      associate(f => sys(isys)%f(i))
+        if (f%type /= type_grid) return
+        cubefile = file_name_root(file) // "_field" // string(i) // ".bincube"
+        if (allocated(f%loadcmd)) then
+           if (f%loadcmd /= cubefile) return
+        end if
+        call f%write_grid_cube(cubefile,.true.,ok)
+        if (.not.ok) then
+           write (uout,'("!! Warning !! Field ",A," (",A,") could not be written next to the scene")') &
+              string(i), trim(f%name)
+           return
+        end if
+        write (uout,'("* Field ",A," written to the cube file: ",A)') string(i), cubefile
+        call f%set_recipe(cubefile,(/cubefile/))
+      end associate
+
+    end subroutine write_generated_grid
 
   end subroutine write_fields
 

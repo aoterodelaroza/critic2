@@ -1007,6 +1007,53 @@ contains
 
   end subroutine replace_grid_data
 
+  !> Write grid field f as a Gaussian cube file (binary: critic2's
+  !> bincube) named file, on the domain of its grid (the cell, or the
+  !> grid's own box for a partial grid). ok is false, and nothing is
+  !> written, if f is not an initialized grid field.
+  module subroutine write_grid_cube(f,file,binary,ok)
+    class(field), intent(in) :: f
+    character*(*), intent(in) :: file
+    logical, intent(in) :: binary
+    logical, intent(out) :: ok
+
+    integer :: j
+    real*8 :: x2cd(3,3), x0c(3), xd(3,3)
+
+    ok = .false.
+    if (.not.f%isinit .or. f%type /= type_grid .or. .not.associated(f%c)) return
+    if (.not.allocated(f%grid)) return
+    if (.not.f%grid%isinit) return
+    call f%grid%get_domain(x2cd,x0c)
+    do j = 1, 3
+       xd(:,j) = x2cd(:,j) / real(f%grid%n(j),8)
+    end do
+    call f%c%writegrid_cube(f%grid%f,file,.false.,binary,xd,x0c+f%c%molx0)
+    ok = .true.
+
+  end subroutine write_grid_cube
+
+  !> Set the command cmd (a LOAD line without the keyword) that makes
+  !> field f again, and the files it reads (files; none if absent),
+  !> for the GUI scene files.
+  module subroutine set_recipe(f,cmd,files)
+    class(field), intent(inout) :: f
+    character*(*), intent(in) :: cmd
+    character*(*), intent(in), optional :: files(:)
+
+    integer :: i
+
+    f%loadcmd = trim(cmd)
+    if (allocated(f%loadfiles)) deallocate(f%loadfiles)
+    if (present(files)) then
+       allocate(f%loadfiles(size(files,1)))
+       do i = 1, size(files,1)
+          f%loadfiles(i) = files(i)
+       end do
+    end if
+
+  end subroutine set_recipe
+
   !> Calculate the scalar field f at point v (Cartesian) and its
   !> derivatives up to nder. Return the results in res0. If periodic
   !> is present and false, consider the field is defined in a

@@ -132,6 +132,8 @@ module fieldmod
      procedure :: load_as_fftgrid !< Loads as a transformation of a 3d grid
      procedure :: load_grid_from_array3 !< Loads a 3d grid field from a 3d array
      procedure :: replace_grid_data !< Replace the values of a grid field (same dimensions)
+     procedure :: write_grid_cube !< Write a grid field as a cube file on its own domain
+     procedure :: set_recipe !< Set the command (and files) that make the field again
      procedure :: load_ghost !< Loads a ghost field
      procedure :: grd !< Calculate field value and its derivatives at a point
      procedure :: grd0 !< Calculate only the field value at a given point
@@ -229,6 +231,17 @@ module fieldmod
        real*8, allocatable, intent(inout) :: g(:,:,:)
        logical, intent(out) :: ok
      end subroutine replace_grid_data
+     module subroutine write_grid_cube(f,file,binary,ok)
+       class(field), intent(in) :: f
+       character*(*), intent(in) :: file
+       logical, intent(in) :: binary
+       logical, intent(out) :: ok
+     end subroutine write_grid_cube
+     module subroutine set_recipe(f,cmd,files)
+       class(field), intent(inout) :: f
+       character*(*), intent(in) :: cmd
+       character*(*), intent(in), optional :: files(:)
+     end subroutine set_recipe
      module subroutine load_grid_from_array3(f,c,id,name,g,x0,x2cl)
        class(field), intent(inout) :: f
        type(crystal), intent(in), target :: c

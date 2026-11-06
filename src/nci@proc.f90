@@ -380,7 +380,6 @@ contains
     end if
     opts%periodic = periodic
     opts%x0 = x0
-    opts%x1 = x1
     opts%xmat = xmat
     opts%nstep = nstep
 
@@ -451,13 +450,7 @@ contains
     endif
 
     ! write the output files
-    call nci_write_dat(trim(oname) // ".dat",opts,res,inter,errmsg)
-    if (len_trim(errmsg) > 0) call ferror('nciplot',errmsg,faterr)
-    deallocate(inter)
-    call nci_write_cubes(oname,opts,sy,res,splot,errmsg)
-    if (len_trim(errmsg) > 0) call ferror('nciplot',errmsg,faterr)
-    deallocate(splot)
-    call nci_write_vmd(oname,opts,sy,domolmotif,errmsg)
+    call nci_write_files(oname,opts,sy,res,inter,splot,domolmotif,errmsg)
     if (len_trim(errmsg) > 0) call ferror('nciplot',errmsg,faterr)
 
     if (.not.quiet) call tictac("End NCIPLOT")
@@ -934,8 +927,10 @@ contains
   !> opts in system s. The atoms are those of the fragments, of the
   !> unit cell (periodic grids; with domolmotif, the molecules are
   !> completed), or inside the region box. Both are written in the
-  !> frame VMD uses for the cubes.
-  module subroutine nci_write_vmd(oname,opts,s,domolmotif,errmsg)
+  !> frame VMD uses for the cubes. The script names the xyz and cube
+  !> files from oname, or from refroot if given (the files next to
+  !> the script by their base name, say).
+  module subroutine nci_write_vmd(oname,opts,s,domolmotif,errmsg,refroot)
     use systemmod, only: system
     use tools_io, only: fopen_write, fclose
     use types, only: realloc
@@ -945,12 +940,15 @@ contains
     type(system), intent(inout) :: s
     logical, intent(in) :: domolmotif
     character(len=:), allocatable, intent(out) :: errmsg
+    character*(*), intent(in), optional :: refroot
+
+    character(len=:), allocatable :: rref
 
     type(fragment) :: fr0
     type(fragment), allocatable :: fr(:)
     logical, allocatable :: isdiscrete(:)
     integer :: luvmd, nmol, nat0, i, j, k, l, imin(3), imax(3)
-    real*8 :: x(3), xx0(3), xx1(3), rchol(3,3), delta(3)
+    real*8 :: x(3), xx0(3), xx1(3), rchol(3,3), delta(3), xlo(3), xhi(3)
     real*8, allocatable :: fx(:,:)
     integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
     logical :: isortho, ok
@@ -994,10 +992,16 @@ contains
              call fr0%merge_array(fr,.false.)
           end if
        else
-          xx0 = s%c%c2x(opts%x0 - rthres_xyz)
-          xx1 = s%c%c2x(opts%x1 + rthres_xyz)
+          call grid_box(opts,xlo,xhi)
+          xx0 = s%c%c2x(xlo - rthres_xyz)
+          xx1 = s%c%c2x(xhi + rthres_xyz)
           imin = floor(min(xx0,xx1)) - 1
           imax = ceiling(max(xx0,xx1)) + 1
+          ! the cell of a molecule is an artifact: no lattice images
+          if (s%c%ismolecule) then
+             imin = 0
+             imax = 0
+          end if
 
           ! gather the atoms inside the box
           nat0 = 0
@@ -1007,9 +1011,7 @@ contains
                 do k = imin(3), imax(3)
                    do l = 1, s%c%ncel
                       x = s%c%x2c(s%c%atcel(l)%x + real((/i,j,k/),8))
-                      if (x(1) > opts%x0(1) .and. x(1) < opts%x1(1) .and.&
-                          x(2) > opts%x0(2) .and. x(2) < opts%x1(2) .and.&
-                          x(3) > opts%x0(3) .and. x(3) < opts%x1(3)) then
+                      if (all(x > xlo) .and. all(x < xhi)) then
                          nat0 = nat0 + 1
                          if (nat0 > size(fis)) then
                             call realloc(fx,3,2*nat0)
@@ -1053,6 +1055,9 @@ contains
     end do
 
     ! open the vmd script
+    ! the files as the script names them: the root as given, or refroot
+    rref = trim(oname)
+    if (present(refroot)) rref = trim(refroot)
     luvmd = fopen_write(trim(oname)//".vmd",errstop=.false.)
     if (luvmd < 0) then
        errmsg = "error opening the vmd file"
@@ -1076,7 +1081,7 @@ contains
     write (luvmd,'("color Display {Background} white")')
     write (luvmd,'("")')
     write (luvmd,'("# load the xyz with the atoms")')
-    write (luvmd,'("mol new ",A," type xyz first 0 last -1 step 1 filebonds 0 autobonds 1 waitfor all")') trim(oname)//"_cell.xyz"
+    write (luvmd,'("mol new ",A," type xyz first 0 last -1 step 1 filebonds 0 autobonds 1 waitfor all")') rref//"_cell.xyz"
     write (luvmd,'("")')
     write (luvmd,'("# Render cell atoms as CPK")')
     write (luvmd,'("mol top 0")')
@@ -1097,9 +1102,9 @@ contains
     end if
     write (luvmd,'("# Load the cubes")')
     write (luvmd,'("mol new ",A," type cube first 0 last -1 step 1 filebonds 0 autobonds 0 waitfor all")')&
-       trim(oname)//"-dens.cube"
+       rref//"-dens.cube"
     write (luvmd,'("mol addfile ",A," type cube first 0 last -1 step 1 filebonds 0 autobonds 0 waitfor all")')&
-       trim(oname)//"-grad.cube"
+       rref//"-grad.cube"
     write (luvmd,'("")')
     write (luvmd,'("# representation of the atoms")')
     write (luvmd,'("mol top 1")')
@@ -1120,6 +1125,35 @@ contains
     call fclose(luvmd)
 
   end subroutine nci_write_vmd
+
+
+  !> Write the files of an NCI calculation with options opts in
+  !> system s, named from root: the s vs. density data (root.dat, the
+  !> points inter from nci_masks), the cube files (root-dens.cube,
+  !> root-grad.cube from the masked RDG splot, root-pdens.cube if the
+  !> promolecular density was calculated), and the VMD script with
+  !> its xyz file (root.vmd, root_cell.xyz; the script names the
+  !> files from refroot if given, see nci_write_vmd). errmsg is
+  !> non-empty if a file could not be written.
+  module subroutine nci_write_files(root,opts,s,res,inter,splot,domolmotif,errmsg,refroot)
+    use systemmod, only: system
+    character*(*), intent(in) :: root
+    type(nci_options), intent(in) :: opts
+    type(system), intent(inout) :: s
+    type(nci_result), intent(in) :: res
+    logical(1), intent(in) :: inter(:,:,:)
+    real*8, intent(in) :: splot(:,:,:)
+    logical, intent(in) :: domolmotif
+    character(len=:), allocatable, intent(out) :: errmsg
+    character*(*), intent(in), optional :: refroot
+
+    call nci_write_dat(trim(root) // ".dat",opts,res,inter,errmsg)
+    if (len_trim(errmsg) > 0) return
+    call nci_write_cubes(root,opts,s,res,splot,errmsg)
+    if (len_trim(errmsg) > 0) return
+    call nci_write_vmd(root,opts,s,domolmotif,errmsg,refroot)
+
+  end subroutine nci_write_files
 
   !> Read the NCI grids from checkpoint file file into res; returns
   !> whether they were read. They are not if the file does not exist
@@ -1316,6 +1350,27 @@ contains
 
   end subroutine fragment_atoms
 
+  !> The axis-aligned box around the grid of options opts (origin
+  !> x0, nstep steps along each column of xmat): its lower corner xlo
+  !> and upper corner xhi (Cartesian, cell frame). The atoms the
+  !> output files list for a non-periodic grid are the ones inside it.
+  subroutine grid_box(opts,xlo,xhi)
+    type(nci_options), intent(in) :: opts
+    real*8, intent(out) :: xlo(3), xhi(3)
+
+    integer :: j
+    real*8 :: v(3)
+
+    xlo = opts%x0
+    xhi = opts%x0
+    do j = 1, 3
+       v = real(opts%nstep(j),8) * opts%xmat(:,j)
+       xlo = xlo + min(v,0d0)
+       xhi = xhi + max(v,0d0)
+    end do
+
+  end subroutine grid_box
+
   !> The frame VMD uses for a cube with step vectors xmat (columns).
   !> VMD screw-up log, entry #1: vmd internally converts the
   !> coordinate system to a Cartesian matrix that is lower triangular;
@@ -1366,24 +1421,30 @@ contains
     real*8, allocatable, intent(out) :: xat(:,:)
 
     integer :: i, j, i1, i2, i3, nmin(3), nmax(3)
-    real*8 :: xx(3), x0x(3), x1x(3)
+    real*8 :: xx(3), x0x(3), x1x(3), xlo(3), xhi(3)
 
     real*8, parameter :: eps = 0.1d0
 
     nat = 0
     if (.not.opts%periodic) then
        if (opts%nfrag == 0) then
-          x0x = s%c%c2x(opts%x0)
-          x1x = s%c%c2x(opts%x1)
+          call grid_box(opts,xlo,xhi)
+          x0x = s%c%c2x(xlo)
+          x1x = s%c%c2x(xhi)
           nmin = floor(x0x) - 1
           nmax = ceiling(x1x) + 1
+          ! the cell of a molecule is an artifact: no lattice images
+          if (s%c%ismolecule) then
+             nmin = 0
+             nmax = 0
+          end if
           allocate(iz(s%c%ncel),xat(3,s%c%ncel))
           do i = 1, s%c%ncel
              do i1 = nmin(1), nmax(1)
                 do i2 = nmin(2), nmax(2)
                    do i3 = nmin(3), nmax(3)
                       xx = s%c%x2c(s%c%atcel(i)%x + real((/i1,i2,i3/),8))
-                      if (all(xx > opts%x0-eps) .and. all(xx < opts%x1+eps)) then
+                      if (all(xx > xlo-eps) .and. all(xx < xhi+eps)) then
                          nat = nat + 1
                          if (nat > size(iz)) then
                             call realloc(iz,2*nat)

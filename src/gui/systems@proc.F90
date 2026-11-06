@@ -1544,8 +1544,11 @@ contains
     if (allocated(zpsp)) sys(isys)%f(ifield)%zpsp = zpsp
     ! the field is made again as before, now with the virtual orbitals
     if (allocated(loadcmd)) then
-       sys(isys)%f(ifield)%loadcmd = loadcmd // " readvirtual"
-       call move_alloc(loadfiles,sys(isys)%f(ifield)%loadfiles)
+       if (allocated(loadfiles)) then
+          call sys(isys)%f(ifield)%set_recipe(loadcmd // " readvirtual",loadfiles)
+       else
+          call sys(isys)%f(ifield)%set_recipe(loadcmd // " readvirtual")
+       end if
     end if
     call move_alloc(optcmd,sys(isys)%f(ifield)%optcmd)
     call move_alloc(cp,sys(isys)%f(ifield)%cp)

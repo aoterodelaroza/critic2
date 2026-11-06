@@ -46,7 +46,7 @@ contains
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
        iw_separatortext, iw_combo_simple, iw_dragfloat_real8, iw_checkbox, iw_field_combo,&
        iw_calcwidth, iw_calcheight, iw_table_column, iw_table_headers_row, iw_highlight_selectable,&
-       iw_cell_right, duration_string
+       iw_cell_right, duration_string, file_name_root, file_name_base
     use gui_main, only: ColorHighlightScene
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -90,6 +90,7 @@ contains
           call set_field(sys(isys)%iref)
           call clear_fragments()
           call drop_results()
+          w%okfile = okfile_default(isys,"nci","dat")
        elseif (w%nc%timelast /= sysc(isys)%timelastchange_geometry) then
           call clear_fragments()
           call drop_results()
@@ -199,15 +200,28 @@ contains
           call nci_highlight(w,isys,iview,ihover)
        end if
 
+       ! the output files
+       call draw_output()
+       if (w%okfile_set) then
+          if (associated(w%nc%res)) then
+             call request_write()
+          else
+             w%errmsg = "There is no result to write"
+          end if
+       end if
+
        ! the region in the anchor view, for as long as the window is open
        ! (not the cell of a crystal, which the cell shows)
        if (okbox .and. .not.(w%nc%iregion == iso_region_cell .and..not.ismol)) &
           call region_show_box(iview,w%uid,isys,box(:,0),box(:,1:3))
 
-       if (allocated(w%errmsg)) then
-          if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+       if (len_trim(w%errmsg) > 0) then
+          call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+       elseif (len_trim(w%okmsg) > 0) then
+          call iw_text(w%okmsg,wrap=.true.)
        end if
     end if
+    w%okfile_set = .false.
 
     ! bottom row: calculate, close
     okcalc = goodsys
@@ -682,6 +696,48 @@ contains
 
     end subroutine draw_domains
 
+    !> The Output section: the files NCIPLOT writes, from a root name
+    !> chosen in a dialog, and whether the molecules of the xyz file
+    !> are completed.
+    subroutine draw_output()
+      integer :: idum
+      logical :: okwrite
+
+      call iw_separatortext("Output",w%nc%sec(nci_sec_output))
+      if (.not.w%nc%sec(nci_sec_output)%open) return
+
+      ! a masked result to write
+      okwrite = associated(w%nc%res) .and. associated(w%nc%drv)
+      if (okwrite) okwrite = allocated(w%nc%drv%inter)
+
+      ch = iw_checkbox("Complete molecules##ncimolmotif",w%nc%molmotif,labelleft=.true.)
+      call iw_tooltip("Complete the molecules that cross the boundary of the cell or the region&
+         & in the xyz file written next to the cube files (MOLMOTIF)",ttshown)
+      if (iw_button("Write Files...##nciwrite",sameline=.true.,disabled=.not.okwrite)) &
+         idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savencifiles,idparent=w%id,orraise=-1)
+      call iw_tooltip("Write the files of the NCIPLOT keyword for the last calculation: the cube files&
+         & of the signed density and the masked RDG (and the promolecular density, if calculated),&
+         & the s vs. density data, the VMD script with its xyz file, and the checkpoint, named&
+         & from the file chosen without its extension (existing files with those names are&
+         & replaced)",ttshown,whendisabled=.true.)
+
+    end subroutine draw_output
+
+    !> Request the blocking job that writes the output files
+    !> (run_nci), named from the file chosen in the dialog.
+    subroutine request_write()
+
+      w%errmsg = ""
+      w%okmsg = ""
+      if (.not.w%request_block()) then
+         w%errmsg = "Another calculation is starting: press the button again"
+         return
+      end if
+      w%nc%jwrite = .true.
+      w%nc%jsys = isys
+
+    end subroutine request_write
+
     !> Arm a fragment pick of kind (ncipick_molecule or ncipick_atom)
     !> in the anchor view.
     subroutine arm_fragpick(kind)
@@ -746,13 +802,12 @@ contains
     !> the density field (native level) or nn points over the region
     !> (origin and steps, cell-frame Cartesian bohr; periodic over the
     !> whole cell of a crystal), the fragments are the selected
-    !> molecules and the picked fragments. The far corner x1 of the
-    !> options (the atoms the output files list) is set when the files
-    !> are written.
+    !> molecules and the picked fragments.
     subroutine request_job()
       integer :: j, k, nfrag
 
       w%errmsg = ""
+      w%okmsg = ""
       if (.not.w%request_block()) then
          w%errmsg = "Another calculation is starting: press the button again"
          return
@@ -791,6 +846,7 @@ contains
            end do
         end if
       end associate
+      w%nc%jwrite = .false.
       w%nc%jsys = isys
 
     end subroutine request_job
@@ -808,7 +864,7 @@ contains
   !> Draw the overlay of the pending job of the NCI plot window.
   module subroutine block_nci(w)
     use systems, only: sys, sysc, ok_system, sys_init
-    use utils, only: iw_wait_overlay
+    use utils, only: iw_wait_overlay, file_name_root
     use tools_io, only: string
     use param, only: newline
     class(window), intent(inout), target :: w
@@ -826,7 +882,12 @@ contains
        info = info // newline // "Grid:   " // string(w%nc%opts%nstep(1)) // " x " //&
           string(w%nc%opts%nstep(2)) // " x " // string(w%nc%opts%nstep(3))
     end if
-    call iw_wait_overlay("Calculating the NCI plot...",info,.true.)
+    if (w%nc%jwrite) then
+       info = info // newline // "Files:  " // file_name_root(w%okfile) // "*"
+       call iw_wait_overlay("Writing the NCI files...",info,.false.)
+    else
+       call iw_wait_overlay("Calculating the NCI plot...",info,.true.)
+    end if
 
   end subroutine block_nci
 
@@ -852,6 +913,10 @@ contains
     isys = w%nc%jsys
     w%nc%jsys = 0
     if (.not.ok_system(isys,sys_init)) return
+    if (w%nc%jwrite) then
+       call nci_write_files(w,isys)
+       return
+    end if
     if (.not.sys(isys)%goodfield(w%nc%opts%ifield)) then
        w%errmsg = "The density field is gone"
        return
@@ -907,6 +972,50 @@ contains
   end subroutine end_nci
 
   !xx! private procedures
+
+  !> Write the files of the NCIPLOT keyword for the result of the NCI
+  !> plot window w of system isys, named from the file chosen in its
+  !> dialog (w%okfile) without the extension: the checkpoint, then
+  !> the dat, cube, and VMD files (nci_write_files; the VMD script
+  !> names the files next to it by their base name).
+  subroutine nci_write_files(w,isys)
+    use systems, only: sys
+    use nci, only: nci_chk_write, nci_write_files_ => nci_write_files
+    use utils, only: file_name_root, file_name_base
+    use tools_io, only: uout
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+
+    integer :: id
+    character(len=:), allocatable :: root, errmsg
+
+    w%okmsg = ""
+    root = file_name_root(w%okfile)
+    if (.not.associated(w%nc%res) .or. .not.associated(w%nc%drv)) then
+       w%errmsg = "There is no result to write"
+       return
+    end if
+    if (.not.allocated(w%nc%drv%inter)) then
+       w%errmsg = "The result is not masked: change a cutoff or recalculate"
+       return
+    end if
+    id = w%nc%fsref%id
+    if (.not.sys(isys)%goodfield(id,uid=w%nc%fsref%uid,n=w%nc%res%n)) then
+       w%errmsg = "The masked RDG field is gone: recalculate"
+       return
+    end if
+
+    call nci_chk_write(root // ".chk_nci",w%nc%opts,sys(isys),w%nc%res,errmsg)
+    if (len_trim(errmsg) == 0) &
+       call nci_write_files_(root,w%nc%opts,sys(isys),w%nc%res,w%nc%drv%inter,sys(isys)%f(id)%grid%f,&
+       w%nc%molmotif,errmsg,refroot=file_name_base(root))
+    w%errmsg = errmsg
+    if (len_trim(errmsg) > 0) return
+    w%okmsg = "NCI plot files written with root " // root
+    write (uout,'("* NCI plot files written with root: ",A/)') root
+    call okfile_save_dir(w%okfile)
+
+  end subroutine nci_write_files
 
   !> Mask the result of the NCI plot window w for system isys with the
   !> cutoffs of its options (nci_masks) and put the grids in their

@@ -790,10 +790,10 @@ contains
     ! it again (GUI scene files); options set later go to optcmd. A
     ! copy starts with the options of its source at the time it was
     ! made (they are applied again after the source's later ones)
-    s%f(id)%loadcmd = trim(line)
-    if (allocated(s%f(id)%loadfiles)) deallocate(s%f(id)%loadfiles)
-    if (seed%iff /= ifformat_copy .and. seed%nfile > 0) then
-       if (allocated(seed%file)) s%f(id)%loadfiles = seed%file(1:seed%nfile)
+    if (seed%iff /= ifformat_copy .and. seed%nfile > 0 .and. allocated(seed%file)) then
+       call s%f(id)%set_recipe(line,seed%file(1:seed%nfile))
+    else
+       call s%f(id)%set_recipe(line)
     end if
     if (seed%iff /= ifformat_copy .and. allocated(s%f(id)%optcmd)) deallocate(s%f(id)%optcmd)
 
