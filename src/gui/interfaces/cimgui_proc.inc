@@ -2934,6 +2934,16 @@ subroutine ipPlotLine(label_id,xs,ys,count,flags,offset) bind(c,name="ipPlotLine
   integer(c_int), value :: offset
 end subroutine ipPlotLine
 ! void ipPlotStairs(const char* label_id, const double* xs, const double* ys, int count, ImPlotStairsFlags flags, int offset);
+! void ipPlotScatter(const char* label_id, const double* xs, const double* ys, int count, ImPlotScatterFlags flags, int offset);
+subroutine ipPlotScatter(label_id,xs,ys,count,flags,offset) bind(c,name="ipPlotScatter")
+  import c_ptr, c_int
+  type(c_ptr), intent(in), value :: label_id
+  type(c_ptr), intent(in), value :: xs
+  type(c_ptr), intent(in), value :: ys
+  integer(c_int), value :: count
+  integer(c_int), value :: flags
+  integer(c_int), value :: offset
+end subroutine ipPlotScatter
 subroutine ipPlotStairs(label_id,xs,ys,count,flags,offset) bind(c,name="ipPlotStairs")
   import c_ptr, c_int
   type(c_ptr), intent(in), value :: label_id

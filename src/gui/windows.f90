@@ -844,13 +844,32 @@ module windows
   integer, parameter :: nci_sec_fragments = 4
   integer, parameter :: nci_sec_plot = 5
   integer, parameter :: nci_sec_results = 6
-  integer, parameter :: nci_nsec = 6
+  integer, parameter :: nci_sec_scatter = 7
+  integer, parameter :: nci_sec_domains = 8
+  integer, parameter :: nci_nsec = 8
 
   ! a fragment of the NCI plot picked in the view: a molecule or an atom
   type nci_pickfrag
      character(len=:), allocatable :: label ! what was picked, for the list
      type(fragment) :: fr ! the fragment
   end type nci_pickfrag
+
+  ! what the NCI plot window derives from its result and the cutoffs
+  ! (nci_refresh), on the heap like the result: the points that pass
+  ! the fragment and void criteria, the s vs. signed density scatter
+  ! (a sample of the points under the dat-file cutoffs), and the
+  ! domains of the isosurface plot (connected regions of the grid
+  ! under the RDG isovalue, by decreasing volume)
+  type nci_derived
+     logical(1), allocatable :: inter(:,:,:)
+     real(c_double), allocatable :: scx(:), scy(:) ! signed density and s of each scatter point
+     integer :: ndom = 0 ! number of domains
+     integer, allocatable :: lbl(:,:,:) ! domain of each grid point (0 = none), until given to the isosurface
+     integer, allocatable :: dom_npts(:) ! grid points of each domain
+     real*8, allocatable :: dom_vol(:) ! volume of each domain (bohr^3)
+     real*8, allocatable :: dom_rmin(:), dom_rmax(:) ! range of the signed density in each domain
+     real*8 :: voltot = 0d0 ! volume of all the domains (bohr^3)
+  end type nci_derived
 
   type nci_state
      type(sys_ref) :: sys ! system the form is set up for
@@ -887,6 +906,8 @@ module windows
      ! result), the fields they were loaded as, and the void integrals
      ! of the last masking (nci_masks)
      type(nci_result), pointer :: res => null()
+     type(nci_derived), pointer :: drv => null() ! the scatter and the domains (null = none)
+     integer :: dragline = 0 ! line of the signed density range held in the scatter plot (0 = none)
      type(field_ref) :: fsref ! the reduced density gradient, masked by the cutoffs (nci_rdg_masked)
      type(field_ref) :: frref ! the density times the sign of the second Hessian eigenvalue
      logical :: voidok = .false. ! the void integrals are those of the result with the current cutoffs
@@ -1752,6 +1773,7 @@ module windows
      procedure :: draw_nci
      procedure :: block_nci
      procedure :: run_nci
+     procedure :: end_nci
      procedure :: draw_editrep_slice
      procedure :: plane_free_texture
      ! blocking jobs (gui_main%pending_block_window)
@@ -2778,6 +2800,9 @@ module windows
      module subroutine run_nci(w)
        class(window), intent(inout), target :: w
      end subroutine run_nci
+     module subroutine end_nci(w)
+       class(window), intent(inout), target :: w
+     end subroutine end_nci
      !xx! display submodule !xx!
      module subroutine draw_display(w)
        class(window), intent(inout), target :: w

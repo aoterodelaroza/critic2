@@ -1807,6 +1807,160 @@ contains
   !> values are positive and span several decades (hrange = log10 of
   !> the limits), linearly otherwise. One pass over the data after the
   !> range, with no copy and no sort.
+  !> Label the domains of a scalar field f on a uniform grid: the
+  !> connected regions where f is lower than isoval, two grid points
+  !> being connected if they are neighbors along one of the three grid
+  !> directions (wrapping around the edges if periodic). On output,
+  !> ndom is the number of domains, lbl(i,j,k) the domain of each
+  !> grid point (0 = none), numbered by decreasing size, and ncount
+  !> the number of points in each. errmsg is non-empty in case of
+  !> error (a grid too large, no memory, or a cancelled calculation),
+  !> and then there are no domains.
+  module subroutine grid_domains(f,isoval,periodic,ndom,lbl,ncount,errmsg)
+    use global, only: abort_poll, progress_start, progress_set
+    use tools, only: qcksort
+    use types, only: realloc
+    use tools_io, only: string
+    real*8, intent(in) :: f(:,:,:)
+    real*8, intent(in) :: isoval
+    logical, intent(in) :: periodic
+    integer, intent(out) :: ndom
+    integer, allocatable, intent(out) :: lbl(:,:,:)
+    integer, allocatable, intent(out) :: ncount(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, j, k, l, m, jd, nn, nstack, ier, n(3), npop
+    integer :: ijk(3), jjk(3)
+    integer*8 :: nn8
+    integer, allocatable :: istack(:), iord(:), irank(:), nc(:)
+
+    integer, parameter :: nlabel_init = 10 ! initial size of the per-domain arrays
+    integer, parameter :: npollstep = 65536 ! fill steps between cancel checks
+
+    errmsg = ""
+    ndom = 0
+    npop = 0
+    n = shape(f)
+
+    ! the flood fill addresses the grid points with a default-integer linear
+    ! index
+    nn8 = int(n(1),8) * int(n(2),8) * int(n(3),8)
+    if (any(n < 1) .or. nn8 > int(huge(nn),8)) then
+       call fail("grid too large for the domain analysis (" // string(nn8) // " points)")
+       return
+    end if
+    nn = int(nn8)
+
+    ! lbl = -1 if the grid point is not in a domain, 0 if it is in a
+    ! domain that has not been reached yet, and the id of its domain
+    ! once it has. The grid is the caller's to choose and can be very
+    ! large, so a failure here is reported rather than left to abort
+    ! the program
+    allocate(lbl(n(1),n(2),n(3)),istack(nn),stat=ier)
+    if (ier /= 0) then
+       call fail("not enough memory for the domain analysis (" // string(nn) // " points)")
+       return
+    end if
+    lbl = 0
+    where (f >= isoval) lbl = -1
+    allocate(nc(nlabel_init))
+    call progress_start(n(3),"planes")
+    do k = 1, n(3)
+       ! a cancelled calculation (the GUI)
+       if (abort_poll()) then
+          call fail("the calculation was cancelled")
+          return
+       end if
+       call progress_set(k-1)
+       do j = 1, n(2)
+          do i = 1, n(1)
+             if (lbl(i,j,k) /= 0) cycle
+
+             ! a grid point in a domain that has not been seen yet:
+             ! flood-fill the whole domain starting from it
+             ndom = ndom + 1
+             if (ndom > size(nc,1)) call realloc(nc,2*ndom)
+             nc(ndom) = 0
+             lbl(i,j,k) = ndom
+             nstack = 1
+             istack(1) = i + (j-1)*n(1) + (k-1)*n(1)*n(2)
+             do while (nstack > 0)
+                ! a domain can span the whole grid: check for a cancel
+                ! (the GUI) in the fill too
+                npop = npop + 1
+                if (mod(npop,npollstep) == 0) then
+                   if (abort_poll()) then
+                      call fail("the calculation was cancelled")
+                      return
+                   end if
+                end if
+                jd = istack(nstack)
+                nstack = nstack - 1
+
+                ! unpack the linear index and count this point
+                ijk(3) = (jd-1) / (n(1)*n(2))
+                ijk(2) = (jd-1 - ijk(3)*n(1)*n(2)) / n(1)
+                ijk(1) = jd - 1 - ijk(3)*n(1)*n(2) - ijk(2)*n(1)
+                ijk = ijk + 1
+                nc(ndom) = nc(ndom) + 1
+
+                ! the six neighbors
+                do l = 1, 3
+                   do m = -1, 1, 2
+                      jjk = ijk
+                      jjk(l) = ijk(l) + m
+                      if (jjk(l) < 1 .or. jjk(l) > n(l)) then
+                         if (.not.periodic) cycle
+                         jjk(l) = modulo(jjk(l)-1,n(l)) + 1
+                      end if
+                      if (lbl(jjk(1),jjk(2),jjk(3)) /= 0) cycle
+                      lbl(jjk(1),jjk(2),jjk(3)) = ndom
+                      nstack = nstack + 1
+                      istack(nstack) = jjk(1) + (jjk(2)-1)*n(1) + (jjk(3)-1)*n(1)*n(2)
+                   end do
+                end do
+             end do
+          end do
+       end do
+    end do
+    deallocate(istack)
+
+    ! number the domains by decreasing size
+    allocate(iord(ndom),irank(ndom),ncount(ndom))
+    do i = 1, ndom
+       iord(i) = i
+    end do
+    if (ndom > 1) call qcksort(nc,iord,1,ndom)
+    do i = 1, ndom
+       irank(iord(ndom-i+1)) = i
+       ncount(i) = nc(iord(ndom-i+1))
+    end do
+    do k = 1, n(3)
+       do j = 1, n(2)
+          do i = 1, n(1)
+             if (lbl(i,j,k) > 0) then
+                lbl(i,j,k) = irank(lbl(i,j,k))
+             else
+                lbl(i,j,k) = 0
+             end if
+          end do
+       end do
+    end do
+
+  contains
+    !> The analysis failed with message msg: no domains.
+    subroutine fail(msg)
+      character(len=*), intent(in) :: msg
+
+      errmsg = msg
+      ndom = 0
+      if (allocated(lbl)) deallocate(lbl)
+      if (allocated(ncount)) deallocate(ncount)
+      allocate(ncount(0))
+
+    end subroutine fail
+  end subroutine grid_domains
+
   module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,&
      hcumq,hcumv,hcumrange,hdef)
     real*8, intent(in) :: f(:,:,:)

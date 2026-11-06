@@ -21,6 +21,7 @@
 ! region, between fragments, loaded as fields of the system.
 submodule (windows) nci
   use interfaces_cimgui
+  use param, only: bohrtoa
   implicit none
 
   ! pending pick of the NCI plot window (nci_state%pickkind)
@@ -44,14 +45,17 @@ contains
     use types, only: field_evaluation_avail
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
        iw_separatortext, iw_combo_simple, iw_dragfloat_real8, iw_checkbox, iw_field_combo,&
-       iw_calcwidth, duration_string
+       iw_calcwidth, iw_calcheight, iw_table_column, iw_table_headers_row, iw_highlight_selectable,&
+       iw_cell_right, duration_string
     use gui_main, only: ColorHighlightScene
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
+    integer, parameter :: itable_domains = 1 ! the domain table, for table_write_*
+
     logical :: doquit, goodsys, syschanged, ismol, isgrid, okbox, okfield, okcalc, ch, navail, capped
-    logical :: maskchanged, objchanged, lcommit
-    integer :: isys, iview, istat, irow, ifield, nn(3), ihl, hltype, atidx(4)
+    logical :: maskchanged, objchanged, datchanged, lcommit
+    integer :: isys, iview, istat, irow, ifield, nn(3), ihl, hltype, atidx(4), ihover
     real*8 :: xc(3), box(3,0:3)
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -170,18 +174,30 @@ contains
        ! objects, one of the plot settings only the objects
        maskchanged = .false.
        objchanged = .false.
+       datchanged = .false.
        call draw_fragments()
        call draw_plot()
+
+       ! the results, the scatter plot (whose range lines also change
+       ! the mask) and the domains (the row under the mouse is
+       ! highlighted on the isosurface)
+       ihover = 0
        if (associated(w%nc%res)) then
+          call draw_results()
+          call draw_scatter()
+          call draw_domains()
           if (maskchanged) then
              call nci_refresh(w,isys,iview)
-          elseif (objchanged) then
-             call nci_objects(w,isys,iview)
+          else
+             if (objchanged) then
+                if (w%nc%fsref%ok(sys(isys))) &
+                   call nci_find_domains(w,sys(isys)%f(w%nc%fsref%id)%grid%f)
+                call nci_objects(w,isys,iview)
+             end if
+             if (datchanged) call nci_scatter(w)
           end if
+          call nci_highlight(w,isys,iview,ihover)
        end if
-
-       ! the results
-       if (associated(w%nc%res)) call draw_results()
 
        ! the region in the anchor view, for as long as the window is open
        ! (not the cell of a crystal, which the cell shows)
@@ -261,7 +277,8 @@ contains
     !> loaded stay in the system).
     subroutine drop_results()
 
-      if (associated(w%nc%res)) deallocate(w%nc%res)
+      call w%end_nci()
+      w%nc%dragline = 0
       w%nc%fsref = field_ref()
       w%nc%frref = field_ref()
       w%nc%isoref = rep_ref()
@@ -462,14 +479,18 @@ contains
 
         if (w%nc%sec(nci_sec_plot)%more) then
            call iw_text("Plot cutoffs: density",alignframe=.true.)
-           ! (the dat-file cutoffs do not touch the isosurface)
+           ! (the dat-file cutoffs only touch the scatter plot)
            ch = iw_dragfloat_real8("##ncirhocut",x1=o%rhocut,speed=0.005d0,decimal=3,&
-              min=0d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+              min=0d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
+              committed=lcommit)
+           datchanged = datchanged .or. lcommit
            call iw_tooltip("Points with density above this value are left out of the s vs.&
               & density plot (the dat file; CUTOFFS)",ttshown)
            call iw_text("s",alignframe=.true.,gap=.true.)
            ch = iw_dragfloat_real8("##ncidimcut",x1=o%dimcut,speed=0.005d0,decimal=3,&
-              min=0d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+              min=0d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
+              committed=lcommit)
+           datchanged = datchanged .or. lcommit
            call iw_tooltip("Points with reduced density gradient above this value are left out&
               & of the s vs. density plot (the dat file; CUTOFFS)",ttshown)
            ch = iw_checkbox("Voids only##ncidovoid",o%dovoid,labelleft=.true.)
@@ -518,6 +539,148 @@ contains
       end if
 
     end subroutine draw_results
+
+    !> The s vs. signed density section: the scatter plot of the
+    !> points under the dat-file cutoffs, with the signed density
+    !> range as two draggable lines (a release masks the result
+    !> again) and the density cutoff as two fixed ones.
+    subroutine draw_scatter()
+      integer :: i, held
+      real(c_double) :: xdrag
+      character(kind=c_char,len=:), allocatable, target :: str1, str2
+      type(ImVec2) :: szplot
+      type(ImVec4) :: col
+
+      call iw_separatortext("s vs. signed density",w%nc%sec(nci_sec_scatter))
+      ! a line let go while the plot is not drawn lands nowhere
+      if (.not.w%nc%sec(nci_sec_scatter)%open .or. .not.associated(w%nc%drv)) then
+         w%nc%dragline = 0
+         return
+      end if
+
+      associate(o => w%nc%opts, d => w%nc%drv)
+        str1 = "##nciscatter" // c_null_char
+        szplot%x = -1._c_float
+        szplot%y = iw_calcheight(1,10,.false.)
+        held = 0
+        if (ipBeginPlot(c_loc(str1),szplot,ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend))) then
+           str1 = "sign(λ2)ρ (a.u.)" // c_null_char
+           str2 = "s" // c_null_char
+           call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+           call ipSetupAxisLimits(ImAxis_X1,real(-o%rhocut,c_double),real(o%rhocut,c_double),ImPlotCond_Always)
+           call ipSetupAxisLimits(ImAxis_Y1,0._c_double,real(o%dimcut,c_double),ImPlotCond_Always)
+
+           ! the points
+           if (allocated(d%scx)) then
+              if (size(d%scx,1) > 0) then
+                 str1 = "Points" // c_null_char
+                 col = ImVec4(0.55_c_float,0.55_c_float,0.55_c_float,0.6_c_float)
+                 call ipSetNextMarkerStyle(ImPlotMarker_Square,1.5_c_float,col,0._c_float,col)
+                 call ipPlotScatter(c_loc(str1),c_loc(d%scx),c_loc(d%scy),int(size(d%scx,1),c_int),&
+                    0_c_int,0_c_int)
+              end if
+           end if
+
+           ! the density cutoff, fixed
+           col = ImVec4(0.8_c_float,0.3_c_float,0.3_c_float,0.7_c_float)
+           do i = 1, 2
+              xdrag = real(o%rhoplot * (2*i-3),c_double)
+              ch = logical(ipDragLineX(int(i+1,c_int),xdrag,col,1._c_float,ImPlotDragToolFlags_NoInputs))
+           end do
+
+           ! the signed density range, draggable inside the cutoff
+           col = ImVec4(0.3_c_float,0.6_c_float,1._c_float,1._c_float)
+           do i = 1, 2
+              xdrag = real(o%srhorange(i),c_double)
+              if (logical(ipDragLineX(int(i-1,c_int),xdrag,col,2._c_float,ImPlotDragToolFlags_None))) then
+                 held = i
+                 o%srhorange(i) = min(max(real(xdrag,8),-o%rhoplot),o%rhoplot)
+              end if
+           end do
+           if (o%srhorange(2) < o%srhorange(1)) o%srhorange(2) = o%srhorange(1)
+           call ipEndPlot()
+        end if
+        call iw_tooltip("Reduced density gradient against the signed density at the grid&
+           & points under the plot cutoffs (the dat file of NCIPLOT). Drag the blue lines to&
+           & change the signed density range of the isosurface; the red lines are the&
+           & density cutoff",ttshown)
+        ! the range lands when its line is let go
+        if (w%nc%dragline /= 0 .and. held == 0) maskchanged = .true.
+        w%nc%dragline = held
+        if (allocated(d%scx)) call iw_text(string(size(d%scx,1)) // " points shown",disabled=.true.)
+      end associate
+
+    end subroutine draw_scatter
+
+    !> The Domains section: the connected regions of the grid under
+    !> the RDG isovalue (the pieces of the isosurface plot), by
+    !> decreasing volume, with their signed density range; the row
+    !> under the mouse is highlighted on the isosurface.
+    subroutine draw_domains()
+      integer :: i, icol, nrow, iwrite
+      integer(c_int) :: flags
+      character(kind=c_char,len=:), allocatable, target :: str1
+      type(ImVec2) :: sz0
+      type(c_ptr), target :: clipper
+      type(ImGuiListClipper), pointer :: clipper_f
+
+      if (.not.associated(w%nc%drv)) return
+      call iw_separatortext("Domains (" // string(w%nc%drv%ndom) // ")",w%nc%sec(nci_sec_domains))
+      if (.not.w%nc%sec(nci_sec_domains)%open) return
+      associate(d => w%nc%drv)
+        if (d%ndom == 0) then
+           call iw_text("No points of the grid are under the RDG isovalue",disabled=.true.,wrap=.true.)
+           return
+        end if
+        call iw_text("Volume (Å³): " // string(d%voltot * bohrtoa**3,'f',decimal=3),wrap=.true.)
+
+        flags = ImGuiTableFlags_None
+        flags = ior(flags,ImGuiTableFlags_Resizable)
+        flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+        flags = ior(flags,ImGuiTableFlags_Borders)
+        flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+        flags = ior(flags,ImGuiTableFlags_ScrollY)
+        str1 = "##ncidomains" // c_null_char
+        nrow = min(8,d%ndom)
+        sz0%x = 0
+        sz0%y = iw_calcheight(nrow+1,0,.false.)
+        if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
+           icol = -1
+           call iw_table_column("Id",icol=icol)
+           call iw_table_column("Volume (Å³)",icol=icol)
+           call iw_table_column("Points",icol=icol)
+           call iw_table_column("Min sign(λ2)ρ",icol=icol)
+           call iw_table_column("Max sign(λ2)ρ",icol=icol,flags=ImGuiTableColumnFlags_WidthStretch)
+           call iw_table_headers_row(freezetop=.true.,autofit=.true.,writemenu=iwrite,ttshown=ttshown)
+
+           clipper = ImGuiListClipper_ImGuiListClipper()
+           call ImGuiListClipper_Begin(clipper,d%ndom,-1._c_float)
+           call w%table_write_begin(itable_domains,iwrite,clipper)
+           do while(ImGuiListClipper_Step(clipper))
+              call c_f_pointer(clipper,clipper_f)
+              do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                 call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                 if (igTableSetColumnIndex(0)) then
+                    call iw_text(string(i))
+                    if (iw_highlight_selectable("##ncidomain_" // string(i))) ihover = i
+                 end if
+                 if (igTableSetColumnIndex(1)) call iw_cell_right(string(d%dom_vol(i) * bohrtoa**3,'f',decimal=3))
+                 if (igTableSetColumnIndex(2)) call iw_cell_right(string(d%dom_npts(i)))
+                 if (igTableSetColumnIndex(3)) call iw_cell_right(string(d%dom_rmin(i),'f',decimal=5))
+                 if (igTableSetColumnIndex(4)) call iw_cell_right(string(d%dom_rmax(i),'f',decimal=5))
+              end do
+           end do
+           call ImGuiListClipper_End(clipper)
+           call ImGuiListClipper_destroy(clipper)
+           call w%table_write_end(itable_domains,table_title("NCI domains",isys))
+           call igEndTable()
+        end if
+        call iw_tooltip("Connected regions of the grid where the masked reduced density gradient is&
+           & below the isovalue, by decreasing volume, with the range of the signed density in&
+           & each. The region under the mouse is highlighted in the view",ttshown)
+      end associate
+
+    end subroutine draw_domains
 
     !> Arm a fragment pick of kind (ncipick_molecule or ncipick_atom)
     !> in the anchor view.
@@ -721,6 +884,28 @@ contains
 
   end subroutine run_nci
 
+  !> Drop the heap results of the NCI plot window w, and the domain
+  !> labels its isosurface object carries (the object outlives the
+  !> results).
+  module subroutine end_nci(w)
+    class(window), intent(inout), target :: w
+
+    integer :: iview
+
+    if (associated(w%nc%res)) deallocate(w%nc%res)
+    if (associated(w%nc%drv)) deallocate(w%nc%drv)
+    iview = w%anchor_view()
+    if (iview >= 1 .and. iview <= nwin) then
+       if (win(iview)%isopen .and. associated(win(iview)%sc)) then
+          if (w%nc%isoref%ok(win(iview)%sc)) then
+             call win(iview)%sc%rep(w%nc%isoref%id)%iso%clear_groups()
+             win(iview)%sc%forcebuildlists = .true.
+          end if
+       end if
+    end if
+
+  end subroutine end_nci
+
   !xx! private procedures
 
   !> Mask the result of the NCI plot window w for system isys with the
@@ -745,17 +930,24 @@ contains
     character(len=:), allocatable :: errmsg
 
     if (.not.associated(w%nc%res)) return
+    if (.not.associated(w%nc%drv)) allocate(w%nc%drv)
 
-    ! the masks (the void integrals of a failed pass are not shown)
+    ! the masks (the void integrals, the scatter and the domains of a
+    ! failed pass are not shown)
     w%nc%voidok = .false.
-    call nci_masks(w%nc%opts,w%nc%res,splot=splot,voidq=w%nc%voidq,voidqp=w%nc%voidqp,&
-       voidv=w%nc%voidv,errmsg=errmsg)
+    call nci_masks(w%nc%opts,w%nc%res,inter=w%nc%drv%inter,splot=splot,voidq=w%nc%voidq,&
+       voidqp=w%nc%voidqp,voidv=w%nc%voidv,errmsg=errmsg)
     if (len_trim(errmsg) > 0) then
        w%errmsg = errmsg
+       w%nc%drv = nci_derived()
        return
     end if
     w%errmsg = ""
     w%nc%voidok = .true.
+
+    ! the scatter and the domains
+    call nci_scatter(w)
+    call nci_find_domains(w,splot)
 
     ! the fields
     associate(r => w%nc%res, o => w%nc%opts)
@@ -814,6 +1006,10 @@ contains
         call r%iso%slot(1)%set_map_field(isys,w%nc%frref%id,icmap=iw_cmap_jet,&
            maprange=(/-w%nc%opts%rhoplot,w%nc%opts%rhoplot/))
         r%shown = .true.
+        ! the domains of the grid points, for the highlight
+        if (associated(w%nc%drv)) then
+           if (allocated(w%nc%drv%lbl)) call r%iso%set_groups(w%nc%drv%lbl)
+        end if
       end associate
 
       ! the color bar of that isosurface
@@ -834,6 +1030,95 @@ contains
     end associate
 
   end subroutine nci_objects
+
+  !> Sample the points of the result of the NCI plot window w under
+  !> the dat-file cutoffs (nci_in_dat) into the scatter of its derived
+  !> data: at most nscmax of them, evenly spaced over the grid.
+  subroutine nci_scatter(w)
+    use nci, only: nci_in_dat
+    type(window), intent(inout), target :: w
+
+    integer, parameter :: nscmax = 20000
+
+    integer :: i, j, k, stride, n(3)
+    logical, allocatable :: msk(:,:,:)
+
+    if (.not.associated(w%nc%res) .or. .not.associated(w%nc%drv)) return
+    associate(r => w%nc%res, o => w%nc%opts, d => w%nc%drv)
+      if (allocated(d%scx)) deallocate(d%scx)
+      if (allocated(d%scy)) deallocate(d%scy)
+      if (.not.allocated(d%inter)) return
+      n = r%n
+      allocate(msk(n(1),n(2),n(3)))
+      do k = 1, n(3)
+         do j = 1, n(2)
+            do i = 1, n(1)
+               msk(i,j,k) = nci_in_dat(o,r,d%inter,i,j,k)
+            end do
+         end do
+      end do
+      stride = max((count(msk) + nscmax - 1) / nscmax,1)
+      d%scx = real(pack(r%srho,msk),c_double)
+      d%scy = real(pack(r%rdg,msk),c_double)
+      d%scx = d%scx(1::stride)
+      d%scy = d%scy(1::stride)
+    end associate
+
+  end subroutine nci_scatter
+
+  !> Find the domains of the isosurface plot of the NCI plot window w
+  !> (nci_domains on the masked RDG f) into its derived data; the
+  !> labels wait there for the isosurface object (nci_objects).
+  subroutine nci_find_domains(w,f)
+    use nci, only: nci_domains
+    type(window), intent(inout), target :: w
+    real*8, intent(in) :: f(:,:,:)
+
+    character(len=:), allocatable :: errmsg
+
+    if (.not.associated(w%nc%res) .or. .not.associated(w%nc%drv)) return
+    associate(d => w%nc%drv)
+      call nci_domains(w%nc%opts,w%nc%res,f,d%ndom,d%lbl,d%dom_npts,d%dom_vol,d%dom_rmin,d%dom_rmax,errmsg)
+      if (len_trim(errmsg) > 0) then
+         w%errmsg = errmsg
+         d%ndom = 0
+      end if
+      d%voltot = 0d0
+      if (allocated(d%dom_vol)) d%voltot = sum(d%dom_vol)
+    end associate
+
+  end subroutine nci_find_domains
+
+  !> Highlight domain ihover (0 = none) of the NCI plot window w
+  !> (system isys, view iview) on its isosurface object, if the object
+  !> is still the one the window made: on the masked RDG field at its
+  !> native grid, which the domain labels are on.
+  subroutine nci_highlight(w,isys,iview,ihover)
+    use systems, only: sys
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+    integer, intent(in) :: iview
+    integer, intent(in) :: ihover
+
+    if (iview < 1 .or. iview > nwin) return
+    if (.not.win(iview)%isopen .or. .not.associated(win(iview)%sc)) return
+    if (.not.w%nc%isoref%ok(win(iview)%sc)) return
+    associate(r => win(iview)%sc%rep(w%nc%isoref%id))
+      if (.not.allocated(r%iso%lbl)) return
+      if (.not.r%iso%fref%same(w%nc%fsref) .or. any(r%iso%nptsxyz /= 0) .or.&
+         .not.sys(isys)%goodfield(w%nc%fsref%id,uid=w%nc%fsref%uid,n=shape(r%iso%lbl))) then
+         ! the object was changed in its editor: the labels mean nothing to it
+         call r%iso%clear_groups()
+         win(iview)%sc%forcebuildlists = .true.
+         return
+      end if
+      if (r%iso%ihighlight /= ihover) then
+         r%iso%ihighlight = ihover
+         win(iview)%sc%forcebuildlists = .true.
+      end if
+    end associate
+
+  end subroutine nci_highlight
 
   !> Load grid g (on the grid of the result of the NCI plot window w)
   !> as a field of system isys named name, in place of the field ref

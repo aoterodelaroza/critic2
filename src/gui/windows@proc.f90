@@ -1240,8 +1240,8 @@ contains
           ! does not linger (remove_system stops and frees the run)
           if (w%demo_owns_system(sys_init)) call remove_system(w%isys)
        elseif (w%type == wintype_nci) then
-          ! the result grids live on the heap
-          if (associated(w%nc%res)) deallocate(w%nc%res)
+          ! the heap results, and the labels on the isosurface object
+          call w%end_nci()
        elseif (w%type == wintype_builder) then
           ! release the forced builder mode on the parent view, if still active
           iv = w%anchor_view()

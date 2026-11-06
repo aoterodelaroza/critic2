@@ -25,6 +25,7 @@ module nci
   public :: nciplot
   public :: nci_options, nci_result
   public :: nci_options_init, nci_options_set_field, nci_dopromol, nci_compute, nci_masks
+  public :: nci_in_dat, nci_domains
   public :: nci_write_cubes, nci_write_dat, nci_write_vmd
   public :: nci_chk_read, nci_chk_write
 
@@ -116,6 +117,23 @@ module nci
        real*8, intent(out) :: voidq, voidqp, voidv
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine nci_masks
+     pure module function nci_in_dat(opts,res,inter,i,j,k) result(ok)
+       type(nci_options), intent(in) :: opts
+       type(nci_result), intent(in) :: res
+       logical(1), intent(in) :: inter(:,:,:)
+       integer, intent(in) :: i, j, k
+       logical :: ok
+     end function nci_in_dat
+     module subroutine nci_domains(opts,res,splot,ndom,lbl,npts,vol,rmin,rmax,errmsg)
+       type(nci_options), intent(in) :: opts
+       type(nci_result), intent(in) :: res
+       real*8, intent(in) :: splot(:,:,:)
+       integer, intent(out) :: ndom
+       integer, allocatable, intent(out) :: lbl(:,:,:)
+       integer, allocatable, intent(out) :: npts(:)
+       real*8, allocatable, intent(out) :: vol(:), rmin(:), rmax(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine nci_domains
      module subroutine nci_write_cubes(oname,opts,s,res,splot,errmsg)
        use systemmod, only: system
        character*(*), intent(in) :: oname

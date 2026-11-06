@@ -309,10 +309,7 @@ contains
              if (irep > 0) then
                 win(iview)%sc%rep(irep)%iso = win(iview)%sc%reptrans(itrep)%iso
                 ! The object outlives this window, so it must not carry the window's void labels
-                if (allocated(win(iview)%sc%rep(irep)%iso%lbl)) &
-                   deallocate(win(iview)%sc%rep(irep)%iso%lbl)
-                win(iview)%sc%rep(irep)%iso%ihighlight = 0
-                win(iview)%sc%rep(irep)%iso%ihighlight_built = -1
+                call win(iview)%sc%rep(irep)%iso%clear_groups()
                 win(iview)%sc%rep(irep)%name = "Voids (rho = " //&
                    string(w%vd%iso_isoval,'e',decimal=3) // ")"
                 win(iview)%sc%forcebuildlists = .true.
@@ -477,6 +474,7 @@ contains
     ! not shown).
     subroutine show_iso()
       logical :: found, changed
+      integer, allocatable :: lblcopy(:,:,:)
 
       if (.not.allocated(w%vd%iso_f) .or. .not.w%vd%iso_show .or. .not.hasview) return
       call win(iview)%sc%show_transient_iso(w%uid,1,itrep,found)
@@ -507,7 +505,8 @@ contains
         ! which void each grid point belongs to, so that the surface can pick one out.
         if (allocated(w%vd%iso_lbl)) then
            if (.not.found .or. w%vd%iso_lbl_dirty) then
-              r%iso%lbl = w%vd%iso_lbl
+              lblcopy = w%vd%iso_lbl
+              call r%iso%set_groups(lblcopy)
               w%vd%iso_lbl_dirty = .false.
               changed = .true.
            end if

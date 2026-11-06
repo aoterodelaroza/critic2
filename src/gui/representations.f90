@@ -1134,6 +1134,10 @@ module representations
      ! state the vertex colors were computed for; a change here recolors the mesh
      integer :: icmap_built = -1
      real*8 :: maprange_built(2) = 0d0
+     ! the group (rep_isosurface%lbl) of each vertex (nv), cached for the
+     ! labels of generation grp_gen and this mesh
+     integer, allocatable :: grp(:)
+     integer :: grp_gen = -1
    contains
      procedure :: set_map_field => iso_slot_set_map_field ! color by the values of a field
   end type iso_slot
@@ -1177,7 +1181,8 @@ module representations
                                      ! cell-frame box is derived at build time so it tracks cell edits)
      integer :: niso = 0 ! number of isosurfaces
      type(iso_slot), allocatable :: slot(:) ! the isosurfaces (niso of them)
-     integer, allocatable :: lbl(:,:,:) ! grouping of the sampled grid points (0 or unallocated = none)
+     integer, allocatable :: lbl(:,:,:) ! grouping of the sampled grid points (0 or unallocated = none; set_groups)
+     integer :: lblgen = 0 ! generation of the grouping, new each time it is set
      integer :: ihighlight = 0 ! group drawn in rgbhl (0 = none)
      real(c_float) :: rgbhl(3) = iso_rgb_hl ! color of the highlighted group
      integer :: isel = 1 ! isosurface whose options are shown under the table in the editor
@@ -1237,6 +1242,8 @@ module representations
      procedure :: stamp_histogram => iso_stamp_histogram ! recompute the value range and histogram from data
      procedure :: stamp_built => iso_stamp_built ! stamp the keys that say the samples are current
      procedure :: set_samples => iso_set_samples ! install externally supplied field samples
+     procedure :: set_groups => iso_set_groups ! install a grouping of the grid points (moved in)
+     procedure :: clear_groups => iso_clear_groups ! drop the grouping and the highlight
      procedure :: sample => iso_sample ! sample the field (or an MO) on a given grid and region
      procedure :: mo_request => iso_mo_request ! the field-evaluation request that samples the selected MO
      procedure :: cache_take => iso_cache_take ! move the caches out (to copy the settings alone)
@@ -1907,6 +1914,13 @@ module representations
        class(rep_isosurface), intent(inout) :: iso
        integer, intent(in) :: isys
      end subroutine iso_stamp_built
+     module subroutine iso_set_groups(iso,lbl)
+       class(rep_isosurface), intent(inout) :: iso
+       integer, allocatable, intent(inout) :: lbl(:,:,:)
+     end subroutine iso_set_groups
+     module subroutine iso_clear_groups(iso)
+       class(rep_isosurface), intent(inout) :: iso
+     end subroutine iso_clear_groups
      module subroutine iso_set_samples(iso,isys,ff,outdomain)
        class(rep_isosurface), intent(inout) :: iso
        integer, intent(in) :: isys

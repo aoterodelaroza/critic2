@@ -2864,6 +2864,7 @@ contains
            s%isoval_built = s%isoval
            s%built = .true.
            s%imap_built = -1 ! new vertices: the map values belong to the old ones
+           if (allocated(s%grp)) deallocate(s%grp) ! and the groups
            r%iso%ihighlight_built = -1 ! and so do the group colors
          end associate
       end do
@@ -2900,25 +2901,6 @@ contains
            if (.not.s%built) cycle
            nv = s%mesh%nv
 
-           ! a producer-supplied grouping of the grid points takes over the coloring
-           if (allocated(r%iso%lbl) .and. nv > 0) then
-              if (r%iso%ihighlight > 0) then
-                 ! only when the highlighted group or the mesh changed
-                 docol = (r%iso%ihighlight_built /= r%iso%ihighlight)
-                 docol = docol .or. .not.allocated(s%mesh%rgbv)
-                 if (.not.docol) docol = (size(s%mesh%rgbv,2) /= nv)
-                 if (docol) then
-                    call color_by_group(s,nv)
-                    r%iso%ihighlight_built = r%iso%ihighlight
-                 end if
-              elseif (allocated(s%mesh%rgbv)) then
-                 ! nothing highlighted any more: back to the flat color
-                 deallocate(s%mesh%rgbv)
-                 r%iso%ihighlight_built = 0
-              end if
-              cycle
-           end if
-
            goodmap = (nv > 0)
            if (goodmap) then
               if (s%imap_mode == iso_map_field) then
@@ -2928,6 +2910,38 @@ contains
               else
                  goodmap = .false.
               end if
+           end if
+
+           ! a flat isosurface with a producer-supplied grouping of the
+           ! grid points: the highlighted group in rgbhl over the slot
+           ! color (on a mapped one it goes over the map colors, below)
+           if (allocated(r%iso%lbl) .and. nv > 0 .and. .not.goodmap) then
+              if (r%iso%ihighlight > 0) then
+                 call group_cache(s,nv)
+                 if (allocated(s%mesh%rgbv)) then
+                    if (size(s%mesh%rgbv,2) /= nv) deallocate(s%mesh%rgbv)
+                 end if
+                 if (.not.allocated(s%mesh%rgbv)) then
+                    allocate(s%mesh%rgbv(3,nv))
+                    s%mesh%rgbv = spread(s%rgb,2,nv)
+                    r%iso%ihighlight_built = 0
+                 end if
+                 if (r%iso%ihighlight_built /= r%iso%ihighlight) then
+                    do j = 1, nv
+                       if (s%grp(j) == r%iso%ihighlight) then
+                          s%mesh%rgbv(:,j) = r%iso%rgbhl
+                       elseif (s%grp(j) == r%iso%ihighlight_built) then
+                          s%mesh%rgbv(:,j) = s%rgb
+                       end if
+                    end do
+                    r%iso%ihighlight_built = r%iso%ihighlight
+                 end if
+              elseif (allocated(s%mesh%rgbv)) then
+                 ! nothing highlighted any more: back to the flat color
+                 deallocate(s%mesh%rgbv)
+                 r%iso%ihighlight_built = 0
+              end if
+              cycle
            end if
 
            ! nothing to color: a flat isosurface (the renderer repeats the
@@ -3050,58 +3064,108 @@ contains
            if (.not.docol) docol = (size(s%mesh%rgbv,2) /= nv)
            docol = docol .or. (s%icmap_built /= s%icmap)
            docol = docol .or. any(s%maprange_built /= s%maprange)
-           if (.not.docol) cycle
-
-           ! the per-vertex color array, reallocated only when the vertex
-           ! count changed (a colormap or range edit recolors in place)
-           if (allocated(s%mesh%rgbv)) then
-              if (size(s%mesh%rgbv,2) /= nv) deallocate(s%mesh%rgbv)
-           end if
-           if (.not.allocated(s%mesh%rgbv)) allocate(s%mesh%rgbv(3,nv))
+           if (.not.docol .and. .not.allocated(r%iso%lbl)) cycle
            call iw_colormap_lut(s%icmap,lut)
            lo = min(s%maprange(1),s%maprange(2))
            hi = max(s%maprange(1),s%maprange(2))
-           do j = 1, nv
-              if (.not.s%mapok(j)) then
-                 s%mesh%rgbv(:,j) = iso_rgb_invalid
-              else
-                 ! clamped before the index arithmetic: a degenerate range
-                 ! (both ends dragged together) would otherwise send t to
-                 ! 1e30 and overflow the nint
-                 t = min(max((s%mapval(j) - lo) / max(hi - lo,1d-30),0d0),1d0)
-                 s%mesh%rgbv(:,j) = lut(:,min(1+nint(t*(iso_nlut-1)),iso_nlut))
+           if (docol) then
+              ! the per-vertex color array, reallocated only when the vertex
+              ! count changed (a colormap or range edit recolors in place)
+              if (allocated(s%mesh%rgbv)) then
+                 if (size(s%mesh%rgbv,2) /= nv) deallocate(s%mesh%rgbv)
               end if
-           end do
-           s%icmap_built = s%icmap
-           s%maprange_built = s%maprange
+              if (.not.allocated(s%mesh%rgbv)) allocate(s%mesh%rgbv(3,nv))
+              do j = 1, nv
+                 s%mesh%rgbv(:,j) = map_color(s,j,lut,lo,hi)
+              end do
+              s%icmap_built = s%icmap
+              s%maprange_built = s%maprange
+              r%iso%ihighlight_built = 0
+           end if
+
+           ! stage 3: the highlighted group of the grid points over the
+           ! map: only the vertices of the group that was highlighted and
+           ! of the one that is now change
+           if (allocated(r%iso%lbl)) then
+              if (r%iso%ihighlight_built /= r%iso%ihighlight) then
+                 call group_cache(s,nv)
+                 do j = 1, nv
+                    if (s%grp(j) == r%iso%ihighlight) then
+                       s%mesh%rgbv(:,j) = r%iso%rgbhl
+                    elseif (s%grp(j) == r%iso%ihighlight_built) then
+                       s%mesh%rgbv(:,j) = map_color(s,j,lut,lo,hi)
+                    end if
+                 end do
+                 r%iso%ihighlight_built = r%iso%ihighlight
+              end if
+           end if
          end associate
       end do
 
     end subroutine color_slots
 
-    !> Color the vertices of slot s by the grid-point grouping in
-    !> r%iso%lbl: the group r%iso%ihighlight in r%iso%rgbhl, the rest in
-    !> the slot color. nv is the vertex count.
-    subroutine color_by_group(s,nv)
+    !> The color of vertex j of isosurface s from its map value, through
+    !> the colormap lut over the range lo..hi (iso_rgb_invalid outside
+    !> the map's domain).
+    function map_color(s,j,lut,lo,hi) result(rgb)
+      type(iso_slot), intent(in) :: s
+      integer, intent(in) :: j
+      real(c_float), intent(in) :: lut(3,iso_nlut)
+      real*8, intent(in) :: lo, hi
+      real(c_float) :: rgb(3)
+
+      real*8 :: t
+
+      if (.not.s%mapok(j)) then
+         rgb = iso_rgb_invalid
+      else
+         ! clamped before the index arithmetic: a degenerate range
+         ! (both ends dragged together) would otherwise send t to
+         ! 1e30 and overflow the nint
+         t = min(max((s%mapval(j) - lo) / max(hi - lo,1d-30),0d0),1d0)
+         rgb = lut(:,min(1+nint(t*(iso_nlut-1)),iso_nlut))
+      end if
+
+    end function map_color
+
+    !> The group (r%iso%lbl) of each of the nv vertices of isosurface
+    !> s, cached on the isosurface (s%grp) for this mesh and this
+    !> generation of the labels: the nearest labeled grid point among
+    !> the corners of the grid cell the vertex is in. The labels are on
+    !> the grid the isosurface is built from: the data domain of the
+    !> field on its native grid (a partial grid does not wrap), the
+    !> cell otherwise.
+    subroutine group_cache(s,nv)
       type(iso_slot), intent(inout) :: s
       integer, intent(in) :: nv
 
       integer :: j, k1, k2, k3, ilb, ibest, i0(3), ic(3), nl(3)
-      real*8 :: xf(3), g(3), d, dbest
+      real*8 :: xf(3), g(3), d, dbest, x2cd(3,3), x0c(3), c2xd(3,3)
+      logical :: usedom, wrap
 
+      if (allocated(s%grp)) then
+         if (size(s%grp,1) == nv .and. s%grp_gen == r%iso%lblgen) return
+         deallocate(s%grp)
+      end if
+      allocate(s%grp(nv))
+      s%grp = 0
+      s%grp_gen = r%iso%lblgen
       nl = shape(r%iso%lbl)
       if (any(nl < 1)) return
 
-      if (allocated(s%mesh%rgbv)) then
-         if (size(s%mesh%rgbv,2) /= nv) deallocate(s%mesh%rgbv)
-      end if
-      if (.not.allocated(s%mesh%rgbv)) allocate(s%mesh%rgbv(3,nv))
+      usedom = all(r%iso%nptsxyz == 0) .and. iso_isgridfield(r%id,r%iso%fref%id)
+      wrap = r%iso%per0_built
+      if (usedom) call sys(r%id)%f(r%iso%fref%id)%grid%get_domain(x2cd,x0c,c2xd)
 
       do j = 1, nv
          ! the mesh vertex is Cartesian in the cell frame; the grid runs
-         ! over the cell with point (i,j,k) at fractional (i-1)/n, so the
-         ! grid coordinate of a point is one less than its index
-         xf = c%c2x(real(s%mesh%x(:,j),8))
+         ! over its domain with point (i,j,k) at fractional (i-1)/n, so
+         ! the grid coordinate of a point is one less than its index
+         if (usedom) then
+            xf = matmul(c2xd,real(s%mesh%x(:,j),8) - x0c)
+         else
+            xf = c%c2x(real(s%mesh%x(:,j),8))
+         end if
          g = xf * real(nl,8)
          i0 = floor(g)
 
@@ -3110,7 +3174,11 @@ contains
          do k1 = 0, 1
             do k2 = 0, 1
                do k3 = 0, 1
-                  ic = modulo(i0 + (/k1,k2,k3/),nl) + 1
+                  if (wrap) then
+                     ic = modulo(i0 + (/k1,k2,k3/),nl) + 1
+                  else
+                     ic = min(max(i0 + (/k1,k2,k3/),0),nl-1) + 1
+                  end if
                   ilb = r%iso%lbl(ic(1),ic(2),ic(3))
                   if (ilb == 0) cycle
                   d = sum((g - real(i0 + (/k1,k2,k3/),8))**2)
@@ -3121,15 +3189,10 @@ contains
                end do
             end do
          end do
-
-         if (ibest == r%iso%ihighlight) then
-            s%mesh%rgbv(:,j) = r%iso%rgbhl
-         else
-            s%mesh%rgbv(:,j) = s%rgb
-         end if
+         s%grp(j) = ibest
       end do
 
-    end subroutine color_by_group
+    end subroutine group_cache
 
     !> Store a triangulation (nv vertices xv/nrm, nf triangles idx, all
     !> shifted by the domain origin x0c) into dl_mesh m in scene-ready

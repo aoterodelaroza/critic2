@@ -486,10 +486,7 @@ contains
   !> value of the field at that point (rhodeep). errmsg is non-empty
   !> in case of error.
   module subroutine void_domains(c,f,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg,ilbl)
-    use global, only: abort_poll, progress_start, progress_set
-    use tools, only: qcksort
-    use types, only: realloc
-    use tools_io, only: string
+    use grid3mod, only: grid_domains
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: f(:,:,:)
     real*8, intent(in) :: isoval
@@ -501,170 +498,57 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     integer, allocatable, intent(inout), optional :: ilbl(:,:,:)
 
-    integer :: i, j, k, l, m, ii, jd, nn, nstack, ier, n(3)
-    integer, allocatable :: irank(:)
-    integer :: ijk(3), jjk(3)
-    integer*8 :: nn8
-    real*8 :: dvol, rho
+    integer :: i, j, k, id, n(3)
+    real*8 :: dvol
+    integer, allocatable :: lbl(:,:,:), ncount(:), imin(:,:)
     real*8, allocatable :: rmin(:)
-    integer, allocatable :: ilabel(:,:,:), istack(:), iord(:), ncount(:), imin(:,:)
 
-    integer, parameter :: nlabel_init = 10 ! initial size of the per-void arrays
-    integer, parameter :: npollstep = 65536 ! fill steps between cancel checks
-    integer :: npop
-
-    errmsg = ""
     vtot = 0d0
-    nvoid = 0
-    npop = 0
     n = shape(f)
 
-    ! the flood fill addresses the grid points with a default-integer linear
-    ! index
-    nn8 = int(n(1),8) * int(n(2),8) * int(n(3),8)
-    if (any(n < 1) .or. nn8 > int(huge(nn),8)) then
-       call fail("grid too large for the void analysis (" // string(nn8) // " points)")
-       return
-    end if
-    nn = int(nn8)
-    dvol = c%omega / real(nn,8)
-
-    ! ilabel = -1 if the grid point is not in a void, 0 if it is in a void
-    ! that has not been reached yet, and the ID of its void once it has.
-    ! the grid is the caller's to choose and can be very large, so a
-    ! failure here is reported rather than left to abort the program
-    allocate(ilabel(n(1),n(2),n(3)),istack(nn),stat=ier)
-    if (ier /= 0) then
-       call fail("not enough memory for the void analysis (" // string(nn) // " points)")
-       return
-    end if
-    ilabel = 0
-    where (f >= isoval) ilabel = -1
-    allocate(ncount(nlabel_init),imin(3,nlabel_init),rmin(nlabel_init))
-    nvoid = 0
-    call progress_start(n(3),"planes")
-    do k = 1, n(3)
-       ! a cancelled calculation (the GUI)
-       if (abort_poll()) then
-          call fail("the calculation was cancelled")
-          return
+    ! the domains of the grid under the isovalue (wrapping around the cell)
+    call grid_domains(f,isoval,.true.,nvoid,lbl,ncount,errmsg)
+    if (len_trim(errmsg) > 0) then
+       allocate(vol(0),xdeep(3,0),rhodeep(0))
+       if (present(ilbl)) then
+          if (allocated(ilbl)) deallocate(ilbl)
        end if
-       call progress_set(k-1)
+       return
+    end if
+
+    ! the deepest point of each void
+    allocate(imin(3,nvoid),rmin(nvoid))
+    rmin = huge(1d0)
+    imin = 1
+    do k = 1, n(3)
        do j = 1, n(2)
           do i = 1, n(1)
-             if (ilabel(i,j,k) /= 0) cycle
-
-             ! a grid point in a void that has not been seen yet: flood-fill
-             ! the whole void starting from it
-             nvoid = nvoid + 1
-             if (nvoid > size(ncount,1)) then
-                call realloc(ncount,2*nvoid)
-                call realloc(imin,3,2*nvoid)
-                call realloc(rmin,2*nvoid)
+             id = lbl(i,j,k)
+             if (id == 0) cycle
+             if (f(i,j,k) < rmin(id)) then
+                rmin(id) = f(i,j,k)
+                imin(:,id) = (/i,j,k/)
              end if
-             ncount(nvoid) = 0
-             rmin(nvoid) = huge(1d0)
-             ilabel(i,j,k) = nvoid
-             nstack = 1
-             istack(1) = i + (j-1)*n(1) + (k-1)*n(1)*n(2)
-             do while (nstack > 0)
-                ! a void can span the whole grid: check for a cancel
-                ! (the GUI) in the fill too
-                npop = npop + 1
-                if (mod(npop,npollstep) == 0) then
-                   if (abort_poll()) then
-                      call fail("the calculation was cancelled")
-                      return
-                   end if
-                end if
-                jd = istack(nstack)
-                nstack = nstack - 1
-
-                ! unpack the linear index and accumulate this point
-                ijk(3) = (jd-1) / (n(1)*n(2))
-                ijk(2) = (jd-1 - ijk(3)*n(1)*n(2)) / n(1)
-                ijk(1) = jd - 1 - ijk(3)*n(1)*n(2) - ijk(2)*n(1)
-                ijk = ijk + 1
-                ncount(nvoid) = ncount(nvoid) + 1
-                rho = f(ijk(1),ijk(2),ijk(3))
-                if (rho < rmin(nvoid)) then
-                   rmin(nvoid) = rho
-                   imin(:,nvoid) = ijk
-                end if
-
-                ! the six neighbors, wrapping around the cell edges
-                do l = 1, 3
-                   do m = -1, 1, 2
-                      jjk = ijk
-                      jjk(l) = modulo(ijk(l)-1+m,n(l)) + 1
-                      if (ilabel(jjk(1),jjk(2),jjk(3)) /= 0) cycle
-                      ilabel(jjk(1),jjk(2),jjk(3)) = nvoid
-                      nstack = nstack + 1
-                      istack(nstack) = jjk(1) + (jjk(2)-1)*n(1) + (jjk(3)-1)*n(1)*n(2)
-                   end do
-                end do
-             end do
           end do
        end do
     end do
-    deallocate(istack)
 
-    ! total void volume
-    vtot = real(sum(ncount(1:nvoid)),8) * dvol
-
-    ! hand over the voids, largest first
+    ! the volumes, largest first (grid_domains numbers them that way)
+    dvol = c%omega / real(product(int(n,8)),8)
+    vtot = real(sum(ncount),8) * dvol
     allocate(vol(nvoid),xdeep(3,nvoid),rhodeep(nvoid))
-    allocate(iord(nvoid))
     do i = 1, nvoid
-       iord(i) = i
-    end do
-    if (nvoid > 1) call qcksort(ncount,iord,1,nvoid)
-    do i = 1, nvoid
-       ii = iord(nvoid-i+1)
-       vol(i) = real(ncount(ii),8) * dvol
-       xdeep(:,i) = real(imin(:,ii)-1,8) / real(n,8)
-       rhodeep(i) = rmin(ii)
+       vol(i) = real(ncount(i),8) * dvol
+       xdeep(:,i) = real(imin(:,i)-1,8) / real(n,8)
+       rhodeep(i) = rmin(i)
     end do
 
     ! return the labels if requested
     if (present(ilbl)) then
-       allocate(irank(nvoid))
-       do i = 1, nvoid
-          irank(iord(nvoid-i+1)) = i
-       end do
        if (allocated(ilbl)) deallocate(ilbl)
-       allocate(ilbl(n(1),n(2),n(3)))
-       do k = 1, n(3)
-          do j = 1, n(2)
-             do i = 1, n(1)
-                if (ilabel(i,j,k) > 0) then
-                   ilbl(i,j,k) = irank(ilabel(i,j,k))
-                else
-                   ilbl(i,j,k) = 0
-                end if
-             end do
-          end do
-       end do
+       call move_alloc(lbl,ilbl)
     end if
-    deallocate(ilabel)
 
-  contains
-    !> The analysis failed with message msg: no voids.
-    subroutine fail(msg)
-      character(len=*), intent(in) :: msg
-
-      errmsg = msg
-      vtot = 0d0
-      nvoid = 0
-      if (allocated(vol)) deallocate(vol)
-      if (allocated(xdeep)) deallocate(xdeep)
-      if (allocated(rhodeep)) deallocate(rhodeep)
-      allocate(vol(0),xdeep(3,0),rhodeep(0))
-      if (present(ilbl)) then
-         if (allocated(ilbl)) deallocate(ilbl)
-      end if
-
-    end subroutine fail
   end subroutine void_domains
 
   !> Calculate the coordination polyhedron centered on point x0

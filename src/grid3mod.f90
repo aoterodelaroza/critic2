@@ -135,6 +135,7 @@ module grid3mod
   end type grid3
   public :: grid3
   public :: field_stats
+  public :: grid_domains
 
   interface
      module subroutine new_eval(f,sptr,cptr,n,expr,x2c)
@@ -327,6 +328,15 @@ module grid3mod
        real*8, intent(out), optional :: hcumrange(2)
        integer, intent(out), optional :: hdef
      end subroutine field_stats
+     module subroutine grid_domains(f,isoval,periodic,ndom,lbl,ncount,errmsg)
+       real*8, intent(in) :: f(:,:,:)
+       real*8, intent(in) :: isoval
+       logical, intent(in) :: periodic
+       integer, intent(out) :: ndom
+       integer, allocatable, intent(out) :: lbl(:,:,:)
+       integer, allocatable, intent(out) :: ncount(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine grid_domains
      module subroutine interp(f,xi,y,yp,ypp,valid)
        class(grid3), intent(inout) :: f !< Grid to interpolate
        real*8, intent(in) :: xi(3) !< Target point (cryst. coords.)

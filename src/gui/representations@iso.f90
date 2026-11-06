@@ -131,16 +131,16 @@ contains
   !> riso is the object chosen explicitly and it has that isosurface,
   !> else the first shown colored isosurface. Returns 0 if
   !> the object or that isosurface is hidden (a hidden object does not
-  !> recolor its meshes, so their colors may be stale), the surfaces
-  !> are colored by grid-point groups instead of a map, or that
-  !> isosurface is not colored.
+  !> recolor its meshes, so their colors may be stale) or that
+  !> isosurface is not colored (a grouping of the grid points only
+  !> highlights one group over the map).
   module function colorbar_slot(cb,riso) result(islot)
     type(rep_colorbar), intent(in) :: cb
     type(representation), intent(in) :: riso
     integer :: islot
 
     islot = 0
-    if (.not.riso%shown .or. allocated(riso%iso%lbl)) return
+    if (.not.riso%shown) return
     if (cb%isouid > 0 .and. cb%isouid == riso%uid) &
        islot = iso_slot_index(riso%iso,cb%slotuid)
     if (islot > 0) then
@@ -1470,6 +1470,32 @@ contains
 
   end subroutine iso_sample
 
+  !> Install lbl (moved in) as the grouping of the grid points of
+  !> isosurface object iso: the group of each point (0 = none), on the
+  !> grid the isosurfaces are built from. A new generation, so the
+  !> vertex groups cached on the isosurfaces are redone.
+  module subroutine iso_set_groups(iso,lbl)
+    class(rep_isosurface), intent(inout) :: iso
+    integer, allocatable, intent(inout) :: lbl(:,:,:)
+
+    if (allocated(iso%lbl)) deallocate(iso%lbl)
+    call move_alloc(lbl,iso%lbl)
+    iso%lblgen = iso%lblgen + 1
+
+  end subroutine iso_set_groups
+
+  !> Drop the grouping of the grid points of isosurface object iso
+  !> and its highlight (an object that outlives the window that
+  !> grouped it).
+  module subroutine iso_clear_groups(iso)
+    class(rep_isosurface), intent(inout) :: iso
+
+    if (allocated(iso%lbl)) deallocate(iso%lbl)
+    iso%lblgen = iso%lblgen + 1
+    iso%ihighlight = 0
+
+  end subroutine iso_clear_groups
+
   !> Install ff as the field samples of isosurface object iso in system
   !> isys, as if the renderer had just taken them: refresh the
   !> histogram, stamp the keys that say the samples are current for the
@@ -1557,6 +1583,8 @@ contains
     b%mesh%alpha = a%mesh%alpha
     call move_alloc(a%mapval,b%mapval)
     call move_alloc(a%mapok,b%mapok)
+    call move_alloc(a%grp,b%grp)
+    b%grp_gen = a%grp_gen
     b%mapoutdomain = a%mapoutdomain
     b%built = a%built
     b%isoval_built = a%isoval_built

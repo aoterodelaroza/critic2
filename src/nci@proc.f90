@@ -761,6 +761,70 @@ contains
 
   end subroutine nci_masks
 
+  !> Whether grid point (i,j,k) of the NCI grids res is in the s vs.
+  !> density plot (the dat file): it passes the fragment and void
+  !> criteria (inter, from nci_masks) and the density and RDG cutoffs
+  !> of options opts.
+  pure module function nci_in_dat(opts,res,inter,i,j,k) result(ok)
+    type(nci_options), intent(in) :: opts
+    type(nci_result), intent(in) :: res
+    logical(1), intent(in) :: inter(:,:,:)
+    integer, intent(in) :: i, j, k
+    logical :: ok
+
+    ok = inter(i,j,k) .and. abs(res%srho(i,j,k)) < opts%rhocut .and. res%rdg(i,j,k) < opts%dimcut
+
+  end function nci_in_dat
+
+  !> The domains of the isosurface plot of the NCI grids res with
+  !> options opts: the connected regions of the grid where the masked
+  !> reduced density gradient splot (nci_masks) is below the isovalue
+  !> (grid_domains; wrapping around on a periodic grid). On output,
+  !> ndom domains numbered by decreasing size, lbl the domain of each
+  !> grid point (0 = none), and for each domain its number of points
+  !> npts, its volume vol (bohr^3) and the range rmin..rmax of the
+  !> signed density in it. errmsg is non-empty in case of error.
+  module subroutine nci_domains(opts,res,splot,ndom,lbl,npts,vol,rmin,rmax,errmsg)
+    use grid3mod, only: grid_domains
+    use tools_math, only: det3
+    type(nci_options), intent(in) :: opts
+    type(nci_result), intent(in) :: res
+    real*8, intent(in) :: splot(:,:,:)
+    integer, intent(out) :: ndom
+    integer, allocatable, intent(out) :: lbl(:,:,:)
+    integer, allocatable, intent(out) :: npts(:)
+    real*8, allocatable, intent(out) :: vol(:), rmin(:), rmax(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, j, k, id, n(3)
+
+    n = res%n
+    errmsg = ""
+    ndom = 0
+    if (any(shape(splot) /= n)) then
+       errmsg = "the masked grid does not match the result"
+       return
+    end if
+    call grid_domains(splot,opts%dimplot,opts%periodic,ndom,lbl,npts,errmsg)
+    if (len_trim(errmsg) > 0) return
+
+    allocate(vol(ndom),rmin(ndom),rmax(ndom))
+    vol = real(npts,8) * abs(det3(res%xmat))
+    rmin = huge(1d0)
+    rmax = -huge(1d0)
+    do k = 1, n(3)
+       do j = 1, n(2)
+          do i = 1, n(1)
+             id = lbl(i,j,k)
+             if (id == 0) cycle
+             rmin(id) = min(rmin(id),res%srho(i,j,k))
+             rmax(id) = max(rmax(id),res%srho(i,j,k))
+          end do
+       end do
+    end do
+
+  end subroutine nci_domains
+
   !> Write the NCI cube files for root oname: the signed density times
   !> 100 (oname-dens.cube), the reduced density gradient of the plot,
   !> splot (oname-grad.cube), and, if it was calculated, the
@@ -845,8 +909,7 @@ contains
           do j = 1, n(2)
              do ii = 1, nb
                 i = i0 + ii - 1
-                bl(k,j,ii) = inter(i,j,k) .and. abs(res%srho(i,j,k)) < opts%rhocut .and.&
-                   res%rdg(i,j,k) < opts%dimcut
+                bl(k,j,ii) = nci_in_dat(opts,res,inter,i,j,k)
                 if (bl(k,j,ii)) then
                    bs(k,j,ii) = res%srho(i,j,k)
                    bg(k,j,ii) = res%rdg(i,j,k)

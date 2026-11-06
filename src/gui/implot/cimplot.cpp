@@ -78,6 +78,9 @@ CIMGUI_API void ipPlotLine(const char* label_id, const double* xs, const double*
 CIMGUI_API void ipPlotStairs(const char* label_id, const double* xs, const double* ys, int count, ImPlotStairsFlags flags, int offset){
   ImPlot::PlotStairs(label_id,xs,ys,count,flags,offset,sizeof(double));
 }
+CIMGUI_API void ipPlotScatter(const char* label_id, const double* xs, const double* ys, int count, ImPlotScatterFlags flags, int offset){
+  ImPlot::PlotScatter(label_id,xs,ys,count,flags,offset,sizeof(double));
+}
 CIMGUI_API void ipGetPlotCurrentLimits(double *xmin,double *xmax,double *ymin,double *ymax){
   ImPlotRect im = ImPlot::GetPlotLimits();
   *xmin = im.X.Min;
