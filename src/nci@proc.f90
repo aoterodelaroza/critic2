@@ -674,8 +674,8 @@ contains
   end subroutine nci_compute
 
   !> Apply the fragment and void criteria and the plot cutoffs of
-  !> options opts to the NCI grids res. On output, inter is true at
-  !> the grid points that pass the fragment and void criteria, and
+  !> options opts to the NCI grids res. On output, inter (if present)
+  !> is true at the grid points that pass the fragment and void criteria, and
   !> splot is the reduced density gradient with the value
   !> nci_rdg_masked at the points removed from the isosurface plot (by
   !> those criteria, the density cutoff, the signed density range, or
@@ -687,14 +687,14 @@ contains
     use tools_math, only: det3
     type(nci_options), intent(in) :: opts
     type(nci_result), intent(in) :: res
-    logical(1), allocatable, intent(out) :: inter(:,:,:)
+    logical(1), allocatable, intent(out), optional :: inter(:,:,:)
     real*8, allocatable, intent(out) :: splot(:,:,:)
     real*8, intent(out) :: voidq, voidqp, voidv
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: n(3), i, j, k, nfrag
     real*8 :: sumf, dv
-    logical :: lint
+    logical :: lint, dointer
 
     ! checks
     errmsg = ""
@@ -716,7 +716,9 @@ contains
           return
        end if
     end if
-    allocate(inter(n(1),n(2),n(3)),splot(n(1),n(2),n(3)))
+    dointer = present(inter)
+    if (dointer) allocate(inter(n(1),n(2),n(3)))
+    allocate(splot(n(1),n(2),n(3)))
 
     do k = 1, n(3)
        do j = 1, n(2)
@@ -737,7 +739,7 @@ contains
                    lint = .false.
                 end if
              end if
-             inter(i,j,k) = lint
+             if (dointer) inter(i,j,k) = lint
 
              ! the plot cutoffs
              if (.not.lint .or. abs(res%srho(i,j,k)) > opts%rhoplot .or.&

@@ -977,6 +977,36 @@ contains
 
   end subroutine load_grid_from_array3
 
+  !> Replace the values of grid field f by g (moved in; the
+  !> dimensions of the grid), keeping its geometry, name, and
+  !> options: the derived caches of the grid (interpolation
+  !> coefficients, smoothing stencil) are dropped and the identifier
+  !> of the data (cuid) renewed, so everything keyed on it (costs, GUI
+  !> samples) is redone. ok is false, and nothing changes, if f is not
+  !> an initialized grid field or the dimensions differ.
+  module subroutine replace_grid_data(f,g,ok)
+    use global, only: new_uid
+    class(field), intent(inout) :: f
+    real*8, allocatable, intent(inout) :: g(:,:,:)
+    logical, intent(out) :: ok
+
+    ok = .false.
+    if (.not.f%isinit .or. f%type /= type_grid) return
+    if (.not.allocated(f%grid) .or. .not.allocated(g)) return
+    if (.not.f%grid%isinit) return
+    if (any(shape(g) /= f%grid%n)) return
+    call move_alloc(g,f%grid%f)
+    if (allocated(f%grid%c2)) deallocate(f%grid%c2)
+    f%grid%smr_nlist = 0
+    if (allocated(f%grid%smr_ilist)) deallocate(f%grid%smr_ilist)
+    if (allocated(f%grid%smr_xlist)) deallocate(f%grid%smr_xlist)
+    if (allocated(f%grid%smr_phiinv)) deallocate(f%grid%smr_phiinv)
+    if (allocated(f%grid%smr_rho0)) deallocate(f%grid%smr_rho0)
+    f%cuid = new_uid()
+    ok = .true.
+
+  end subroutine replace_grid_data
+
   !> Calculate the scalar field f at point v (Cartesian) and its
   !> derivatives up to nder. Return the results in res0. If periodic
   !> is present and false, consider the field is defined in a

@@ -884,12 +884,19 @@ module windows
      type(nci_pickfrag), allocatable :: pickfr(:)
      ! the results: the grids of the last calculation (on the heap, so
      ! that a copy of the window stack does not copy them; null = no
-     ! result) and the fields they were loaded as
+     ! result), the fields they were loaded as, and the void integrals
+     ! of the last masking (nci_masks)
      type(nci_result), pointer :: res => null()
-     type(field_ref) :: fsref ! the reduced density gradient
+     type(field_ref) :: fsref ! the reduced density gradient, masked by the cutoffs (nci_rdg_masked)
      type(field_ref) :: frref ! the density times the sign of the second Hessian eigenvalue
+     logical :: voidok = .false. ! the void integrals are those of the result with the current cutoffs
+     real*8 :: voidq = 0d0, voidqp = 0d0, voidv = 0d0
      real*8 :: secs = 0d0 ! time the calculation took (s)
      real*8 :: timelast = 0d0 ! geometry-change time of the system when it was calculated
+     ! the objects of the scene of the anchor view: the isosurface of
+     ! the masked RDG colored by the signed density, and its color bar
+     type(rep_ref) :: isoref
+     type(rep_ref) :: cbref
      ! blocking job (run_nci): the system
      integer :: jsys = 0
   end type nci_state

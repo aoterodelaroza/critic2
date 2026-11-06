@@ -65,6 +65,7 @@ module utils
      "Viridis"//c_null_char//"Plasma"//c_null_char//"Hot"//c_null_char//"Cool"//c_null_char//&
      "Jet"//c_null_char//"RdBu"//c_null_char//"Spectral"//c_null_char//"Greys"//c_null_char
   integer, parameter, public :: iw_cmap_viridis = 1 ! perceptual sequential (the usual default)
+  integer, parameter, public :: iw_cmap_jet = 5 ! blue-green-red
   integer, parameter, public :: iw_cmap_rdbu = 6 ! diverging, for values that change sign
 
   ! Space skipped by iw_setpos_bottomright in the window being drawn

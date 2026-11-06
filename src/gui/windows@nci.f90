@@ -50,6 +50,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodsys, syschanged, ismol, isgrid, okbox, okfield, okcalc, ch, navail, capped
+    logical :: maskchanged, objchanged, lcommit
     integer :: isys, iview, istat, irow, ifield, nn(3), ihl, hltype, atidx(4)
     real*8 :: xc(3), box(3,0:3)
 
@@ -164,9 +165,20 @@ contains
        if (w%nc%ilevel == 0) nn = sys(isys)%f(ifield)%grid%n
        if (w%nc%sec(nci_sec_grid)%open) call draw_cost()
 
-       ! the fragments and the cutoffs
+       ! the fragments and the cutoffs; a committed change of a mask
+       ! cutoff masks the result again and updates the field and the
+       ! objects, one of the plot settings only the objects
+       maskchanged = .false.
+       objchanged = .false.
        call draw_fragments()
        call draw_plot()
+       if (associated(w%nc%res)) then
+          if (maskchanged) then
+             call nci_refresh(w,isys,iview)
+          elseif (objchanged) then
+             call nci_objects(w,isys,iview)
+          end if
+       end if
 
        ! the results
        if (associated(w%nc%res)) call draw_results()
@@ -252,6 +264,9 @@ contains
       if (associated(w%nc%res)) deallocate(w%nc%res)
       w%nc%fsref = field_ref()
       w%nc%frref = field_ref()
+      w%nc%isoref = rep_ref()
+      w%nc%cbref = rep_ref()
+      w%nc%voidok = .false.
       w%nc%timelast = sysc(isys)%timelastchange_geometry
       w%errmsg = ""
 
@@ -390,12 +405,16 @@ contains
       if (w%nc%sec(nci_sec_fragments)%more) then
          call iw_text("Dominance",alignframe=.true.)
          ch = iw_dragfloat_real8("##ncirhoparam",x1=w%nc%opts%rhoparam,speed=0.005d0,decimal=3,&
-            min=0d0,max=1d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+            min=0d0,max=1d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
+            committed=lcommit)
+         maskchanged = maskchanged .or. lcommit
          call iw_tooltip("A point is between fragments if no single fragment contributes more&
             & than this fraction of the promolecular density of all the fragments (RHOPARAM)",ttshown)
          call iw_text("Share",alignframe=.true.,gap=.true.)
          ch = iw_dragfloat_real8("##ncirhoparam2",x1=w%nc%opts%rhoparam2,speed=0.005d0,decimal=3,&
-            min=0d0,max=1d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+            min=0d0,max=1d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
+            committed=lcommit)
+         maskchanged = maskchanged .or. lcommit
          call iw_tooltip("and the fragments together contribute at least this fraction of the&
             & promolecular density of the whole system (RHOPARAM2)",ttshown)
       end if
@@ -414,30 +433,36 @@ contains
       associate(o => w%nc%opts)
         call iw_text("Isovalue (s)",alignframe=.true.)
         ch = iw_dragfloat_real8("##ncidimplot",x1=o%dimplot,speed=0.005d0,decimal=3,min=0.001d0,&
-           max=10d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+           max=10d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,committed=lcommit)
+        objchanged = objchanged .or. lcommit
         call iw_tooltip("Value of the reduced density gradient (s) of the isosurface (DIMPLOT)",ttshown)
         call iw_text("Density cutoff (a.u.)",alignframe=.true.,gap=.true.)
         rhoprev = o%rhoplot
         ch = iw_dragfloat_real8("##ncirhoplot",x1=o%rhoplot,speed=0.001d0,decimal=4,min=0.0001d0,&
-           max=10d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+           max=10d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,committed=lcommit)
         call iw_tooltip("Points with density above this value are left out of the isosurface,&
            & and the color scale of the signed density spans minus to plus this value (CUTPLOT)",&
            ttshown)
         if (ch) call srhorange_follow(rhoprev)
+        maskchanged = maskchanged .or. lcommit
 
         call iw_text("Signed density range (a.u.)",alignframe=.true.)
         ch = iw_dragfloat_real8("##ncisrhorange",x2=o%srhorange,speed=0.001d0,decimal=4,&
-           min=-o%rhoplot,max=o%rhoplot,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+           min=-o%rhoplot,max=o%rhoplot,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,&
+           notlive=.true.,committed=lcommit)
         if (o%srhorange(2) < o%srhorange(1)) o%srhorange(2) = o%srhorange(1)
+        maskchanged = maskchanged .or. lcommit
         call iw_tooltip("Points with signed density (the density times the sign of the second&
            & eigenvalue of its Hessian) outside this range are left out of the isosurface&
            & (SRHORANGE)",ttshown)
         ch = iw_checkbox("Only negative##ncionlyneg",o%onlyneg,gap=.true.,labelleft=.true.)
+        maskchanged = maskchanged .or. ch
         call iw_tooltip("Keep only the points where the second eigenvalue of the Hessian is&
            & negative (ONLYNEG)",ttshown)
 
         if (w%nc%sec(nci_sec_plot)%more) then
            call iw_text("Plot cutoffs: density",alignframe=.true.)
+           ! (the dat-file cutoffs do not touch the isosurface)
            ch = iw_dragfloat_real8("##ncirhocut",x1=o%rhocut,speed=0.005d0,decimal=3,&
               min=0d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
            call iw_tooltip("Points with density above this value are left out of the s vs.&
@@ -448,12 +473,15 @@ contains
            call iw_tooltip("Points with reduced density gradient above this value are left out&
               & of the s vs. density plot (the dat file; CUTOFFS)",ttshown)
            ch = iw_checkbox("Voids only##ncidovoid",o%dovoid,labelleft=.true.)
+           maskchanged = maskchanged .or. ch
            call iw_tooltip("Plot only the regions where the promolecular density is below a&
               & value (VOID)",ttshown)
            if (o%dovoid) then
               call iw_text("Void density (a.u.)",alignframe=.true.,gap=.true.)
               ch = iw_dragfloat_real8("##ncirhovoid",x1=o%rho_void,speed=0.0005d0,decimal=4,&
-                 min=0.0001d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+                 min=0.0001d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
+                 committed=lcommit)
+              maskchanged = maskchanged .or. lcommit
               call iw_tooltip("Promolecular density below which a point belongs to a void",ttshown)
            end if
         end if
@@ -476,9 +504,18 @@ contains
         call iw_text(str,wrap=.true.)
       end associate
       if (w%nc%fsref%ok(sys(isys))) &
-         call iw_text("Reduced density gradient: field " // string(w%nc%fsref%id))
+         call iw_text("Reduced density gradient (masked by the cutoffs): field " // string(w%nc%fsref%id))
       if (w%nc%frref%ok(sys(isys))) &
          call iw_text("Signed density: field " // string(w%nc%frref%id))
+      if (associated(win(iview)%sc)) then
+         if (w%nc%isoref%ok(win(iview)%sc)) &
+            call iw_text("Isosurface object: " // trim(win(iview)%sc%rep(w%nc%isoref%id)%name))
+      end if
+      if (w%nc%opts%dovoid .and. w%nc%voidok) then
+         call iw_text("Void charge (a.u.): " // string(w%nc%voidq,'f',decimal=6) //&
+            ", promolecular charge (a.u.): " // string(w%nc%voidqp,'f',decimal=6) //&
+            ", volume (bohr^3): " // string(w%nc%voidv,'f',decimal=6),wrap=.true.)
+      end if
 
     end subroutine draw_results
 
@@ -633,13 +670,11 @@ contains
   !> Run the pending job of the NCI plot window, called by the main
   !> loop after the frame with the overlay: the reduced density
   !> gradient and the signed density on the grid of the options
-  !> (request_job), loaded as two fields of the system (replacing the
-  !> ones of the previous run, if they are still there and not in use
-  !> as the reference or the density). The calculation can be
-  !> cancelled with Esc, and then the previous results are gone and
-  !> no field is loaded.
+  !> (request_job), then the masks, the fields and the objects
+  !> (nci_refresh). The calculation can be cancelled with Esc, and
+  !> then the previous results are gone and no field is loaded.
   module subroutine run_nci(w)
-    use systems, only: sys, sysc, ok_system, sys_init, lastchange_cplist, load_grid_field
+    use systems, only: sys, sysc, ok_system, sys_init, lastchange_cplist
     use nci, only: nci_compute
     use gui_main, only: begin_cancellable, end_cancellable
     use interfaces_glfw, only: glfwGetTime
@@ -676,38 +711,153 @@ contains
     w%nc%secs = t
     w%nc%timelast = sysc(isys)%timelastchange_geometry
 
-    ! the fields
-    call load_field(w%nc%fsref,"NCI RDG of field " // string(w%nc%opts%ifield),w%nc%res%rdg)
-    call load_field(w%nc%frref,"NCI sign(l2)*rho of field " // string(w%nc%opts%ifield),w%nc%res%srho)
+    ! the masks, the fields and the objects
+    call nci_refresh(w,isys,w%anchor_view())
     call sysc(isys)%post_event(lastchange_cplist)
     sysc(isys)%showfields = .true.
-    write (uout,'("* NCI plot grids loaded as fields ",A," (RDG) and ",A," (signed density)"/)') &
+    if (w%nc%fsref%ok(sys(isys)) .and. w%nc%frref%ok(sys(isys))) &
+       write (uout,'("* NCI plot grids loaded as fields ",A," (RDG) and ",A," (signed density)"/)') &
        string(w%nc%fsref%id), string(w%nc%frref%id)
 
-  contains
-
-    !> Load grid g (on the grid of the result) as a field of the system
-    !> named name, in place of the field ref points to if it is still
-    !> there and not the reference or the density of the form, and
-    !> point ref to it.
-    subroutine load_field(ref,name,g)
-      type(field_ref), intent(inout) :: ref
-      character(len=*), intent(in) :: name
-      real*8, intent(in) :: g(:,:,:)
-
-      integer :: j
-      real*8 :: x2cl(3,3)
-
-      if (ref%ok(sys(isys))) then
-         if (ref%id /= sys(isys)%iref .and. .not.ref%same(w%nc%fref)) call sys(isys)%unload_field(ref%id)
-      end if
-      do j = 1, 3
-         x2cl(:,j) = w%nc%res%xmat(:,j) * real(w%nc%res%n(j),8)
-      end do
-      call ref%set(sys(isys),load_grid_field(isys,name,g,sys(isys)%c%c2x(w%nc%res%x0),x2cl))
-
-    end subroutine load_field
-
   end subroutine run_nci
+
+  !xx! private procedures
+
+  !> Mask the result of the NCI plot window w for system isys with the
+  !> cutoffs of its options (nci_masks) and put the grids in their
+  !> fields: the masked reduced density gradient replaces the data of
+  !> its field (loaded if it is gone or on another grid), the signed
+  !> density is loaded if its field is gone; then the objects of the
+  !> scene of view iview (nci_objects). An error from the masks (a
+  !> criterion that needs a grid the result does not have) is
+  !> reported in the window and leaves the fields and the objects as
+  !> they were.
+  subroutine nci_refresh(w,isys,iview)
+    use systems, only: sys, replace_grid_field
+    use nci, only: nci_masks
+    use tools_io, only: string
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+    integer, intent(in) :: iview
+
+    logical :: ok
+    real*8, allocatable :: splot(:,:,:)
+    character(len=:), allocatable :: errmsg
+
+    if (.not.associated(w%nc%res)) return
+
+    ! the masks (the void integrals of a failed pass are not shown)
+    w%nc%voidok = .false.
+    call nci_masks(w%nc%opts,w%nc%res,splot=splot,voidq=w%nc%voidq,voidqp=w%nc%voidqp,&
+       voidv=w%nc%voidv,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) then
+       w%errmsg = errmsg
+       return
+    end if
+    w%errmsg = ""
+    w%nc%voidok = .true.
+
+    ! the fields
+    associate(r => w%nc%res, o => w%nc%opts)
+      if (.not.sys(isys)%goodfield(w%nc%frref%id,uid=w%nc%frref%uid,n=r%n)) &
+         call nci_load_field(w,isys,w%nc%frref,"NCI sign(l2)*rho of field " // string(o%ifield),r%srho)
+      ok = .false.
+      if (sys(isys)%goodfield(w%nc%fsref%id,uid=w%nc%fsref%uid,n=r%n)) &
+         ok = replace_grid_field(isys,w%nc%fsref%id,splot)
+      if (.not.ok) call nci_load_field(w,isys,w%nc%fsref,"NCI RDG of field " // string(o%ifield),splot)
+    end associate
+
+    call nci_objects(w,isys,iview)
+
+  end subroutine nci_refresh
+
+  !> Make or update the objects of the NCI plot window w for system
+  !> isys in the scene of view iview (nothing if it is not an open
+  !> view of real space with a scene): an isosurface of the masked RDG
+  !> field at the RDG isovalue, colored by the signed density field
+  !> over minus to plus the density cutoff on the blue-green-red scale
+  !> (blue = attractive, red = repulsive: the NCI convention), and
+  !> its color bar.
+  subroutine nci_objects(w,isys,iview)
+    use systems, only: sys
+    use scenes, only: space_real
+    use representations, only: reptype_isosurface, repflavor_isosurface, reptype_colorbar,&
+       repflavor_colorbar
+    use utils, only: iw_cmap_jet
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+    integer, intent(in) :: iview
+
+    integer :: irep, icb
+
+    if (.not.w%nc%fsref%ok(sys(isys)) .or. .not.w%nc%frref%ok(sys(isys))) return
+    if (iview < 1 .or. iview > nwin) return
+    if (.not.win(iview)%isopen .or. win(iview)%type /= wintype_view) return
+    if (.not.associated(win(iview)%sc)) return
+    if (win(iview)%sc%isinit == 0 .or. win(iview)%sc%space /= space_real) return
+
+    associate(sc => win(iview)%sc)
+      ! the isosurface, on the masked RDG field at its own grid
+      if (.not.w%nc%isoref%ok(sc)) then
+         call sc%add_representation(reptype_isosurface,repflavor_isosurface,id=irep)
+         if (irep <= 0) return
+         sc%rep(irep)%name = "NCI plot"
+         call w%nc%isoref%set(sc,irep)
+         call sc%undo_note("Add " // trim(sc%rep(irep)%name))
+      end if
+      irep = w%nc%isoref%id
+      associate(r => sc%rep(irep))
+        if (.not.r%iso%fref%same(w%nc%fsref)) call r%iso%set_field(isys,w%nc%fsref%id,value=.true.)
+        if (r%iso%niso < 1) call r%iso%add_iso(isoval=w%nc%opts%dimplot)
+        r%iso%slot(1)%isoval = w%nc%opts%dimplot
+        r%iso%slot(1)%shown = .true.
+        call r%iso%slot(1)%set_map_field(isys,w%nc%frref%id,icmap=iw_cmap_jet,&
+           maprange=(/-w%nc%opts%rhoplot,w%nc%opts%rhoplot/))
+        r%shown = .true.
+      end associate
+
+      ! the color bar of that isosurface
+      if (.not.w%nc%cbref%ok(sc)) then
+         call sc%add_representation(reptype_colorbar,repflavor_colorbar,id=icb)
+         if (icb <= 0) return
+         sc%rep(icb)%name = "NCI color bar"
+         call w%nc%cbref%set(sc,icb)
+         call sc%undo_note("Add " // trim(sc%rep(icb)%name))
+      end if
+      icb = w%nc%cbref%id
+      sc%rep(icb)%colorbar%isouid = sc%rep(irep)%uid
+      sc%rep(icb)%colorbar%slotuid = sc%rep(irep)%iso%slot(1)%uid
+      sc%rep(icb)%colorbar%customtitle = .true.
+      sc%rep(icb)%colorbar%title = "sign(λ2)ρ (a.u.)"
+      sc%rep(icb)%shown = .true.
+      sc%forcebuildlists = .true.
+    end associate
+
+  end subroutine nci_objects
+
+  !> Load grid g (on the grid of the result of the NCI plot window w)
+  !> as a field of system isys named name, in place of the field ref
+  !> points to if it is still there and not the reference or the
+  !> density of the form, and point ref to it.
+  subroutine nci_load_field(w,isys,ref,name,g)
+    use systems, only: sys, load_grid_field
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+    type(field_ref), intent(inout) :: ref
+    character(len=*), intent(in) :: name
+    real*8, intent(in) :: g(:,:,:)
+
+    integer :: j
+    real*8 :: x2cl(3,3)
+
+    if (ref%ok(sys(isys))) then
+       if (ref%id /= sys(isys)%iref .and. .not.ref%same(w%nc%fref)) call sys(isys)%unload_field(ref%id)
+    end if
+    do j = 1, 3
+       x2cl(:,j) = w%nc%res%xmat(:,j) * real(w%nc%res%n(j),8)
+    end do
+    call ref%set(sys(isys),load_grid_field(isys,name,g,sys(isys)%c%c2x(w%nc%res%x0),x2cl))
+
+  end subroutine nci_load_field
 
 end submodule nci

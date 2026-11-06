@@ -391,6 +391,7 @@ module systems
   public :: ok_system
   public :: main_scene
   public :: load_grid_field
+  public :: replace_grid_field
   public :: field_cost
   public :: cp_anchor_make
   public :: cp_anchor_add
@@ -557,6 +558,11 @@ module systems
        real*8, intent(in) :: x0(3), x2cl(3,3)
        integer :: id
      end function load_grid_field
+     module function replace_grid_field(isys,id,g) result(ok)
+       integer, intent(in) :: isys, id
+       real*8, allocatable, intent(inout) :: g(:,:,:)
+       logical :: ok
+     end function replace_grid_field
      module function field_cost(isys,ifield,measure,request) result(secs)
        use types, only: field_evaluation_avail
        integer, intent(in) :: isys, ifield

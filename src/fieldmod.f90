@@ -131,6 +131,7 @@ module fieldmod
      procedure :: load_promolecular !< Loads a promolecular density field
      procedure :: load_as_fftgrid !< Loads as a transformation of a 3d grid
      procedure :: load_grid_from_array3 !< Loads a 3d grid field from a 3d array
+     procedure :: replace_grid_data !< Replace the values of a grid field (same dimensions)
      procedure :: load_ghost !< Loads a ghost field
      procedure :: grd !< Calculate field value and its derivatives at a point
      procedure :: grd0 !< Calculate only the field value at a given point
@@ -223,6 +224,11 @@ module fieldmod
        logical, intent(in), optional :: isry_
        integer, intent(in), optional :: n(3)
      end subroutine load_as_fftgrid
+     module subroutine replace_grid_data(f,g,ok)
+       class(field), intent(inout) :: f
+       real*8, allocatable, intent(inout) :: g(:,:,:)
+       logical, intent(out) :: ok
+     end subroutine replace_grid_data
      module subroutine load_grid_from_array3(f,c,id,name,g,x0,x2cl)
        class(field), intent(inout) :: f
        type(crystal), intent(in), target :: c

@@ -5276,9 +5276,7 @@ contains
                   if (s%imap_mode == iso_map_field) then
                      ifield = s%mapref%id
                      if (iw_field_combo("##isomapfield" // string(i),isys,ifield)) then
-                        call s%mapref%set(sys(isys),ifield)
-                        s%icmap_auto = .true.
-                        s%maprange_auto = .true.
+                        call s%set_map_field(isys,ifield)
                         w%rep%iso%isel = i
                         changed = .true.
                      end if

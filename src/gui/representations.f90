@@ -1134,6 +1134,8 @@ module representations
      ! state the vertex colors were computed for; a change here recolors the mesh
      integer :: icmap_built = -1
      real*8 :: maprange_built(2) = 0d0
+   contains
+     procedure :: set_map_field => iso_slot_set_map_field ! color by the values of a field
   end type iso_slot
   public :: iso_slot
 
@@ -1964,6 +1966,12 @@ module representations
        integer, intent(in) :: isys
        logical :: stale
      end function iso_quant_stale
+     module subroutine iso_slot_set_map_field(s,isys,ifield,icmap,maprange)
+       class(iso_slot), intent(inout) :: s
+       integer, intent(in) :: isys, ifield
+       integer, intent(in), optional :: icmap
+       real*8, intent(in), optional :: maprange(2)
+     end subroutine iso_slot_set_map_field
      module subroutine iso_add_iso(iso,isoval,rgb)
        class(rep_isosurface), intent(inout) :: iso
        real*8, intent(in), optional :: isoval

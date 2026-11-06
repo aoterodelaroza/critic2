@@ -1060,6 +1060,26 @@ contains
 
   end function iso_quant_stale
 
+  !> Color isosurface s by the values of field ifield of system isys,
+  !> through colormap icmap (iw_cmap_*) between the values maprange;
+  !> without them, the colormap and the range follow the values on
+  !> the surface until the user sets them.
+  module subroutine iso_slot_set_map_field(s,isys,ifield,icmap,maprange)
+    use systems, only: sys
+    class(iso_slot), intent(inout) :: s
+    integer, intent(in) :: isys, ifield
+    integer, intent(in), optional :: icmap
+    real*8, intent(in), optional :: maprange(2)
+
+    s%imap_mode = iso_map_field
+    call s%mapref%set(sys(isys),ifield)
+    s%icmap_auto = .not.present(icmap)
+    if (present(icmap)) s%icmap = icmap
+    s%maprange_auto = .not.present(maprange)
+    if (present(maprange)) s%maprange = maprange
+
+  end subroutine iso_slot_set_map_field
+
   !> Add an isosurface to isosurface object iso. Without isoval, the new
   !> level is chosen from the ones already there: the negative
   !> counterpart of the last isovalue if the data reach that far and no

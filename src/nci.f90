@@ -111,7 +111,7 @@ module nci
      module subroutine nci_masks(opts,res,inter,splot,voidq,voidqp,voidv,errmsg)
        type(nci_options), intent(in) :: opts
        type(nci_result), intent(in) :: res
-       logical(1), allocatable, intent(out) :: inter(:,:,:)
+       logical(1), allocatable, intent(out), optional :: inter(:,:,:)
        real*8, allocatable, intent(out) :: splot(:,:,:)
        real*8, intent(out) :: voidq, voidqp, voidv
        character(len=:), allocatable, intent(out) :: errmsg

@@ -1179,6 +1179,22 @@ contains
 
   end function load_grid_field
 
+  !> Replace the values of grid field id of system isys by g (moved
+  !> in; field%replace_grid_data), as new data of the field: the ghost
+  !> fields built on it are renewed too. ok is false, and nothing
+  !> changes, if the field is not a grid of those dimensions.
+  module function replace_grid_field(isys,id,g) result(ok)
+    integer, intent(in) :: isys, id
+    real*8, allocatable, intent(inout) :: g(:,:,:)
+    logical :: ok
+
+    ok = .false.
+    if (.not.sys(isys)%goodfield(id)) return
+    call sys(isys)%f(id)%replace_grid_data(g,ok)
+    if (ok) call sys(isys)%fieldset_changed()
+
+  end function replace_grid_field
+
   module function field_cost(isys,ifield,measure,request) result(secs)
     use types, only: field_evaluation_avail
     integer, intent(in) :: isys, ifield
