@@ -1160,6 +1160,25 @@ contains
   !> (field%cost_per_point; over a representative domain, not any
   !> particular region). Negative if the system is not ready, the field
   !> is not good, or the cost is unknown.
+  !> Load grid g (grid order; crystallographic origin x0, edge
+  !> vectors x2cl as in load_grid_from_array3) as a new field of
+  !> system isys, named "<generated>, grid: " // name, and return its
+  !> slot. The field has no file: a scene file records it by its
+  !> recipe, if any.
+  module function load_grid_field(isys,name,g,x0,x2cl) result(id)
+    integer, intent(in) :: isys
+    character(len=*), intent(in) :: name
+    real*8, intent(in) :: g(:,:,:)
+    real*8, intent(in) :: x0(3), x2cl(3,3)
+    integer :: id
+
+    id = sys(isys)%getfieldnum()
+    call sys(isys)%f(id)%load_grid_from_array3(sys(isys)%c,id,"<generated>, grid: " // name,g,x0,x2cl)
+    sys(isys)%f(id)%file = "<generated>"
+    sys(isys)%f(id)%sptr = c_loc(sys(isys))
+
+  end function load_grid_field
+
   module function field_cost(isys,ifield,measure,request) result(secs)
     use types, only: field_evaluation_avail
     integer, intent(in) :: isys, ifield

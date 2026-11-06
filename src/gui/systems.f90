@@ -390,6 +390,7 @@ module systems
   public :: regenerate_system_pointers
   public :: ok_system
   public :: main_scene
+  public :: load_grid_field
   public :: field_cost
   public :: cp_anchor_make
   public :: cp_anchor_add
@@ -549,6 +550,13 @@ module systems
        logical, intent(in) :: kspace
        type(scene), pointer :: sc
      end function main_scene
+     module function load_grid_field(isys,name,g,x0,x2cl) result(id)
+       integer, intent(in) :: isys
+       character(len=*), intent(in) :: name
+       real*8, intent(in) :: g(:,:,:)
+       real*8, intent(in) :: x0(3), x2cl(3,3)
+       integer :: id
+     end function load_grid_field
      module function field_cost(isys,ifield,measure,request) result(secs)
        use types, only: field_evaluation_avail
        integer, intent(in) :: isys, ifield

@@ -163,6 +163,7 @@ contains
              call ferror('nciplot','wrong void keyword',faterr,line,syntax=.true.)
              return
           end if
+          opts%dovoid = (opts%rho_void > 0d0)
           ok = check_no_extra_word(line,lp,'nciplot')
           if (.not.ok) return
        elseif (equal(word,'rthres')) then
@@ -443,7 +444,7 @@ contains
     ! apply the cutoffs
     call nci_masks(opts,res,inter,splot,sumq,sumqp,sumv,errmsg)
     if (len_trim(errmsg) > 0) call ferror('nciplot',errmsg,faterr)
-    if (opts%rho_void > 0d0) then
+    if (opts%dovoid) then
        write (uout,'("* Void charge (a.u.): ",A)') string(sumq,'f',decimal=6)
        write (uout,'("* Void promolecular charge (a.u.): ",A)') string(sumqp,'f',decimal=6)
        write (uout,'("* Void volume (bohr^3): ",A)') string(sumv,'f',decimal=6)
@@ -469,8 +470,23 @@ contains
   !> contribution has its derivatives calculated by Fourier transform.
   module subroutine nci_options_init(opts,s,ifield)
     use systemmod, only: system
-    use fieldmod, only: type_grid
     type(nci_options), intent(out) :: opts
+    type(system), intent(in) :: s
+    integer, intent(in) :: ifield
+
+    call nci_options_set_field(opts,s,ifield)
+
+  end subroutine nci_options_init
+
+  !> Use field ifield of system s as the density of options opts: the
+  !> field and the defaults that depend on it (the cutoffs of a
+  !> promolecular density differ, and a grid without core densities
+  !> is differentiated by Fourier transform). The other options are
+  !> left as they are.
+  module subroutine nci_options_set_field(opts,s,ifield)
+    use systemmod, only: system
+    use fieldmod, only: type_grid
+    type(nci_options), intent(inout) :: opts
     type(system), intent(in) :: s
     integer, intent(in) :: ifield
 
@@ -486,7 +502,7 @@ contains
     end if
     opts%fourierint = (s%f(ifield)%type == type_grid .and. .not.field_has_core(s,ifield))
 
-  end subroutine nci_options_init
+  end subroutine nci_options_set_field
 
   !> Whether an NCI calculation with options opts calculates the
   !> promolecular density grid: asked for, or needed by the fragment
@@ -495,7 +511,7 @@ contains
     type(nci_options), intent(in) :: opts
     logical :: dopromol
 
-    dopromol = opts%dopromol .or. opts%nfrag > 0 .or. opts%rho_void > 0d0
+    dopromol = opts%dopromol .or. opts%nfrag > 0 .or. opts%dovoid
 
   end function nci_dopromol
 
@@ -687,7 +703,7 @@ contains
     voidv = 0d0
     n = res%n
     nfrag = opts%nfrag
-    if (opts%rho_void > 0d0 .and. .not.allocated(res%rhoat)) then
+    if (opts%dovoid .and. .not.allocated(res%rhoat)) then
        errmsg = "the void criterion needs the promolecular density grid: recalculate"
        return
     end if
@@ -712,7 +728,7 @@ contains
                 lint = (sumf >= opts%rhoparam2 * res%rhoat(i,j,k)) .and. &
                    all(res%rhofrag(i,j,k,1:nfrag) <= sumf*opts%rhoparam)
              end if
-             if (opts%rho_void > 0d0) then
+             if (opts%dovoid) then
                 if (res%rhoat(i,j,k) < opts%rho_void) then
                    voidq = voidq + abs(res%srho(i,j,k))
                    voidqp = voidqp + res%rhoat(i,j,k)

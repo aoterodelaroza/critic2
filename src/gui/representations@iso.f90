@@ -615,12 +615,55 @@ contains
 
   end subroutine iso_autogrid
 
-  !> Sampling-grid dimensions of coarseness level ilevel over the
-  !> staged options of isosurface iso. box is the staged region box,
-  !> read only when the region is not the whole cell. A custom level is
-  !> given by whichever of the two custom representations iso%icustom
-  !> selects, or by icustom if the caller overrides it. capped is
-  !> iso_grid_size's.
+  !> Sampling-grid dimensions over the staged region of system isys
+  !> (iso_region_* mode iregion, box from iso_region_to_box) at
+  !> coarseness level ilevel: 0 = native (all-zero), named levels,
+  !> or a custom grid given as nptscustom points or, if icustom is
+  !> iso_custom_ptsang, a resolution ptsangcustom (points/ang). On
+  !> the whole cell the lengths are those of the domain of grid field
+  !> ifield (-1 or not a grid: the cell); elsewhere, the box's.
+  module function iso_stage_grid_size(isys,ifield,iregion,ilevel,icustom,nptscustom,ptsangcustom,box,capped) result(n)
+    integer, intent(in) :: isys, ifield, iregion, ilevel, icustom
+    integer, intent(in) :: nptscustom(3)
+    real*8, intent(in) :: ptsangcustom
+    real*8, intent(in) :: box(3,0:3)
+    logical, intent(out), optional :: capped
+    integer :: n(3)
+
+    if (ilevel > iso_nlevel .and. icustom == iso_custom_ptsang) then
+       if (iregion == iso_region_cell) then
+          n = iso_grid_size(isys,ilevel,capped=capped,ptsang=ptsangcustom,ifield=ifield)
+       else
+          n = iso_grid_size(isys,ilevel,capped=capped,ptsang=ptsangcustom,box=box)
+       end if
+    elseif (iregion == iso_region_cell) then
+       n = iso_grid_size(isys,ilevel,nptscustom,capped,ifield=ifield)
+    else
+       n = iso_grid_size(isys,ilevel,nptscustom,capped,box=box)
+    end if
+
+  end function iso_stage_grid_size
+
+  !> Edge lengths (angstrom) of the box the staged region of system
+  !> isys samples: the domain of grid field ifield on the whole cell
+  !> (-1 or not a grid: the cell), the box elsewhere.
+  module function iso_stage_box_lengths(isys,ifield,iregion,box) result(alen)
+    integer, intent(in) :: isys, ifield, iregion
+    real*8, intent(in) :: box(3,0:3)
+    real*8 :: alen(3)
+
+    if (iregion == iso_region_cell) then
+       alen = iso_box_lengths(isys,ifield=ifield)
+    else
+       alen = iso_box_lengths(isys,box=box)
+    end if
+
+  end function iso_stage_box_lengths
+
+  !> Sampling-grid dimensions for isosurface iso of system isys at
+  !> coarseness level ilevel over the staged region (box from
+  !> iso_region_to_box): iso_stage_grid_size on the staged options
+  !> (icustom overrides the staged custom mode).
   module function iso_staged_grid_size(iso,isys,ilevel,box,capped,icustom) result(n)
     class(rep_isosurface), intent(in) :: iso
     integer, intent(in) :: isys
@@ -634,35 +677,20 @@ contains
 
     ic = iso%icustom
     if (present(icustom)) ic = icustom
-
-    if (ilevel > iso_nlevel .and. ic == iso_custom_ptsang) then
-       if (iso%iregion == iso_region_cell) then
-          n = iso_grid_size(isys,ilevel,capped=capped,ptsang=iso%ptsangcustom,ifield=iso%domain_field())
-       else
-          n = iso_grid_size(isys,ilevel,capped=capped,ptsang=iso%ptsangcustom,box=box)
-       end if
-    elseif (iso%iregion == iso_region_cell) then
-       n = iso_grid_size(isys,ilevel,iso%nptscustom,capped,ifield=iso%domain_field())
-    else
-       n = iso_grid_size(isys,ilevel,iso%nptscustom,capped,box=box)
-    end if
+    n = iso_stage_grid_size(isys,iso%domain_field(),iso%iregion,ilevel,ic,iso%nptscustom,&
+       iso%ptsangcustom,box,capped)
 
   end function iso_staged_grid_size
 
   !> Edge lengths (angstrom) of the box the staged options of
-  !> isosurface iso sample. box is the staged region box, read only
-  !> when the region is not the whole cell.
+  !> isosurface iso sample in system isys (box from iso_region_to_box).
   module function iso_staged_box_lengths(iso,isys,box) result(alen)
     class(rep_isosurface), intent(in) :: iso
     integer, intent(in) :: isys
     real*8, intent(in) :: box(3,0:3)
     real*8 :: alen(3)
 
-    if (iso%iregion == iso_region_cell) then
-       alen = iso_box_lengths(isys,ifield=iso%domain_field())
-    else
-       alen = iso_box_lengths(isys,box=box)
-    end if
+    alen = iso_stage_box_lengths(isys,iso%domain_field(),iso%iregion,box)
 
   end function iso_staged_box_lengths
 

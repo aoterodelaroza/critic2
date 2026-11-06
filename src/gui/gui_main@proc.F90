@@ -910,7 +910,7 @@ contains
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
        wintype_rattle, wintype_mo, wintype_voids, wintype_kpoints, wintype_cp, wintype_gpaths,&
-       wintype_point, wintype_line, wintype_cube, win
+       wintype_point, wintype_line, wintype_cube, wintype_nci, win
     use utils, only: iw_tooltip, iw_menuitem, iw_beginmenu
     use representations, only: reptype_slice, repflavor_slice, reptype_isosurface,&
        repflavor_isosurface
@@ -1028,6 +1028,13 @@ contains
        call iw_tooltip("Calculate the values of a field of this system, one of its derivatives,&
           & an arithmetic expression, or a wavefunction on a grid, and write them to a cube,&
           & XSF, or VASP file",ttshown)
+
+       ! non-covalent interaction plots (NCIPLOT)
+       if (iw_menuitem("NCI Plot...")) &
+          idum = stack_create_window(wintype_nci,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Calculate the reduced density gradient and the signed density of a&
+          & field of this system on a grid, for a plot of the non-covalent interactions&
+          & (NCI plot)",ttshown)
 
        ! molecular orbitals: enabled only if the reference field of the
        ! system can calculate them

@@ -25,6 +25,8 @@ module windows
      reptype_atoms, rep_gpaths, gpaths_rad_def, plane_def, relief_def
   use scenes, only: scene, rep_ref
   use systems, only: sys_ref
+  use nci, only: nci_options, nci_result
+  use fragmentmod, only: fragment
   use interfaces_cimgui, only: ImVec2
   use utils, only: iw_section
   use global, only: rborder_def
@@ -828,6 +830,71 @@ module windows
   integer, parameter :: voidsjob_packing = 2 ! volume covered by the atomic spheres
   public :: voids_state
 
+  !> Per-window state of the NCI plot window (Tools > Field Plots > NCI
+  !> Plot..., the NCIPLOT keyword): the density, derivatives and
+  !> cutoffs (opts; its grid and fragments are filled from the form
+  !> when Calculate is pressed), the staged region and grid, the
+  !> fragments (selected molecules and fragments picked in the view),
+  !> the result of the last calculation and the fields it was loaded
+  !> as.
+  ! the sections of the NCI plot window
+  integer, parameter :: nci_sec_density = 1
+  integer, parameter :: nci_sec_region = 2
+  integer, parameter :: nci_sec_grid = 3
+  integer, parameter :: nci_sec_fragments = 4
+  integer, parameter :: nci_sec_plot = 5
+  integer, parameter :: nci_sec_results = 6
+  integer, parameter :: nci_nsec = 6
+
+  ! a fragment of the NCI plot picked in the view: a molecule or an atom
+  type nci_pickfrag
+     character(len=:), allocatable :: label ! what was picked, for the list
+     type(fragment) :: fr ! the fragment
+  end type nci_pickfrag
+
+  type nci_state
+     type(sys_ref) :: sys ! system the form is set up for
+     type(iw_section) :: sec(nci_nsec) ! the sections: open, showing more
+     ! the density, the derivatives, and the cutoffs; the grid and the
+     ! fragments are filled by request_job
+     type(nci_options) :: opts
+     type(field_ref) :: fref ! the density field (opts%ifield), checked against the system
+     ! the region (iso_region_*) and its coordinates (as in iso_region_to_box)
+     integer :: iregion = 0
+     real*8 :: rgn_x(3,0:3) = 0d0
+     ! the grid on the region, staged as in the isosurface editor
+     ! (grid_level_form): a coarseness level (0 = native grid of the
+     ! density, 1..iso_nlevel = named, custom) and the custom grid, as
+     ! the number of points or a resolution
+     integer :: ilevel = 0
+     integer :: icustom = 0
+     integer :: nptscustom(3) = 2
+     real*8 :: ptsangcustom = 5d0
+     ! pending pick in the view (ncipick_* in windows@nci.f90; 0 =
+     ! none): a region point (its row, in the region mode it was armed
+     ! in) or a fragment
+     integer :: pickkind = 0
+     integer :: pickrow = 0
+     integer :: pickmode = 0
+     integer :: pickview = 0
+     type(pairpick) :: pick
+     ! the fragments: the selected molecules of the system (nmol;
+     ! unallocated = not set yet) and the fragments picked in the view
+     logical, allocatable :: molsel(:)
+     type(nci_pickfrag), allocatable :: pickfr(:)
+     ! the results: the grids of the last calculation (on the heap, so
+     ! that a copy of the window stack does not copy them; null = no
+     ! result) and the fields they were loaded as
+     type(nci_result), pointer :: res => null()
+     type(field_ref) :: fsref ! the reduced density gradient
+     type(field_ref) :: frref ! the density times the sign of the second Hessian eigenvalue
+     real*8 :: secs = 0d0 ! time the calculation took (s)
+     real*8 :: timelast = 0d0 ! geometry-change time of the system when it was calculated
+     ! blocking job (run_nci): the system
+     integer :: jsys = 0
+  end type nci_state
+  public :: nci_state
+
   !> Per-window state of the k-point grid window (KPOINTS). The table of
   !> rklength ranges is not kept: it is cheap, and calculated every frame.
   type kpoints_state
@@ -1218,8 +1285,8 @@ module windows
      character(kind=c_char,len=:), allocatable :: name ! name of the window
      character(kind=c_char,len=:), allocatable :: errmsg ! error message in the window
      character(kind=c_char,len=:), allocatable :: okmsg ! result of the last successful action
-     type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
-     type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
+     type(c_ptr) :: ptr = c_null_ptr ! ImGuiWindow* pointer (use only after Begin())
+     type(c_ptr) :: dptr = c_null_ptr ! ImGuiFileDialog* pointer for dialogs
      integer :: isys = 1 ! the system on which the window operates
      integer*8 :: isys_uid = 0 ! uid of that system: through the anchor (window_anchor), or the view's own
      type(sys_ref) :: demo_sys ! the system a demo window made (water cluster, melting)
@@ -1517,6 +1584,7 @@ module windows
      type(line_state) :: ln ! the endpoints, curves, pick, and values of the line profile
      type(slicemap_state) :: smap ! the plot of the map of a plane map object (editrep window)
      type(cube_state) :: cu ! the quantity, region, and grid of the cube window
+     type(nci_state) :: nc ! the form, fragments, and results of the NCI plot window
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
@@ -1673,6 +1741,10 @@ module windows
      procedure :: draw_cube
      procedure :: block_cube
      procedure :: run_cube
+     ! NCI plot
+     procedure :: draw_nci
+     procedure :: block_nci
+     procedure :: run_nci
      procedure :: draw_editrep_slice
      procedure :: plane_free_texture
      ! blocking jobs (gui_main%pending_block_window)
@@ -1748,6 +1820,7 @@ module windows
   ! 32: unused (was the plane map window)
   integer, parameter, public :: wintype_cube = 33
   integer, parameter, public :: wintype_kpoints = 34
+  integer, parameter, public :: wintype_nci = 35
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -2194,7 +2267,7 @@ module windows
        real*8, intent(out) :: xc(3)
        logical, intent(out) :: ok
      end subroutine view_pick_point
-     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx)
+     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx,atidx)
        integer, intent(in) :: iview
        integer, intent(in) :: idcaller
        integer, intent(in) :: isys
@@ -2203,6 +2276,7 @@ module windows
        real*8, intent(out) :: xc(3)
        integer, intent(out), optional :: cpidx(5)
        integer, intent(out), optional :: latidx(4)
+       integer, intent(out), optional :: atidx(4)
      end subroutine view_pick_result
      module subroutine view_pick_winfrac(iview,idcaller,istat,winfrac)
        integer, intent(in) :: iview
@@ -2311,13 +2385,34 @@ module windows
        logical, intent(in), optional :: periodic
        logical :: changed
      end function region_form
-     module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)
+     module function grid_level_form(isys,ifield,iregion,box,okbox,navail,ilevel,icustom,nptscustom,&
+        ptsangcustom,sec,sfx,what,ttshown,nn,capped) result(changed)
+       integer, intent(in) :: isys, ifield, iregion
+       real*8, intent(in) :: box(3,0:3)
+       logical, intent(in) :: okbox, navail
+       integer, intent(inout) :: ilevel, icustom, nptscustom(3)
+       real*8, intent(inout) :: ptsangcustom
+       type(iw_section), intent(inout) :: sec
+       character(len=*), intent(in) :: sfx, what
+       logical, intent(inout) :: ttshown
+       integer, intent(out) :: nn(3)
+       logical, intent(out) :: capped
+       logical :: changed
+     end function grid_level_form
+     module subroutine region_show_box(iview,uid,isys,x0,v)
+       integer, intent(in) :: iview
+       integer*8, intent(in) :: uid
+       integer, intent(in) :: isys
+       real*8, intent(in) :: x0(3), v(3,3)
+     end subroutine region_show_box
+     module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale,select) result(changed)
        integer, intent(in) :: isys
        integer, intent(inout) :: ihighlight
        integer, intent(inout) :: highlight_type
        logical, intent(inout), optional :: shown(:)
        real(c_float), intent(inout), optional :: tint(:,:)
        real*8, intent(inout), optional :: scale(:)
+       logical, intent(in), optional :: select
        logical :: changed
      end function mol_table_widget
      module subroutine update_editrep(w)
@@ -2666,6 +2761,16 @@ module windows
      module subroutine run_cube(w)
        class(window), intent(inout), target :: w
      end subroutine run_cube
+     !xx! nci submodule !xx!
+     module subroutine draw_nci(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_nci
+     module subroutine block_nci(w)
+       class(window), intent(inout), target :: w
+     end subroutine block_nci
+     module subroutine run_nci(w)
+       class(window), intent(inout), target :: w
+     end subroutine run_nci
      !xx! display submodule !xx!
      module subroutine draw_display(w)
        class(window), intent(inout), target :: w

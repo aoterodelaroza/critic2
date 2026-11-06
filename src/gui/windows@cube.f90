@@ -40,7 +40,7 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use fieldmod, only: type_grid
     use representations, only: iso_region_cell, iso_region_bbox, iso_region_to_box, iso_region_seed,&
-       iso_region_point_from_cart, rep_shape, shapekind_box
+       iso_region_point_from_cart
     use rhoplot, only: cubepsi_none, cubepsi_psink, cubepsi_unk, cubepsi_wannier, cubepsi_mlwf
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
        iw_separatortext, iw_combo_simple, iw_inputint, iw_inputint3, iw_dragfloat_real8, iw_checkbox,&
@@ -51,7 +51,7 @@ contains
 
     logical :: doquit, goodsys, syschanged, ismol, isgrid, isqe, okbox, okfield, ch, okcalc, okload, reqwrite
     integer :: isys, iview, istat, irow, ifield, i, nn(3)
-    real*8 :: xc(3), box(3,0:3), prev0(3), costest
+    real*8 :: xc(3), box(3,0:3), costest
     logical :: measure
     type(field_ref) :: req
 
@@ -196,16 +196,8 @@ contains
        ! the region in the anchor view, for as long as the window is open
        ! (not the cell of a crystal or the grid, which the cell shows)
        if (okbox .and. w%cu%iregion /= region_native .and.&
-          .not.(w%cu%iregion == iso_region_cell .and..not.ismol)) then
-          if (associated(win(iview)%sc)) then
-             if (win(iview)%sc%isinit /= 0) then
-                prev0 = box(:,0)
-                if (ismol) prev0 = prev0 + sys(isys)%c%molx0
-                call win(iview)%sc%show_transient_shapes(w%uid,1,(/rep_shape(kind=shapekind_box,&
-                   x1=prev0,v=box(:,1:3),rad=region_edgerad,rgb=region_rgb,alpha=region_alpha)/))
-             end if
-          end if
-       end if
+          .not.(w%cu%iregion == iso_region_cell .and..not.ismol)) &
+          call region_show_box(iview,w%uid,isys,box(:,0),box(:,1:3))
 
        if (allocated(w%errmsg)) then
           if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
@@ -606,8 +598,7 @@ contains
   !> extension. The calculation can be cancelled with Esc, and then
   !> no field is loaded and no file is written.
   module subroutine run_cube(w)
-    use systems, only: sys, sysc, ok_system, sys_init, lastchange_cplist
-    use iso_c_binding, only: c_loc
+    use systems, only: sys, sysc, ok_system, sys_init, lastchange_cplist, load_grid_field
     use crystalmod, only: crystal
     use rhoplot, only: rhoplot_cube_values, rhoplot_cube_gridcheck, rhoplot_cube_gridvalues,&
        rhoplot_cube_write, rhoplot_cube_outform, cubepsi_none, cubepsi_unk
@@ -726,17 +717,13 @@ contains
        name = quant_label(ifield < 0,w%cu%expr,ifield,w%cu%nti)
        if (ifield >= 0 .and. w%cu%ipsi /= cubepsi_none) name = name // " (band " // string(w%cu%ibnd) //&
           ", k-point " // string(w%cu%ik) // ", spin " // string(w%cu%ispin) // ")"
-       name = "<generated>, grid: " // name
-       id = sys(isys)%getfieldnum()
-       call sys(isys)%f(id)%load_grid_from_array3(sys(isys)%c,id,name,lf,matmul(sys(isys)%c%m_c2x,x0),x2cl)
+       id = load_grid_field(isys,name,lf,matmul(sys(isys)%c%m_c2x,x0),x2cl)
        deallocate(lf)
-       sys(isys)%f(id)%file = "<generated>"
-       sys(isys)%f(id)%sptr = c_loc(sys(isys))
        call sys(isys)%set_reference(id,.true.)
        w%errmsg = ""
        call sysc(isys)%post_event(lastchange_cplist)
        sysc(isys)%showfields = .true.
-       write (uout,'("* Grid loaded as field ",A,": ",A/)') string(id), name
+       write (uout,'("* Grid loaded as field ",A,": ",A/)') string(id), trim(sys(isys)%f(id)%name)
        return
     end if
 

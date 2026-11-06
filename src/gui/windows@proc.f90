@@ -377,6 +377,7 @@ contains
              if (ok.and.type == wintype_point.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_line.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_cube.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_nci.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_display.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_melting.and.present(idparent)) ok = (win(i)%parent() == idparent)
@@ -803,6 +804,7 @@ contains
     w%errmsg = ""
     w%okmsg = ""
     w%isys = 1
+    w%ptr = c_null_ptr
     w%growtofit = .false.
     w%hasbottomrow = .false.
     w%flags = ImGuiWindowFlags_None
@@ -974,6 +976,10 @@ contains
        ! cube window
        if (.not.present(idparent)) &
           call ferror('window_init','cube window requires idparent',faterr)
+    elseif (type == wintype_nci) then
+       ! NCI plot window
+       if (.not.present(idparent)) &
+          call ferror('window_init','nci window requires idparent',faterr)
     elseif (type == wintype_display) then
        ! selection window
        if (.not.present(idparent)) &
@@ -1113,6 +1119,8 @@ contains
        call w%block_mo()
     elseif (w%type == wintype_cube) then
        call w%block_cube()
+    elseif (w%type == wintype_nci) then
+       call w%block_nci()
     end if
 
   end subroutine window_block_draw
@@ -1136,6 +1144,8 @@ contains
        call w%run_mo()
     elseif (w%type == wintype_cube) then
        call w%run_cube()
+    elseif (w%type == wintype_nci) then
+       call w%run_nci()
     end if
 
   end subroutine window_block_run
@@ -1229,6 +1239,9 @@ contains
           ! the demos own the system they generate; remove it on close so it
           ! does not linger (remove_system stops and frees the run)
           if (w%demo_owns_system(sys_init)) call remove_system(w%isys)
+       elseif (w%type == wintype_nci) then
+          ! the result grids live on the heap
+          if (associated(w%nc%res)) deallocate(w%nc%res)
        elseif (w%type == wintype_builder) then
           ! release the forced builder mode on the parent view, if still active
           iv = w%anchor_view()
@@ -1860,6 +1873,8 @@ contains
           call init_window("Line Profile",80,40,grow=.true.)
        elseif (w%type == wintype_cube) then
           call init_window("Calculate Grid",72,20,grow=.true.)
+       elseif (w%type == wintype_nci) then
+          call init_window("NCI Plot",72,40,grow=.true.)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then
@@ -2068,6 +2083,8 @@ contains
                 call w%draw_line()
              elseif (w%type == wintype_cube) then
                 call w%draw_cube()
+             elseif (w%type == wintype_nci) then
+                call w%draw_nci()
              elseif (w%type == wintype_display) then
                 call w%draw_display()
              elseif (w%type == wintype_vibrations) then

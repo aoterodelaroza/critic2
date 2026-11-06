@@ -2598,7 +2598,10 @@ contains
     end if
 
     ! show/hide buttons
-    if (doshown) changed = changed .or. showhide_buttons(shown,"atoms","atoms/bonds/labels",ttshown)
+    if (doshown) then
+       ch = showhide_buttons(shown,"atoms","atoms/bonds/labels",ttshown)
+       changed = changed .or. ch
+    end if
 
   end function atom_table_widget
 
@@ -2606,10 +2609,12 @@ contains
   !> molecule or fewer), with the columns the caller asks for: a Show
   !> checkbox column when shown is given (with Show All / Hide All /
   !> Toggle buttons under the table), and Tint / Scale columns when tint
-  !> and scale are given. Returns whether anything changed.
+  !> and scale are given. With select, the checkbox column is a
+  !> selection (header Select, no section title and no buttons: the
+  !> caller draws its own). Returns whether anything changed.
   !> ihighlight/highlight_type are set to the row under the mouse (and
   !> the molecule grouping), and left alone otherwise.
-  module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)
+  module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale,select) result(changed)
     use systems, only: sys, atlisttype_nmol
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
        iw_highlight_selectable, iw_dragfloat_real8, iw_table_column, iw_separatortext
@@ -2621,9 +2626,10 @@ contains
     logical, intent(inout), optional :: shown(:)
     real(c_float), intent(inout), optional :: tint(:,:)
     real*8, intent(inout), optional :: scale(:)
+    logical, intent(in), optional :: select
     logical :: changed
 
-    logical :: doshown, dostyle, ch
+    logical :: doshown, dostyle, ch, select_
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2
     real*8 :: x0(3)
@@ -2638,6 +2644,8 @@ contains
     changed = .false.
     doshown = present(shown)
     dostyle = present(tint) .and. present(scale)
+    select_ = .false.
+    if (present(select)) select_ = select
     nmol = sys(isys)%c%nmol
     if (nmol <= 1) return
     if (doshown) then
@@ -2646,7 +2654,7 @@ contains
     if (dostyle) then
        if (size(tint,2) /= nmol .or. size(scale,1) /= nmol) return
     end if
-    if (doshown) then
+    if (doshown .and. .not.select_) then
        call iw_separatortext("Shown molecules")
     elseif (dostyle) then
        call iw_separatortext("Molecule style")
@@ -2674,7 +2682,13 @@ contains
        ! header setup
        call iw_table_column("Id",icol=icol)
        call iw_table_column("Nat",icol=icol)
-       if (doshown) call iw_table_column("Show",icol=icol)
+       if (doshown) then
+          if (select_) then
+             call iw_table_column("Select",icol=icol)
+          else
+             call iw_table_column("Show",icol=icol)
+          end if
+       end if
        if (dostyle) then
           call iw_table_column("Tint",icol=icol)
           call iw_table_column("Scale",icol=icol)
@@ -2720,8 +2734,13 @@ contains
              if (doshown) then
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   changed = changed .or. iw_checkbox("##tablemolshown" // string(i),shown(i))
-                   call iw_tooltip("Toggle display of all atoms in this molecule",ttshown)
+                   ch = iw_checkbox("##tablemolshown" // string(i),shown(i))
+                   changed = changed .or. ch
+                   if (select_) then
+                      call iw_tooltip("Select this molecule",ttshown)
+                   else
+                      call iw_tooltip("Toggle display of all atoms in this molecule",ttshown)
+                   end if
                 end if
              end if
 
@@ -2766,7 +2785,10 @@ contains
     end if
 
     ! show/hide buttons
-    if (doshown) changed = changed .or. showhide_buttons(shown,"molecules","molecules",ttshown)
+    if (doshown .and. .not.select_) then
+       ch = showhide_buttons(shown,"molecules","molecules",ttshown)
+       changed = changed .or. ch
+    end if
 
   end function mol_table_widget
 
@@ -4830,14 +4852,9 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_isosurface(w,ttshown) result(changed)
     use systems, only: sys
-    use representations, only: iso_isgridfield, iso_level_custom, quant_ready,&
-       iso_npts_custom_min, iso_npts_custom_max, iso_level_optstr_custom, iso_defaultlevel,&
-       iso_level_tipstr_custom, iso_custom_mode_tipstr, iso_region_cell, iso_nhist, iso_hscale_name,&
-       iso_hscale_y, iso_map_color, iso_map_field, iso_map_expr, iso_map_optstr, iso_explen,&
-       iso_region_to_box,&
-       iso_region_point_from_cart, iso_level_ptsang,&
-       iso_custom_mode_optstr, iso_custom_ptsang, iso_ptsang_min, iso_ptsang_max,&
-       iso_ptsang_from_npts, rep_shape, shapekind_box, iso_slot_hascolors
+    use representations, only: iso_isgridfield, quant_ready, iso_region_cell, iso_nhist,&
+       iso_hscale_name, iso_hscale_y, iso_map_color, iso_map_field, iso_map_expr, iso_map_optstr,&
+       iso_explen, iso_region_to_box, iso_region_point_from_cart, rep_shape, iso_slot_hascolors
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_textwidth,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
@@ -4852,16 +4869,16 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: i, isys, iview, nstage(3), nshow(3), irow, istat, ilevprev, ipad, ihb, iheld
+    integer :: i, isys, iview, nstage(3), irow, istat, ihb, iheld
     integer :: nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick, nti0
-    integer(c_int) :: ncus(3), tflags, dtflags
+    integer(c_int) :: tflags, dtflags
 
     real(c_float), parameter :: hist_lwidth = 4.5_c_float ! histogram curve width (px)
     real(c_float), parameter :: hist_lwdrag = 5.5_c_float ! isovalue line width (px)
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps, costest
     logical :: measure
     real*8 :: xnew, dx, dmin, alpha8, maprspeed, rlo, rhi, reps
-    logical :: ch, ch2, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange, okquant, isexpr0
+    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange, okquant, isexpr0
     logical :: ismapped, hascolors, plotted, addcb
     real(c_float) :: rgba(4)
     real*8 :: speed
@@ -4974,102 +4991,13 @@ contains
     ! grid section: the coarseness level ("Native grid" only for the
     ! value of a grid field over the whole cell)
     navail = w%rep%iso%nativeok(isys) .and. (w%rep%iso%iregion == iso_region_cell)
-    if (.not.navail .and. w%rep%iso%ilevel == 0) &
-       w%rep%iso%ilevel = iso_defaultlevel
-    call iw_separatortext("Grid",w%editrep_sec(isosec_grid))
+    ldum = grid_level_form(isys,w%rep%iso%domain_field(),w%rep%iso%iregion,box,okbox,navail,&
+       w%rep%iso%ilevel,w%rep%iso%icustom,w%rep%iso%nptscustom,w%rep%iso%ptsangcustom,&
+       w%editrep_sec(isosec_grid),"iso","the isosurface",ttshown,nstage,capped)
     if (w%editrep_sec(isosec_grid)%open) then
-       if (navail) then
-          str1 = "Native grid" // c_null_char // iso_level_optstr_custom
-          str2 = "The grid of the field itself" // c_null_char // iso_level_tipstr_custom
-       else
-          str1 = iso_level_optstr_custom
-          str2 = iso_level_tipstr_custom
-       end if
-       ilevprev = w%rep%iso%ilevel
-       call iw_text("Level",alignframe=.true.)
-       call iw_combo_simple("##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.navail,&
-          sameline=.true.,changed=ch,tooltips=str2,ttshown=ttshown)
-
-       ! custom level: the grid given by the user, either as the number of
-       ! points along each axis or as a resolution in points per angstrom
-       if (w%rep%iso%ilevel == iso_level_custom) then
-          ! arriving at the custom level: start from the grid that was on
-          ! screen, written both ways, so either mode continues it. The
-          ! resolution is the one those dimensions amount to, not the
-          ! level's tabulated value: a named level is floored per axis and
-          ! capped in total, so the two need not describe the same grid
-          if (ch .and. ilevprev /= iso_level_custom) then
-             if (ilevprev == 0) then
-                w%rep%iso%nptscustom = sys(isys)%f(w%rep%iso%fref%id)%grid%n
-             elseif (okbox) then
-                w%rep%iso%nptscustom = w%rep%iso%staged_grid_size(isys,ilevprev,box)
-             end if
-             ! only where the dimensions were re-seeded: a degenerate region
-             ! leaves both alone, rather than deriving one from the other's
-             ! stale value over a zero-volume box
-             if (okbox .or. ilevprev == 0) &
-                w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
-          end if
-
-          call iw_text("Given as",alignframe=.true.,gap=.true.)
-          call iw_combo_simple("##isocustom",iso_custom_mode_optstr,w%rep%iso%icustom,&
-             sameline=.true.,changed=ch2,tooltips=iso_custom_mode_tipstr,ttshown=ttshown)
-          ! switching between the two carries the grid over, so the mode
-          ! change by itself does not move the isosurface
-          if (ch2 .and. okbox) then
-             if (w%rep%iso%icustom == iso_custom_ptsang) then
-                w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
-             else
-                ! the dimensions the resolution on screen gives, which the
-                ! staged options no longer decode to now that the mode changed
-                w%rep%iso%nptscustom = w%rep%iso%staged_grid_size(isys,iso_level_custom,box,&
-                   icustom=iso_custom_ptsang)
-             end if
-          end if
-
-          if (w%rep%iso%icustom == iso_custom_ptsang) then
-             call iw_text("Resolution (pts/Å)",alignframe=.true.)
-             ldum = iw_dragfloat_real8("##isoptsang",x1=w%rep%iso%ptsangcustom,sameline=.true.,&
-                speed=0.05d0,decimal=2,min=iso_ptsang_min,max=iso_ptsang_max,&
-                flags=ImGuiSliderFlags_AlwaysClamp)
-             call iw_tooltip("Number of grid points per angstrom along each axis of the grid",ttshown)
-          else
-             ncus = w%rep%iso%nptscustom
-             ipad = ceiling(log10(max(maxval(ncus),1) + 0.1))
-             call iw_text("Points",alignframe=.true.)
-             ldum = iw_intstepper("n1##isonpts1",ncus(1),label="n1:",minval=int(iso_npts_custom_min,c_int),&
-                maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
-             ldum = iw_intstepper("n2##isonpts2",ncus(2),label="n2:",minval=int(iso_npts_custom_min,c_int),&
-                maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
-             ldum = iw_intstepper("n3##isonpts3",ncus(3),label="n3:",minval=int(iso_npts_custom_min,c_int),&
-                maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
-             call iw_tooltip("Number of grid points along each axis of the grid",ttshown)
-             w%rep%iso%nptscustom = ncus
-          end if
-       end if
-
-       ! grid dimensions
+       ! whether the staged grid and region are the applied ones
        lapply = .false.
-       nstage = 0
-       if (okbox) then
-          nstage = w%rep%iso%staged_grid_size(isys,w%rep%iso%ilevel,box,capped=capped)
-          nshow = nstage
-          str2 = ""
-          if (all(nstage == 0)) then
-             nshow = sys(isys)%f(w%rep%iso%fref%id)%grid%n
-             str2 = " (native)"
-          elseif (capped) then
-             str2 = " (capped)"
-          end if
-          if (w%rep%iso%ilevel /= iso_level_custom .or.&
-             w%rep%iso%icustom == iso_custom_ptsang .or. capped) then
-             call iw_text("Grid",alignframe=.true.)
-             call iw_text(string(nshow(1)) // " x " // string(nshow(2)) // " x " //&
-                string(nshow(3)) // str2,sameline=.true.)
-             call iw_tooltip("Dimensions of the grid that will support the isosurface",ttshown)
-          end if
-          lapply = .not.w%rep%iso%grid_isapplied(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
-       end if
+       if (okbox) lapply = .not.w%rep%iso%grid_isapplied(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
        if (iw_button("Calculate Grid",danger=.true.,disabled=.not.lapply .or. .not.okquant)) then
           w%errmsg = ""
           if (all(nstage == 0)) then
@@ -5124,9 +5052,7 @@ contains
           prev0 = box(:,0)
           prevv = box(:,1:3)
        end if
-       if (sys(isys)%c%ismolecule) prev0 = prev0 + sys(isys)%c%molx0
-       call win(iview)%sc%show_transient_shapes(w%uid,1,(/rep_shape(kind=shapekind_box,&
-          x1=prev0,v=prevv,rad=region_edgerad,rgb=region_rgb,alpha=region_alpha)/))
+       call region_show_box(iview,w%uid,isys,prev0,prevv)
     end if
 
     ! isosurface
@@ -5768,21 +5694,6 @@ contains
 
     end function hist_bin
 
-    !> The resolution (points per angstrom) that grid dimensions nn
-    !> amount to over the staged region, within the bounds a custom
-    !> resolution obeys, so the two ways of writing a custom grid agree
-    !> on the total number of points.
-    function npts_to_ptsang(nn) result(pa)
-      integer, intent(in) :: nn(3)
-      real*8 :: pa
-
-      pa = iso_ptsang_from_npts(product(real(nn,8)),&
-         w%rep%iso%staged_box_lengths(isys,box))
-      if (pa <= 0d0) pa = iso_level_ptsang(iso_defaultlevel)
-      pa = min(max(pa,iso_ptsang_min),iso_ptsang_max)
-
-    end function npts_to_ptsang
-
   end function draw_editrep_isosurface
 
   !> The Region section of a form in system isys (the isosurface
@@ -6045,6 +5956,202 @@ contains
 
     end function region_point_tooltip
   end function region_form
+
+  !> The Grid section of a form in system isys: the coarseness level
+  !> of the grid over the staged region (iso_region_* mode iregion,
+  !> box from iso_region_to_box, degenerate if not okbox) as the
+  !> isosurface editor stages it: the native grid of grid field
+  !> ifield (offered if navail), a named level, or a custom grid given
+  !> as nptscustom points or a resolution ptsangcustom (icustom), and
+  !> the dimensions nn the level gives (all-zero for the native grid
+  !> and for a degenerate region; capped if the total was). sec = the
+  !> state of the section (the level is reset from native when it is
+  !> not available even if the section is closed); sfx = the prefix
+  !> of the widget IDs; what = what is calculated on the grid, for the
+  !> tooltips ("the isosurface"). Returns whether the level or the
+  !> custom grid changed.
+  module function grid_level_form(isys,ifield,iregion,box,okbox,navail,ilevel,icustom,nptscustom,&
+     ptsangcustom,sec,sfx,what,ttshown,nn,capped) result(changed)
+    use systems, only: sys
+    use representations, only: iso_level_custom, iso_level_optstr_custom, iso_level_tipstr_custom,&
+       iso_defaultlevel, iso_custom_ptsang, iso_custom_mode_optstr, iso_custom_mode_tipstr,&
+       iso_ptsang_min, iso_ptsang_max, iso_npts_custom_min, iso_npts_custom_max,&
+       iso_stage_grid_size, iso_stage_box_lengths, iso_ptsang_from_npts, iso_level_ptsang
+    use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_intstepper,&
+       iw_separatortext
+    use tools_io, only: string
+    integer, intent(in) :: isys, ifield, iregion
+    real*8, intent(in) :: box(3,0:3)
+    logical, intent(in) :: okbox, navail
+    integer, intent(inout) :: ilevel, icustom, nptscustom(3)
+    real*8, intent(inout) :: ptsangcustom
+    type(iw_section), intent(inout) :: sec
+    character(len=*), intent(in) :: sfx, what
+    logical, intent(inout) :: ttshown
+    integer, intent(out) :: nn(3)
+    logical, intent(out) :: capped
+    logical :: changed
+
+    logical :: ch, ch2, ldum
+    integer :: ilevprev, ipad, nshow(3)
+    integer(c_int) :: ncus(3)
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    character(len=:), allocatable :: str3
+
+    changed = .false.
+    if (.not.navail .and. ilevel == 0) then
+       ilevel = iso_defaultlevel
+       changed = .true.
+    end if
+    nn = grid_size(ilevel)
+    call iw_separatortext("Grid",sec)
+    if (.not.sec%open) return
+
+    if (navail) then
+       str1 = "Native grid" // c_null_char // iso_level_optstr_custom
+       str2 = "The grid of the field itself" // c_null_char // iso_level_tipstr_custom
+    else
+       str1 = iso_level_optstr_custom
+       str2 = iso_level_tipstr_custom
+    end if
+    ilevprev = ilevel
+    call iw_text("Level",alignframe=.true.)
+    call iw_combo_simple("##" // sfx // "level",str1,ilevel,startsatone=.not.navail,&
+       sameline=.true.,changed=ch,tooltips=str2,ttshown=ttshown)
+    changed = changed .or. ch
+
+    ! custom level: the grid given by the user, either as the number of
+    ! points along each axis or as a resolution in points per angstrom
+    if (ilevel == iso_level_custom) then
+       ! arriving at the custom level: start from the grid that was on
+       ! screen, written both ways, so either mode continues it. The
+       ! resolution is the one those dimensions amount to, not the
+       ! level's tabulated value: a named level is floored per axis and
+       ! capped in total, so the two need not describe the same grid
+       if (ch .and. ilevprev /= iso_level_custom) then
+          if (ilevprev == 0) then
+             nptscustom = sys(isys)%f(ifield)%grid%n
+          elseif (okbox) then
+             nptscustom = grid_size(ilevprev)
+          end if
+          ! only where the dimensions were re-seeded: a degenerate region
+          ! leaves both alone, rather than deriving one from the other's
+          ! stale value over a zero-volume box
+          if (okbox .or. ilevprev == 0) ptsangcustom = npts_to_ptsang(nptscustom)
+       end if
+
+       call iw_text("Given as",alignframe=.true.,gap=.true.)
+       call iw_combo_simple("##" // sfx // "custom",iso_custom_mode_optstr,icustom,&
+          sameline=.true.,changed=ch2,tooltips=iso_custom_mode_tipstr,ttshown=ttshown)
+       changed = changed .or. ch2
+       ! switching between the two carries the grid over, so the mode
+       ! change by itself does not move the grid
+       if (ch2 .and. okbox) then
+          if (icustom == iso_custom_ptsang) then
+             ptsangcustom = npts_to_ptsang(nptscustom)
+          else
+             ! the dimensions the resolution on screen gives, which the
+             ! staged options no longer decode to now that the mode changed
+             nptscustom = iso_stage_grid_size(isys,ifield,iregion,iso_level_custom,iso_custom_ptsang,&
+                nptscustom,ptsangcustom,box)
+          end if
+       end if
+
+       if (icustom == iso_custom_ptsang) then
+          call iw_text("Resolution (pts/Å)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##" // sfx // "ptsang",x1=ptsangcustom,sameline=.true.,&
+             speed=0.05d0,decimal=2,min=iso_ptsang_min,max=iso_ptsang_max,&
+             flags=ImGuiSliderFlags_AlwaysClamp)
+          changed = changed .or. ch
+          call iw_tooltip("Number of grid points per angstrom along each axis of the grid",ttshown)
+       else
+          ncus = nptscustom
+          ipad = ceiling(log10(max(maxval(ncus),1) + 0.1))
+          call iw_text("Points",alignframe=.true.)
+          ldum = iw_intstepper("n1##" // sfx // "npts1",ncus(1),label="n1:",minval=int(iso_npts_custom_min,c_int),&
+             maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
+          ldum = iw_intstepper("n2##" // sfx // "npts2",ncus(2),label="n2:",minval=int(iso_npts_custom_min,c_int),&
+             maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
+          ldum = iw_intstepper("n3##" // sfx // "npts3",ncus(3),label="n3:",minval=int(iso_npts_custom_min,c_int),&
+             maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
+          call iw_tooltip("Number of grid points along each axis of the grid",ttshown)
+          if (any(ncus /= nptscustom)) changed = .true.
+          nptscustom = ncus
+       end if
+       nn = grid_size(ilevel)
+    end if
+
+    ! the dimensions of the grid
+    if (okbox .or. ilevel == 0) then
+       nshow = nn
+       str3 = ""
+       if (ilevel == 0) then
+          nshow = sys(isys)%f(ifield)%grid%n
+          str3 = " (native)"
+       elseif (capped) then
+          str3 = " (capped)"
+       end if
+       if (ilevel /= iso_level_custom .or. icustom == iso_custom_ptsang .or. capped) then
+          call iw_text("Grid",alignframe=.true.)
+          call iw_text(string(nshow(1)) // " x " // string(nshow(2)) // " x " //&
+             string(nshow(3)) // str3,sameline=.true.)
+          call iw_tooltip("Dimensions of the grid that will support " // what,ttshown)
+       end if
+    end if
+
+  contains
+
+    !> The dimensions level ilev gives over the staged region: all-zero
+    !> for the native grid and for a degenerate region.
+    function grid_size(ilev) result(n)
+      integer, intent(in) :: ilev
+      integer :: n(3)
+
+      n = 0
+      capped = .false.
+      if (ilev == 0 .or. .not.okbox) return
+      n = iso_stage_grid_size(isys,ifield,iregion,ilev,icustom,nptscustom,ptsangcustom,box,capped)
+
+    end function grid_size
+
+    !> The resolution (points per angstrom) that grid dimensions n
+    !> amount to over the staged region, within the bounds a custom
+    !> resolution obeys, so the two ways of writing a custom grid agree
+    !> on the total number of points.
+    function npts_to_ptsang(n) result(pa)
+      integer, intent(in) :: n(3)
+      real*8 :: pa
+
+      pa = iso_ptsang_from_npts(product(real(n,8)),iso_stage_box_lengths(isys,ifield,iregion,box))
+      if (pa <= 0d0) pa = iso_level_ptsang(iso_defaultlevel)
+      pa = min(max(pa,iso_ptsang_min),iso_ptsang_max)
+
+    end function npts_to_ptsang
+
+  end function grid_level_form
+
+  !> Show the box with origin x0 and edge vectors v (cell-frame
+  !> Cartesian bohr) of a form owned by window uid as a transient
+  !> shape of the scene of view iview of system isys, in the shared
+  !> style of the region previews.
+  module subroutine region_show_box(iview,uid,isys,x0,v)
+    use systems, only: sys
+    use representations, only: rep_shape, shapekind_box
+    integer, intent(in) :: iview
+    integer*8, intent(in) :: uid
+    integer, intent(in) :: isys
+    real*8, intent(in) :: x0(3), v(3,3)
+
+    real*8 :: x00(3)
+
+    if (.not.associated(win(iview)%sc)) return
+    if (win(iview)%sc%isinit == 0) return
+    x00 = x0
+    if (sys(isys)%c%ismolecule) x00 = x00 + sys(isys)%c%molx0
+    call win(iview)%sc%show_transient_shapes(uid,1,(/rep_shape(kind=shapekind_box,&
+       x1=x00,v=v,rad=region_edgerad,rgb=region_rgb,alpha=region_alpha)/))
+
+  end subroutine region_show_box
 
 
   !> Draw the editrep window, critical points class. Returns true if

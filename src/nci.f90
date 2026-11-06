@@ -24,7 +24,7 @@ module nci
   private
   public :: nciplot
   public :: nci_options, nci_result
-  public :: nci_options_init, nci_dopromol, nci_compute, nci_masks
+  public :: nci_options_init, nci_options_set_field, nci_dopromol, nci_compute, nci_masks
   public :: nci_write_cubes, nci_write_dat, nci_write_vmd
   public :: nci_chk_read, nci_chk_write
 
@@ -56,7 +56,8 @@ module nci
      type(fragment), allocatable :: fr(:) ! the fragments
      real*8 :: rhoparam = 0.95d0 ! no fragment contributes more than this fraction of the fragments' promolecular density
      real*8 :: rhoparam2 = 0.75d0 ! the fragments contribute at least this fraction of the total promolecular density
-     real*8 :: rho_void = -1d0 ! plot only where the promolecular density is below this value (negative = off)
+     logical :: dovoid = .false. ! plot only the voids: where the promolecular density is below rho_void
+     real*8 :: rho_void = 0.01d0 ! promolecular density below which a point is in a void (dovoid)
      ! the cutoffs
      real*8 :: rhocut = 0.2d0 ! density cutoff of the s vs. rho points (dat file)
      real*8 :: dimcut = 2d0 ! RDG cutoff of the s vs. rho points (dat file)
@@ -90,6 +91,12 @@ module nci
        type(system), intent(in) :: s
        integer, intent(in) :: ifield
      end subroutine nci_options_init
+     module subroutine nci_options_set_field(opts,s,ifield)
+       use systemmod, only: system
+       type(nci_options), intent(inout) :: opts
+       type(system), intent(in) :: s
+       integer, intent(in) :: ifield
+     end subroutine nci_options_set_field
      pure module function nci_dopromol(opts) result(dopromol)
        type(nci_options), intent(in) :: opts
        logical :: dopromol

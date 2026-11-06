@@ -1500,6 +1500,8 @@ module representations
   public :: iso_slot_index
   public :: rep_slot_of
   public :: iso_grid_size
+  public :: iso_stage_grid_size
+  public :: iso_stage_box_lengths
   public :: iso_level_label
   public :: iso_isgridfield
   public :: iso_box_lengths
@@ -1823,6 +1825,19 @@ module representations
        class(rep_isosurface), intent(inout) :: iso
        integer, intent(in) :: isys
      end subroutine iso_autogrid
+     module function iso_stage_grid_size(isys,ifield,iregion,ilevel,icustom,nptscustom,ptsangcustom,box,capped) result(n)
+       integer, intent(in) :: isys, ifield, iregion, ilevel, icustom
+       integer, intent(in) :: nptscustom(3)
+       real*8, intent(in) :: ptsangcustom
+       real*8, intent(in) :: box(3,0:3)
+       logical, intent(out), optional :: capped
+       integer :: n(3)
+     end function iso_stage_grid_size
+     module function iso_stage_box_lengths(isys,ifield,iregion,box) result(alen)
+       integer, intent(in) :: isys, ifield, iregion
+       real*8, intent(in) :: box(3,0:3)
+       real*8 :: alen(3)
+     end function iso_stage_box_lengths
      module function iso_staged_grid_size(iso,isys,ilevel,box,capped,icustom) result(n)
        class(rep_isosurface), intent(in) :: iso
        integer, intent(in) :: isys
