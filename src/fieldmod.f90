@@ -149,6 +149,7 @@ module fieldmod
      procedure :: chk_cps_file !< Name of the CP checkpoint file for this field
      procedure :: write_chk_cps !< Write the CP list to a checkpoint file
      procedure :: read_chk_cps !< Read the CP list from a checkpoint file
+     procedure :: chk_fingerprint !< Fingerprint of the field and its structure, for checkpoint files
      procedure :: nearest_cp !< Given a point, find the nearest CP of a certain type
      procedure :: identify_cp !< Identify the CP given the position
      procedure :: testrmt !< Test for MT discontinuities
@@ -310,6 +311,12 @@ module fieldmod
        character*(*), intent(in), optional :: root
        character(len=:), allocatable :: file
      end function chk_cps_file
+     module subroutine chk_fingerprint(f,ihdr,rhdr,str)
+       class(field), intent(in) :: f
+       integer, allocatable, intent(out) :: ihdr(:)
+       real*8, allocatable, intent(out) :: rhdr(:)
+       character(len=:), allocatable, intent(out) :: str
+     end subroutine chk_fingerprint
      module subroutine write_chk_cps(f,file,errmsg,ti)
        class(field), intent(in) :: f
        character*(*), intent(in) :: file

@@ -29,7 +29,6 @@ submodule (fieldmod) proc
   ! subroutine cp_lookup_build(fid,iup,up2beta,rcap,lk)
   ! subroutine cp_lookup_nearest(fid,lk,xp,up2beta,rcap,id,dist,xc,xx)
   ! subroutine newton_attractor(fid,x0,iup,rmax,xcp,res,ok)
-  ! subroutine chk_fingerprint(f,ihdr,rhdr,str)
 
   ! eps to move to the main cell
   real*8, parameter :: flooreps = 1d-4 ! border around unit cell
@@ -4018,9 +4017,9 @@ contains
   !> CP checkpoint file corresponds to them. Integer (ihdr) and real
   !> (rhdr) data and the ghost field expression (str). For a grid, it
   !> includes the interpolation mode (and the smoothrho options).
-  subroutine chk_fingerprint(f,ihdr,rhdr,str)
+  module subroutine chk_fingerprint(f,ihdr,rhdr,str)
     use grid3mod, only: mode_smr
-    type(field), intent(in) :: f
+    class(field), intent(in) :: f
     integer, allocatable, intent(out) :: ihdr(:)
     real*8, allocatable, intent(out) :: rhdr(:)
     character(len=:), allocatable, intent(out) :: str
