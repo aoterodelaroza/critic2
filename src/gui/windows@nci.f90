@@ -394,6 +394,11 @@ contains
             & of the grid (the default for grids without core densities)",ttshown)
       end if
 
+      ! derivatives of a grid field from its interpolant: unreliable
+      ! unless smoothrho (shown also with the Derivatives combo hidden)
+      if (.not.w%nc%opts%fourierint) &
+         call warn_grid_interp(isys,w%nc%fref%id,"derivatives (gradient and Hessian)")
+
     end subroutine draw_density
 
     !> The Estimate Cost row of the Grid section: the cost of the
