@@ -449,8 +449,8 @@ contains
       if (nfrag > 1) then
          call iw_text("Only regions between fragments are plotted",disabled=.true.,wrap=.true.)
       elseif (nfrag == 1) then
-         call iw_text("All NCI domains are plotted (select at least two fragments to plot only&
-            & the regions between them)",disabled=.true.,wrap=.true.)
+         call iw_text("All NCI domains are plotted (select at least two fragments)",&
+            disabled=.true.,wrap=.true.)
       else
          call iw_text("All NCI domains are plotted",disabled=.true.,wrap=.true.)
       end if
