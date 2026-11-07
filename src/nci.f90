@@ -25,6 +25,7 @@ module nci
   public :: nciplot
   public :: nci_options, nci_result
   public :: nci_options_init, nci_options_set_field, nci_dopromol, nci_compute, nci_masks
+  public :: nci_compute_promol, nci_frag_region
   public :: nci_in_dat, nci_domains
   public :: nci_write_cubes, nci_write_dat, nci_write_vmd, nci_write_files
   public :: nci_chk_read, nci_chk_write
@@ -52,6 +53,7 @@ module nci
      ! the fragments: only the regions between them are plotted
      integer :: nfrag = 0 ! number of fragments
      type(fragment), allocatable :: fr(:) ! the fragments
+     logical :: frcell = .false. ! fragments are sets of cell atoms (by cidx), with their lattice translations
      real*8 :: rhoparam = 0.95d0 ! no fragment contributes more than this fraction of the fragments' promolecular density
      real*8 :: rhoparam2 = 0.75d0 ! the fragments contribute at least this fraction of the total promolecular density
      logical :: dovoid = .false. ! plot only the voids: where the promolecular density is below rho_void
@@ -99,13 +101,26 @@ module nci
        type(nci_options), intent(in) :: opts
        logical :: dopromol
      end function nci_dopromol
-     module subroutine nci_compute(opts,s,res,errmsg)
+     module subroutine nci_compute(opts,s,res,errmsg,pre)
        use systemmod, only: system
        type(nci_options), intent(in) :: opts
        type(system), intent(inout), target :: s
        type(nci_result), intent(out) :: res
        character(len=:), allocatable, intent(out) :: errmsg
+       type(nci_result), intent(inout), optional :: pre
      end subroutine nci_compute
+     module subroutine nci_compute_promol(opts,s,res,errmsg)
+       use systemmod, only: system
+       type(nci_options), intent(in) :: opts
+       type(system), intent(inout), target :: s
+       type(nci_result), intent(out) :: res
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine nci_compute_promol
+     module subroutine nci_frag_region(opts,res,g)
+       type(nci_options), intent(in) :: opts
+       type(nci_result), intent(in) :: res
+       real*8, allocatable, intent(out) :: g(:,:,:)
+     end subroutine nci_frag_region
      module subroutine nci_masks(opts,res,inter,splot,voidq,voidqp,voidv,errmsg)
        type(nci_options), intent(in) :: opts
        type(nci_result), intent(in) :: res

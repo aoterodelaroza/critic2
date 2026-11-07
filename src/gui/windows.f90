@@ -923,10 +923,29 @@ module windows
      type(rep_ref) :: cbref
      ! the output files (Write Files): complete the molecules in the xyz (MOLMOTIF)
      logical :: molmotif = .false.
+     ! the region between the fragments (Show region): the promolecular
+     ! grids calculated for it (on the heap like res; null = none; a
+     ! Calculate on the same grid and fragments takes them over) and
+     ! the grid and fragments they are for, the criterion field shown
+     ! as a transient isosurface (nci_frag_region; inside if >= 0), and
+     ! what that field was calculated from: the source (1 = res, 2 =
+     ! pre), its generation, the fragment criterion parameters, and
+     ! the nodes it is rolled by along each axis (region_roll)
+     logical :: showregion = .false.
+     type(nci_result), pointer :: pre => null()
+     type(nci_options) :: prekey
+     real*8, allocatable :: region_g(:,:,:)
+     integer :: region_src = 0
+     integer :: region_gen = -1
+     real*8 :: region_par(2) = 0d0
+     integer :: region_shift(3) = 0
+     integer :: gen = 0 ! generation of the grids, increased by every calculation
      ! blocking job (run_nci): the system, and whether it writes the
-     ! files (root from w%okfile) instead of calculating
+     ! files (root from w%okfile) or calculates only the promolecular
+     ! grids of the region (options in prekey) instead of the NCI plot
      integer :: jsys = 0
      logical :: jwrite = .false.
+     logical :: jpromol = .false.
   end type nci_state
   public :: nci_state
 

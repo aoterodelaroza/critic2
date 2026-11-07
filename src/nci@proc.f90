@@ -27,6 +27,8 @@ submodule (nci) proc
   ! subroutine write_cube_body(lu,n,c,scale)
   ! function check_no_extra_word(line,lp,routine)
   ! function read_fragment(c,lu) result(fr)
+  ! subroutine promol_checks(opts,s,errmsg)
+  ! subroutine promol_point(opts,s,x,dopromol,nfrag,res,i,j,k)
 
   ! NCI checkpoint file format identifier and version
   character(len=8), parameter :: chk_magic = "CRI2NCCK"
@@ -511,13 +513,16 @@ contains
   !> Calculate the NCI grids of system s with options opts: the
   !> density times the sign of the second Hessian eigenvalue, the
   !> reduced density gradient, and, if nci_dopromol, the promolecular
-  !> density of the system and of each fragment. Reports progress and
-  !> can be cancelled (abort_poll); a cancelled calculation leaves the
-  !> grids incomplete. errmsg is non-empty on error.
-  module subroutine nci_compute(opts,s,res,errmsg)
+  !> density of the system and of each fragment. If pre is given and
+  !> holds the promolecular grids for this grid and these fragments
+  !> (nci_compute_promol; the caller checks the fragments), they are
+  !> moved into res instead of being calculated again. Reports
+  !> progress and can be cancelled (abort_poll); a cancelled
+  !> calculation leaves the grids incomplete. errmsg is non-empty on
+  !> error.
+  module subroutine nci_compute(opts,s,res,errmsg,pre)
     use systemmod, only: system
-    use fieldmod, only: field, type_promol, type_grid
-    use grid1mod, only: agrid
+    use fieldmod, only: field, type_grid
     use global, only: abort_poll, progress_start, progress_step
     use tools_math, only: eigsym
     use types, only: scalar_value, field_evaluation_avail
@@ -527,27 +532,25 @@ contains
     type(system), intent(inout), target :: s
     type(nci_result), intent(out) :: res
     character(len=:), allocatable, intent(out) :: errmsg
+    type(nci_result), intent(inout), optional :: pre
 
     type(field) :: fgrho, fxx(3)
     type(scalar_value) :: sv, svg
     type(field_evaluation_avail) :: request0, request2
     logical :: dopromol
-    integer :: n(3), i, j, k, l, ifr, iat, iz, istat, ier, nfrag, ierdiag
-    real*8 :: x(3), xd(3), ehess(3), dimgrad, dist, rrho, rrho1, rrho2
+    integer :: n(3), i, j, k, l, istat, ier, nfrag, ierdiag
+    real*8 :: x(3), ehess(3), dimgrad
 
     ! named constants
     real*8, parameter :: fthirds = 4d0/3d0
     real*8, parameter :: const = 2.d0*(3.d0*pi**2)**(1.d0/3.d0)
 
     ! checks
-    errmsg = ""
     n = opts%nstep
     nfrag = opts%nfrag
     dopromol = nci_dopromol(opts)
-    if (any(n < 1)) then
-       errmsg = "invalid NCI grid dimensions"
-       return
-    end if
+    call promol_checks(opts,s,errmsg)
+    if (len_trim(errmsg) > 0) return
     if (.not.s%goodfield(opts%ifield)) then
        errmsg = "the density field is not available"
        return
@@ -556,27 +559,23 @@ contains
        errmsg = "Fourier transform derivatives need a grid field"
        return
     end if
-    if (dopromol .and. s%f(0)%type /= type_promol) then
-       errmsg = "promolecular density not found"
-       return
-    end if
-    if (nfrag > 0) then
-       if (.not.allocated(opts%fr)) then
-          errmsg = "the fragments are not allocated"
-          return
-       elseif (size(opts%fr) < nfrag) then
-          errmsg = "the fragments are not allocated"
-          return
-       end if
-    end if
 
-    ! allocate memory for the grids
+    ! allocate memory for the grids; the promolecular grids of pre
+    ! are taken if they are for this grid
     res%ifield = opts%ifield
     res%fourierint = opts%fourierint
     res%x0 = opts%x0
     res%xmat = opts%xmat
     res%n = n
     allocate(res%srho(n(1),n(2),n(3)),res%rdg(n(1),n(2),n(3)),stat=istat)
+    if (istat == 0 .and. dopromol .and. present(pre)) then
+       if (promol_matches(pre)) then
+          call move_alloc(pre%rhoat,res%rhoat)
+          if (nfrag > 0) call move_alloc(pre%rhofrag,res%rhofrag)
+          dopromol = .false.
+          nfrag = 0
+       end if
+    end if
     if (istat == 0 .and. dopromol) allocate(res%rhoat(n(1),n(2),n(3)),stat=istat)
     if (istat == 0 .and. nfrag > 0) allocate(res%rhofrag(n(1),n(2),n(3),nfrag),stat=istat)
     if (istat /= 0) then
@@ -603,7 +602,7 @@ contains
     ! calculate density, rdg, rhoat
     ierdiag = 0
     call progress_start(n(3)*n(2),"lines")
-    !$omp parallel do private (x,sv,svg,ehess,dimgrad,xd,dist,rrho,rrho1,rrho2,iz,ier) schedule(dynamic)
+    !$omp parallel do private (x,sv,svg,ehess,dimgrad,ier) schedule(dynamic)
     do k = 1, n(3)
        do j = 1, n(2)
           if (abort_poll()) cycle
@@ -638,25 +637,8 @@ contains
              res%rdg(i,j,k) = dimgrad
              res%srho(i,j,k) = sign(sv%f,ehess(2))
 
-             ! promolecular density
-             if (dopromol) res%rhoat(i,j,k) = s%f(0)%grd0(x)
-
-             ! fragments
-             do ifr = 1, nfrag
-                res%rhofrag(i,j,k,ifr) = 0d0
-                do iat = 1, opts%fr(ifr)%nat
-                   xd = x - opts%fr(ifr)%at(iat)%r
-                   dist = norm2(xd)
-                   iz = opts%fr(ifr)%spc(opts%fr(ifr)%at(iat)%is)%z
-                   if (.not.agrid(iz)%isinit) cycle
-                   if (dist > agrid(iz)%rmax) cycle
-                   dist = max(dist,agrid(iz)%r(1))
-                   dist = max(dist,1d-14)
-                   call agrid(iz)%interp(dist,rrho,rrho1,rrho2)
-                   rrho = max(rrho,0d0)
-                   res%rhofrag(i,j,k,ifr) = res%rhofrag(i,j,k,ifr) + rrho
-                end do
-             end do
+             ! promolecular density of the system and the fragments
+             call promol_point(opts,s,x,dopromol,nfrag,res,i,j,k)
           end do
           call progress_step()
        end do
@@ -664,7 +646,109 @@ contains
     !$omp end parallel do
     if (ierdiag /= 0) errmsg = "error in the diagonalization of the Hessian"
 
+  contains
+
+    !> Whether p holds the promolecular grids of this calculation.
+    function promol_matches(p) result(ok)
+      type(nci_result), intent(in) :: p
+      logical :: ok
+
+      ok = all(p%n == n) .and. all(p%x0 == opts%x0) .and. all(p%xmat == opts%xmat)
+      if (ok) ok = allocated(p%rhoat)
+      if (ok .and. nfrag > 0) ok = allocated(p%rhofrag)
+      if (ok .and. nfrag > 0) ok = (size(p%rhofrag,4) == nfrag)
+
+    end function promol_matches
+
   end subroutine nci_compute
+
+  !> Calculate only the promolecular grids of an NCI calculation of
+  !> system s with options opts on its grid: the promolecular density
+  !> of the system and of each fragment (res%rhoat, res%rhofrag), for
+  !> the fragment criterion, without the density field. A later
+  !> nci_compute with the same grid and fragments can take them (pre).
+  !> Reports progress and can be cancelled (abort_poll). errmsg is
+  !> non-empty on error.
+  module subroutine nci_compute_promol(opts,s,res,errmsg)
+    use systemmod, only: system
+    use global, only: abort_poll, progress_start, progress_step
+    type(nci_options), intent(in) :: opts
+    type(system), intent(inout), target :: s
+    type(nci_result), intent(out) :: res
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: n(3), i, j, k, istat, nfrag
+    real*8 :: x(3)
+
+    n = opts%nstep
+    nfrag = opts%nfrag
+    call promol_checks(opts,s,errmsg)
+    if (len_trim(errmsg) > 0) return
+
+    res%x0 = opts%x0
+    res%xmat = opts%xmat
+    res%n = n
+    allocate(res%rhoat(n(1),n(2),n(3)),stat=istat)
+    if (istat == 0 .and. nfrag > 0) allocate(res%rhofrag(n(1),n(2),n(3),nfrag),stat=istat)
+    if (istat /= 0) then
+       errmsg = "could not allocate memory for the promolecular grids"
+       return
+    end if
+
+    call progress_start(n(3)*n(2),"lines")
+    !$omp parallel do private (x) schedule(dynamic)
+    do k = 1, n(3)
+       do j = 1, n(2)
+          if (abort_poll()) cycle
+          do i = 1, n(1)
+             x = opts%x0 + (i-1)*opts%xmat(:,1) + (j-1)*opts%xmat(:,2) + (k-1)*opts%xmat(:,3)
+             call promol_point(opts,s,x,.true.,nfrag,res,i,j,k)
+          end do
+          call progress_step()
+       end do
+    end do
+    !$omp end parallel do
+
+  end subroutine nci_compute_promol
+
+  !> The fragment criterion of options opts as a smooth field on the
+  !> promolecular grids of res: g = min(rhoparam - max_i rho_i/sum,
+  !> sum/rhoat - rhoparam2), with sum the promolecular density of all
+  !> the fragments, so the points that pass the criterion (nci_masks)
+  !> are those with g >= 0. Points with no fragment density (beyond the
+  !> cutoffs of all the atoms) get -1: the masks keep them if there is
+  !> no promolecular density either, but there is no NCI plot in the
+  !> vacuum, and the region would end in sheets at the cutoffs.
+  module subroutine nci_frag_region(opts,res,g)
+    use param, only: vsmall
+    type(nci_options), intent(in) :: opts
+    type(nci_result), intent(in) :: res
+    real*8, allocatable, intent(out) :: g(:,:,:)
+
+    integer :: n(3), i, j, k, nfrag
+    real*8 :: sumf
+
+    n = res%n
+    allocate(g(n(1),n(2),n(3)))
+    g = -1d0
+    if (.not.allocated(res%rhofrag) .or. .not.allocated(res%rhoat)) return
+    nfrag = size(res%rhofrag,4)
+    if (nfrag < 1) return
+
+    !$omp parallel do private (sumf) schedule(static)
+    do k = 1, n(3)
+       do j = 1, n(2)
+          do i = 1, n(1)
+             sumf = sum(res%rhofrag(i,j,k,1:nfrag))
+             if (sumf <= 0d0) cycle
+             g(i,j,k) = min(opts%rhoparam - maxval(res%rhofrag(i,j,k,1:nfrag)) / sumf,&
+                sumf / max(res%rhoat(i,j,k),vsmall) - opts%rhoparam2)
+          end do
+       end do
+    end do
+    !$omp end parallel do
+
+  end subroutine nci_frag_region
 
   !> Apply the fragment and void criteria and the plot cutoffs of
   !> options opts to the NCI grids res. On output, inter (if present)
@@ -1620,5 +1704,77 @@ contains
     fr = c%identify_fragment(n,fx(:,1:n))
 
   end function read_fragment
+
+  !> The checks of the promolecular part of an NCI calculation with
+  !> options opts of system s: the grid, field 0, and the fragments.
+  !> errmsg is non-empty if they fail.
+  subroutine promol_checks(opts,s,errmsg)
+    use systemmod, only: system
+    use fieldmod, only: type_promol
+    type(nci_options), intent(in) :: opts
+    type(system), intent(in) :: s
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    errmsg = ""
+    if (any(opts%nstep < 1)) then
+       errmsg = "invalid NCI grid dimensions"
+    elseif (nci_dopromol(opts) .and. s%f(0)%type /= type_promol) then
+       errmsg = "promolecular density not found"
+    elseif (opts%nfrag > 0) then
+       if (.not.allocated(opts%fr)) then
+          errmsg = "the fragments are not allocated"
+       elseif (size(opts%fr) < opts%nfrag) then
+          errmsg = "the fragments are not allocated"
+       end if
+    end if
+
+  end subroutine promol_checks
+
+  !> At point x (cell-frame Cartesian bohr), grid node (i,j,k) of res:
+  !> the promolecular density of system s (if dopromol, in res%rhoat)
+  !> and of the first nfrag fragments of opts (in res%rhofrag): their
+  !> atoms where they are or, with opts%frcell, their cell atoms and
+  !> all the lattice translations.
+  subroutine promol_point(opts,s,x,dopromol,nfrag,res,i,j,k)
+    use systemmod, only: system
+    use grid1mod, only: agrid
+    use param, only: icrd_cart
+    type(nci_options), intent(in) :: opts
+    type(system), intent(inout) :: s
+    real*8, intent(in) :: x(3)
+    logical, intent(in) :: dopromol
+    integer, intent(in) :: nfrag
+    type(nci_result), intent(inout) :: res
+    integer, intent(in) :: i, j, k
+
+    integer :: ifr, iat, iz
+    real*8 :: xd(3), dist, rrho, rrho1, rrho2, rp(3), rpp(3,3)
+
+    if (dopromol) res%rhoat(i,j,k) = s%f(0)%grd0(x)
+    if (opts%frcell) then
+       ! (the cell atoms of each fragment and their lattice
+       ! translations, like the promolecular density)
+       do ifr = 1, nfrag
+          call s%c%promolecular_atom(x,icrd_cart,res%rhofrag(i,j,k,ifr),rp,rpp,0,fr=opts%fr(ifr))
+       end do
+       return
+    end if
+    do ifr = 1, nfrag
+       res%rhofrag(i,j,k,ifr) = 0d0
+       do iat = 1, opts%fr(ifr)%nat
+          xd = x - opts%fr(ifr)%at(iat)%r
+          dist = norm2(xd)
+          iz = opts%fr(ifr)%spc(opts%fr(ifr)%at(iat)%is)%z
+          if (.not.agrid(iz)%isinit) cycle
+          if (dist > agrid(iz)%rmax) cycle
+          dist = max(dist,agrid(iz)%r(1))
+          dist = max(dist,1d-14)
+          call agrid(iz)%interp(dist,rrho,rrho1,rrho2)
+          rrho = max(rrho,0d0)
+          res%rhofrag(i,j,k,ifr) = res%rhofrag(i,j,k,ifr) + rrho
+       end do
+    end do
+
+  end subroutine promol_point
 
 end submodule proc

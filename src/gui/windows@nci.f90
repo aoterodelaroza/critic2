@@ -24,6 +24,10 @@ submodule (windows) nci
   use param, only: bohrtoa
   implicit none
 
+  ! color and opacity of the region between the fragments (Show region)
+  real(c_float), parameter :: nci_region_rgb(3) = (/0.55_c_float,0.75_c_float,1.0_c_float/)
+  real(c_float), parameter :: nci_region_alpha = 0.25_c_float
+
   ! default buffer of the bounding-box region (molecules), angstrom;
   ! tighter than iso_bbox_buffer_def because the NCI regions are
   ! short-range and the grid points far from the atoms are wasted
@@ -39,8 +43,8 @@ contains
   module subroutine draw_nci(w)
     use systems, only: sys, sysc, sys_init, ok_system, field_cost, atlisttype_ncel_bohr
     use representations, only: iso_region_cell, iso_region_bbox, iso_region_to_box, iso_region_seed,&
-       iso_region_point_from_cart, iso_isgridfield
-    use nci, only: nci_options, nci_options_set_field
+       iso_region_point_from_cart, iso_isgridfield, iso_region_parallel
+    use nci, only: nci_options, nci_options_set_field, nci_frag_region
     use types, only: field_evaluation_avail
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
        iw_separatortext, iw_combo_simple, iw_dragfloat_real8, iw_checkbox, iw_field_combo,&
@@ -189,6 +193,9 @@ contains
           call nci_highlight(w,isys,iview,ihover)
        end if
 
+       ! the region between the fragments
+       call draw_region()
+
        ! the output files
        call draw_output()
        if (w%okfile_set) then
@@ -294,6 +301,7 @@ contains
          w%nc%opts%xmat = o0%xmat
          w%nc%opts%nstep = o0%nstep
          w%nc%opts%nfrag = o0%nfrag
+         w%nc%opts%frcell = o0%frcell
          call move_alloc(o0%fr,w%nc%opts%fr)
       end if
       w%nc%ilevel = d%ilevel
@@ -432,6 +440,7 @@ contains
     !> fragment selected, the fragment criterion parameters.
     subroutine draw_fragments()
       integer :: i, icol, nmolrow, nrow, irm, nfrag
+      integer, allocatable :: idx(:)
       integer(c_int) :: flags
       logical :: havesel
       type(fragment), pointer :: fr
@@ -509,9 +518,12 @@ contains
                   ! id, with the row highlight: the atoms of the fragment
                   if (igTableSetColumnIndex(1)) then
                      call iw_text(string(i),alignframe=.true.)
-                     if (iw_highlight_selectable("##ncifragrow_" // string(i))) &
-                        call sysc(isys)%highlight_atoms(.true.,fr%at(1:fr%nat)%cidx,&
-                        atlisttype_ncel_bohr,spread(ColorHighlightScene,2,fr%nat))
+                     if (iw_highlight_selectable("##ncifragrow_" // string(i))) then
+                        ! (copied: the strided component array would be a temporary)
+                        idx = fr%at(1:fr%nat)%cidx
+                        call sysc(isys)%highlight_atoms(.true.,idx,atlisttype_ncel_bohr,&
+                           spread(ColorHighlightScene,2,fr%nat))
+                     end if
                   end if
 
                   ! number of atoms, whether it is a fragment of the plot,
@@ -565,6 +577,10 @@ contains
          maskchanged = maskchanged .or. lcommit
          call iw_tooltip("and the fragments together contribute at least this fraction of the&
             & promolecular density of the whole system (RHOPARAM2)",ttshown)
+         ch = iw_checkbox("Show region##ncishowregion",w%nc%showregion,labelleft=.true.)
+         call iw_tooltip("Show the region between the fragments, where the NCI plot is drawn, as a&
+            & translucent surface in the view (calculates the promolecular densities of the&
+            & fragments on the grid, which Calculate then reuses)",ttshown)
       end if
 
     end subroutine draw_fragments
@@ -861,6 +877,7 @@ contains
          return
       end if
       w%nc%jwrite = .true.
+      w%nc%jpromol = .false.
       w%nc%jsys = isys
 
     end subroutine request_write
@@ -889,13 +906,8 @@ contains
     end subroutine add_selfrag
 
     !> Request the blocking job that calculates the NCI plot (run_nci)
-    !> on the grid and fragments of the form: the grid is the nodes of
-    !> the density field (native level) or nn points over the region
-    !> (origin and steps, cell-frame Cartesian bohr; periodic over the
-    !> whole cell of a crystal), the fragments are the selected
-    !> molecules and the selected user-made fragments.
+    !> on the grid and fragments of the form (form_grid_frags).
     subroutine request_job()
-      integer :: j, k, nfrag
 
       w%errmsg = ""
       w%okmsg = ""
@@ -903,7 +915,25 @@ contains
          w%errmsg = "Another calculation is starting: press the button again"
          return
       end if
-      associate(o => w%nc%opts, c => sys(isys)%c)
+      call form_grid_frags(w%nc%opts)
+      w%nc%jwrite = .false.
+      w%nc%jpromol = .false.
+      w%nc%jsys = isys
+
+    end subroutine request_job
+
+    !> Set the grid and the fragments of options o from the form: the
+    !> grid is the nodes of the density field (native level) or nn
+    !> points over the region (origin and steps, cell-frame Cartesian
+    !> bohr; periodic over the whole cell of a crystal), the fragments
+    !> are the selected molecules and the selected user-made fragments
+    !> (none if fewer than two: the criterion needs two).
+    subroutine form_grid_frags(o)
+      type(nci_options), intent(inout) :: o
+
+      integer :: j, k, nfrag
+
+      associate(c => sys(isys)%c)
         o%periodic = (.not.ismol .and. w%nc%iregion == iso_region_cell)
         o%nstep = nn
         if (w%nc%ilevel == 0) then
@@ -918,7 +948,9 @@ contains
            end do
         end if
 
-        ! the fragments: the criterion applies to two or more
+        ! (crystal fragments are cell molecules or sets of cell atoms:
+        ! all their lattice translations are in the fragment)
+        o%frcell = .not.ismol
         nfrag = nfrag_total()
         if (allocated(o%fr)) deallocate(o%fr)
         allocate(o%fr(max(nfrag,1)))
@@ -940,10 +972,141 @@ contains
            end if
         end if
       end associate
-      w%nc%jwrite = .false.
-      w%nc%jsys = isys
 
-    end subroutine request_job
+    end subroutine form_grid_frags
+
+
+    !> The region between the fragments (Show region): with two or
+    !> more fragments and a valid grid, find promolecular grids for the
+    !> grid and fragments of the form (the result, or those calculated
+    !> for the region), calculating them in a blocking job if there are
+    !> none, and show the fragment criterion as a translucent transient
+    !> isosurface in the anchor view. Runs every frame, outside the
+    !> sections.
+    subroutine draw_region()
+      type(nci_options) :: o
+      type(nci_result), pointer :: src
+      integer :: isrc, itrep, i, m(3)
+      logical :: found, changed, parchanged
+      real*8 :: xr(3,0:3), xsh(3), x0(3)
+
+      if (.not.w%nc%showregion) then
+         ! (off: the grids are not needed any more)
+         if (associated(w%nc%pre)) deallocate(w%nc%pre)
+         if (allocated(w%nc%region_g)) deallocate(w%nc%region_g)
+         return
+      end if
+      if (nfrag_total() < 2) return
+      if (.not.okbox .or. any(nn < 2) .or. w%nc%picking) return
+      call form_grid_frags(o)
+
+      ! the grids: the result if it is for this grid and these
+      ! fragments, else those calculated for the region, else
+      ! calculate them (unless a job is already on its way, or a
+      ! widget is being dragged: the region form updates live)
+      src => null()
+      isrc = 0
+      if (associated(w%nc%res)) then
+         if (allocated(w%nc%res%rhofrag) .and. same_grid_frags(o,w%nc%opts)) then
+            src => w%nc%res
+            isrc = 1
+         end if
+      end if
+      if (isrc == 0 .and. associated(w%nc%pre)) then
+         if (same_grid_frags(o,w%nc%prekey)) then
+            src => w%nc%pre
+            isrc = 2
+         end if
+      end if
+      if (isrc == 0) then
+         if (w%nc%jsys == 0 .and. .not.igIsAnyItemActive()) then
+            if (w%request_block()) then
+               w%nc%prekey = o
+               w%nc%jwrite = .false.
+               w%nc%jpromol = .true.
+               w%nc%jsys = isys
+            end if
+         end if
+         return
+      end if
+
+      ! the criterion field, if its source, the grids, or the
+      ! parameters changed (Dominance and Share: once the drag is
+      ! released, not live)
+      parchanged = any(w%nc%region_par /= (/w%nc%opts%rhoparam,w%nc%opts%rhoparam2/))
+      if (parchanged) parchanged = .not.igIsAnyItemActive()
+      m = region_roll(o,src%n)
+      if (.not.allocated(w%nc%region_g) .or. w%nc%region_src /= isrc .or. w%nc%region_gen /= w%nc%gen .or.&
+         parchanged .or. any(w%nc%region_shift /= m)) then
+         call nci_frag_region(w%nc%opts,src,w%nc%region_g)
+         do i = 1, 3
+            if (m(i) /= 0) w%nc%region_g = cshift(w%nc%region_g,m(i),i)
+         end do
+         w%nc%region_src = isrc
+         w%nc%region_gen = w%nc%gen
+         w%nc%region_par = (/w%nc%opts%rhoparam,w%nc%opts%rhoparam2/)
+         w%nc%region_shift = m
+         changed = .true.
+      else
+         changed = .false.
+      end if
+
+      ! the transient isosurface: the parallelepiped with corners on
+      ! the first and last nodes of the (rolled) grid, which the
+      ! isosurface samples endpoint-inclusively (user-frame angstrom)
+      if (iview < 1 .or. iview > nwin) return
+      if (.not.associated(win(iview)%sc)) return
+      call win(iview)%sc%show_transient_iso(w%uid,2,itrep,found)
+      if (itrep == 0) return
+      xsh = 0d0
+      if (ismol) xsh = sys(isys)%c%molx0
+      x0 = src%x0 + matmul(src%xmat,real(m,8))
+      xr(:,0) = (x0 + xsh) * bohrtoa
+      do i = 1, 3
+         xr(:,i) = (x0 + src%xmat(:,i) * real(src%n(i)-1,8) + xsh) * bohrtoa
+      end do
+      associate(r => win(iview)%sc%reptrans(itrep))
+        if (.not.found .or. r%iso%fref%id /= 0 .or. .not.r%iso%isvalue()) then
+           call r%iso%set_field(isys,0,value=.true.)
+           r%name = "NCI fragment region"
+           r%iso%slot(1)%isoval = 0d0
+           r%iso%slot(1)%rgb = nci_region_rgb
+           r%iso%slot(1)%alpha = nci_region_alpha
+           changed = .true.
+        end if
+        if (changed .or. .not.r%iso%grid_isapplied(src%n,iso_region_parallel,xr)) then
+           call r%iso%apply_grid(src%n,iso_region_parallel,xr)
+           call r%iso%set_samples(isys,w%nc%region_g,.false.)
+           win(iview)%sc%forcebuildlists = .true.
+        end if
+      end associate
+
+    end subroutine draw_region
+
+    !> The nodes the region of a periodic grid of options o (n nodes)
+    !> is rolled by along each axis, so it is drawn where the view
+    !> draws the atoms: along a vacuum axis, the view reassembles the
+    !> slab across the vacuum (atom_image_vacuum, representations), so
+    !> the region spans the cell that starts in the middle of the
+    !> vacuum instead of the cell at the origin.
+    function region_roll(o,n) result(m)
+      use crystalmod, only: iperiod_vacthr
+      type(nci_options), intent(in) :: o
+      integer, intent(in) :: n(3)
+      integer :: m(3)
+
+      integer :: j
+
+      m = 0
+      if (.not.o%periodic .or. sysc(isys)%md%ready) return
+      associate(c => sys(isys)%c)
+        do j = 1, 3
+           if (c%vaclength(j) > iperiod_vacthr) &
+              m(j) = nint((0.5d0 * (c%vacbot(j) + c%vactop(j)) - 1d0) * real(n(j),8))
+        end do
+      end associate
+
+    end function region_roll
 
     !> Cancel a pending pick, releasing the view.
     subroutine cancel_pick()
@@ -965,6 +1128,7 @@ contains
 
     character(len=:), allocatable :: info
     integer :: isys, ifield
+    type(nci_options), pointer :: o
 
     info = ""
     isys = w%nc%jsys
@@ -976,10 +1140,15 @@ contains
        if (sys(isys)%goodfield(ifield)) &
           info = info // newline // "Field:  " // string(ifield) // ": " //&
           trim(sys(isys)%f(ifield)%name)
-       info = info // newline // "Grid:   " // string(w%nc%opts%nstep(1)) // " x " //&
-          string(w%nc%opts%nstep(2)) // " x " // string(w%nc%opts%nstep(3))
+       o => w%nc%opts
+       if (w%nc%jpromol) o => w%nc%prekey
+       info = info // newline // "Grid:   " // string(o%nstep(1)) // " x " //&
+          string(o%nstep(2)) // " x " // string(o%nstep(3))
+       if (w%nc%jpromol) info = info // newline // "Fragments: " // string(o%nfrag)
     end if
-    if (w%nc%jwrite) then
+    if (w%nc%jpromol) then
+       call iw_wait_overlay("Calculating the region between the fragments...",info,.true.)
+    elseif (w%nc%jwrite) then
        info = info // newline // "Files:  " // file_name_root(w%okfile) // "*"
        call iw_wait_overlay("Writing the NCI files...",info,.false.)
     else
@@ -996,7 +1165,7 @@ contains
   !> then the previous results are gone and no field is loaded.
   module subroutine run_nci(w)
     use systems, only: sys, sysc, ok_system, sys_init, lastchange_cplist
-    use nci, only: nci_compute
+    use nci, only: nci_compute, nci_compute_promol
     use gui_main, only: begin_cancellable, end_cancellable
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: uout, string
@@ -1006,6 +1175,7 @@ contains
     real*8 :: t
     logical :: cancelled
     character(len=:), allocatable :: errmsg
+    type(nci_result), pointer :: pre
 
     isys = w%nc%jsys
     w%nc%jsys = 0
@@ -1014,6 +1184,27 @@ contains
        call nci_write_files(w,isys)
        return
     end if
+
+    ! the promolecular grids of the region between the fragments; a
+    ! cancel or an error turns the region off, so it is not requested
+    ! again on the next frame
+    if (w%nc%jpromol) then
+       w%nc%jpromol = .false.
+       if (.not.associated(w%nc%pre)) allocate(w%nc%pre)
+       call begin_cancellable()
+       call nci_compute_promol(w%nc%prekey,sys(isys),w%nc%pre,errmsg)
+       cancelled = end_cancellable()
+       if (cancelled) errmsg = "The calculation of the region was cancelled"
+       if (len_trim(errmsg) > 0) then
+          w%errmsg = errmsg
+          deallocate(w%nc%pre)
+          w%nc%showregion = .false.
+          return
+       end if
+       w%nc%gen = w%nc%gen + 1
+       return
+    end if
+
     if (.not.sys(isys)%goodfield(w%nc%opts%ifield)) then
        w%errmsg = "The density field is gone"
        return
@@ -1024,8 +1215,18 @@ contains
     if (.not.associated(w%nc%res)) allocate(w%nc%res)
     t = glfwGetTime()
     call begin_cancellable()
-    call nci_compute(w%nc%opts,sys(isys),w%nc%res,errmsg)
+    ! (the promolecular grids of the region, if they are for this grid
+    ! and these fragments, are taken over instead of calculated again;
+    ! a disassociated pointer is an absent argument)
+    pre => null()
+    if (associated(w%nc%pre)) then
+       if (same_grid_frags(w%nc%opts,w%nc%prekey)) pre => w%nc%pre
+    end if
+    call nci_compute(w%nc%opts,sys(isys),w%nc%res,errmsg,pre=pre)
     cancelled = end_cancellable()
+    ! (the grids of the region are now in the result, or for another
+    ! grid than the form's)
+    if (associated(w%nc%pre)) deallocate(w%nc%pre)
     t = glfwGetTime() - t
     if (cancelled) errmsg = "The calculation was cancelled: no field was loaded"
     if (len_trim(errmsg) > 0) then
@@ -1035,6 +1236,7 @@ contains
     end if
     w%nc%secs = t
     w%nc%timelast = sysc(isys)%timelastchange_geometry
+    w%nc%gen = w%nc%gen + 1
 
     ! the masks, the fields and the objects
     call nci_refresh(w,isys,w%anchor_view())
@@ -1056,6 +1258,8 @@ contains
 
     if (associated(w%nc%res)) deallocate(w%nc%res)
     if (associated(w%nc%drv)) deallocate(w%nc%drv)
+    if (associated(w%nc%pre)) deallocate(w%nc%pre)
+    if (allocated(w%nc%region_g)) deallocate(w%nc%region_g)
     iview = w%anchor_view()
     if (iview >= 1 .and. iview <= nwin) then
        if (win(iview)%isopen .and. associated(win(iview)%sc)) then
@@ -1069,6 +1273,37 @@ contains
   end subroutine end_nci
 
   !xx! private procedures
+
+  !> Whether options a and b have the same grid and the same
+  !> fragments (atoms, species and positions).
+  function same_grid_frags(a,b) result(same)
+    type(nci_options), intent(in) :: a, b
+    logical :: same
+
+    integer :: i, j
+
+    same = all(a%nstep == b%nstep) .and. all(a%x0 == b%x0) .and. all(a%xmat == b%xmat) .and.&
+       a%nfrag == b%nfrag .and. (a%frcell .eqv. b%frcell)
+    if (.not.same .or. a%nfrag == 0) return
+    if (.not.allocated(a%fr) .or. .not.allocated(b%fr)) then
+       same = .false.
+       return
+    end if
+    do i = 1, a%nfrag
+       if (a%fr(i)%nat /= b%fr(i)%nat) then
+          same = .false.
+          return
+       end if
+       do j = 1, a%fr(i)%nat
+          if (any(a%fr(i)%at(j)%r /= b%fr(i)%at(j)%r) .or. a%fr(i)%spc(a%fr(i)%at(j)%is)%z /=&
+             b%fr(i)%spc(b%fr(i)%at(j)%is)%z) then
+             same = .false.
+             return
+          end if
+       end do
+    end do
+
+  end function same_grid_frags
 
   !> Write the files of the NCIPLOT keyword for the result of the NCI
   !> plot window w of system isys, named from the file chosen in its
