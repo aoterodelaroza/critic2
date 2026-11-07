@@ -41,7 +41,7 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system, field_cost
     use representations, only: iso_region_cell, iso_region_bbox, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_isgridfield, iso_defaultlevel
-    use nci, only: nci_options_set_field
+    use nci, only: nci_options, nci_options_set_field
     use types, only: field_evaluation_avail
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
        iw_separatortext, iw_combo_simple, iw_dragfloat_real8, iw_checkbox, iw_field_combo,&
@@ -79,18 +79,8 @@ contains
        ismol = sys(isys)%c%ismolecule
        if (.not.w%nc%sys%is(isys) .or. syschanged) then
           call w%nc%sys%set(isys)
-          call cancel_pick()
-          w%errmsg = ""
-          if (ismol) then
-             w%nc%iregion = iso_region_bbox
-          else
-             w%nc%iregion = iso_region_cell
-          end if
-          call iso_region_seed(isys,w%nc%iregion,w%nc%rgn_x)
-          call set_field(sys(isys)%iref)
-          call clear_fragments()
+          call reset_system()
           call drop_results()
-          w%okfile = okfile_default(isys,"nci","dat")
        elseif (w%nc%timelast /= sysc(isys)%timelastchange_geometry) then
           call clear_fragments()
           call drop_results()
@@ -223,11 +213,19 @@ contains
     end if
     w%okfile_set = .false.
 
-    ! bottom row: calculate, close
+    ! bottom row: reset, calculate, close
     okcalc = goodsys
     if (okcalc) okcalc = okbox .and. okfield .and. all(nn > 0) .and. w%nc%pickkind == ncipick_none
-    call iw_setpos_bottomright(len("Calculate") + len("Close"),2)
-    if (iw_button("Calculate##ncicalc",danger=.true.,disabled=.not.okcalc)) call request_job()
+    call iw_setpos_bottomright(len("Reset") + len("Calculate") + len("Close"),3)
+    if (iw_button("Reset##ncireset",danger=.true.,disabled=.not.goodsys)) then
+       ! a result is masked again with the default cutoffs
+       call reset_form()
+       if (associated(w%nc%res)) call nci_refresh(w,isys,iview)
+    end if
+    call iw_tooltip("Reset all the settings of the window to their defaults (the result of the&
+       & last calculation is kept)",ttshown,whendisabled=.true.)
+    if (iw_button("Calculate##ncicalc",danger=.true.,disabled=.not.okcalc,sameline=.true.)) &
+       call request_job()
     call iw_tooltip("Calculate the reduced density gradient and the signed density on the grid,&
        & and load them as fields of the system",ttshown,whendisabled=.true.)
     if (iw_button("Close",sameline=.true.)) doquit = .true.
@@ -278,6 +276,56 @@ contains
       end associate
 
     end subroutine srhorange_follow
+
+    !> Set every setting of the form to its default for system isys:
+    !> the default cutoffs, grid and output options, and those of
+    !> reset_system. The results of the last calculation and the state
+    !> of the sections are kept, and so are the grid and the fragments
+    !> of the options, which describe the result (filled by request_job).
+    subroutine reset_form()
+
+      type(nci_state) :: d
+      type(nci_options) :: o0
+
+      o0 = w%nc%opts
+      w%nc%opts = nci_options()
+      if (associated(w%nc%res)) then
+         w%nc%opts%periodic = o0%periodic
+         w%nc%opts%x0 = o0%x0
+         w%nc%opts%xmat = o0%xmat
+         w%nc%opts%nstep = o0%nstep
+         w%nc%opts%nfrag = o0%nfrag
+         call move_alloc(o0%fr,w%nc%opts%fr)
+      end if
+      w%nc%ilevel = iso_defaultlevel
+      w%nc%icustom = d%icustom
+      w%nc%nptscustom = d%nptscustom
+      w%nc%ptsangcustom = d%ptsangcustom
+      w%nc%molmotif = d%molmotif
+      call reset_system()
+
+    end subroutine reset_form
+
+    !> Set the settings of the form that depend on system isys to their
+    !> defaults: the reference field, the cell (crystals) or the box
+    !> around the atoms (molecules), no fragments, and the default
+    !> output file. Cancels a pending pick and clears the messages.
+    subroutine reset_system()
+
+      call cancel_pick()
+      w%errmsg = ""
+      w%okmsg = ""
+      if (sys(isys)%c%ismolecule) then
+         w%nc%iregion = iso_region_bbox
+      else
+         w%nc%iregion = iso_region_cell
+      end if
+      call iso_region_seed(isys,w%nc%iregion,w%nc%rgn_x)
+      call set_field(sys(isys)%iref)
+      call clear_fragments()
+      w%okfile = okfile_default(isys,"nci","dat")
+
+    end subroutine reset_system
 
     !> Forget the fragments: the molecule selection and the picks.
     subroutine clear_fragments()
@@ -870,15 +918,18 @@ contains
     class(window), intent(inout), target :: w
 
     character(len=:), allocatable :: info
-    integer :: isys
+    integer :: isys, ifield
 
     info = ""
     isys = w%nc%jsys
+    ! (writing: the field of the result, which the form may no longer show)
+    ifield = w%nc%opts%ifield
+    if (w%nc%jwrite .and. associated(w%nc%res)) ifield = w%nc%res%ifield
     if (ok_system(isys,sys_init)) then
        info = "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
-       if (sys(isys)%goodfield(w%nc%opts%ifield)) &
-          info = info // newline // "Field:  " // string(w%nc%opts%ifield) // ": " //&
-          trim(sys(isys)%f(w%nc%opts%ifield)%name)
+       if (sys(isys)%goodfield(ifield)) &
+          info = info // newline // "Field:  " // string(ifield) // ": " //&
+          trim(sys(isys)%f(ifield)%name)
        info = info // newline // "Grid:   " // string(w%nc%opts%nstep(1)) // " x " //&
           string(w%nc%opts%nstep(2)) // " x " // string(w%nc%opts%nstep(3))
     end if
@@ -1061,11 +1112,11 @@ contains
     ! the fields
     associate(r => w%nc%res, o => w%nc%opts)
       if (.not.sys(isys)%goodfield(w%nc%frref%id,uid=w%nc%frref%uid,n=r%n)) &
-         call nci_load_field(w,isys,w%nc%frref,"NCI sign(l2)*rho of field " // string(o%ifield),r%srho)
+         call nci_load_field(w,isys,w%nc%frref,"NCI sign(l2)*rho of field " // string(r%ifield),r%srho)
       ok = .false.
       if (sys(isys)%goodfield(w%nc%fsref%id,uid=w%nc%fsref%uid,n=r%n)) &
          ok = replace_grid_field(isys,w%nc%fsref%id,splot)
-      if (.not.ok) call nci_load_field(w,isys,w%nc%fsref,"NCI RDG of field " // string(o%ifield),splot)
+      if (.not.ok) call nci_load_field(w,isys,w%nc%fsref,"NCI RDG of field " // string(r%ifield),splot)
     end associate
 
     call nci_objects(w,isys,iview)
