@@ -24,12 +24,6 @@ submodule (windows) nci
   use param, only: bohrtoa
   implicit none
 
-  ! pending pick of the NCI plot window (nci_state%pickkind)
-  integer, parameter :: ncipick_none = 0
-  integer, parameter :: ncipick_region = 1 ! a region point (pickrow, in region mode pickmode)
-  integer, parameter :: ncipick_molecule = 2 ! a fragment: the whole molecule of the clicked atom
-  integer, parameter :: ncipick_atom = 3 ! a fragment: the clicked atom only
-
   ! default buffer of the bounding-box region (molecules), angstrom;
   ! tighter than iso_bbox_buffer_def because the NCI regions are
   ! short-range and the grid points far from the atoms are wasted
@@ -43,7 +37,7 @@ contains
   !> plot. Calculate runs the NCIPLOT kernel as a blocking job
   !> (run_nci) and loads the grids as two new fields of the system.
   module subroutine draw_nci(w)
-    use systems, only: sys, sysc, sys_init, ok_system, field_cost
+    use systems, only: sys, sysc, sys_init, ok_system, field_cost, atlisttype_ncel_bohr
     use representations, only: iso_region_cell, iso_region_bbox, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_isgridfield
     use nci, only: nci_options, nci_options_set_field
@@ -51,8 +45,8 @@ contains
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
        iw_separatortext, iw_combo_simple, iw_dragfloat_real8, iw_checkbox, iw_field_combo,&
        iw_calcwidth, iw_calcheight, iw_table_column, iw_table_headers_row, iw_highlight_selectable,&
-       iw_cell_right, duration_string, file_name_root, file_name_base
-    use gui_main, only: ColorHighlightScene
+       iw_cell_right, iw_close_button, duration_string, file_name_root, file_name_base
+    use gui_main, only: ColorHighlightScene, g
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -60,7 +54,7 @@ contains
 
     logical :: doquit, goodsys, syschanged, ismol, isgrid, okbox, okfield, okcalc, ch, navail, capped
     logical :: maskchanged, objchanged, datchanged, lcommit
-    integer :: isys, iview, istat, irow, ifield, nn(3), ihl, hltype, atidx(4), ihover
+    integer :: isys, iview, istat, irow, ifield, nn(3), ihover, nmolsel
     real*8 :: xc(3), box(3,0:3)
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -97,31 +91,27 @@ contains
        ! every molecule of a molecular system is a fragment if there is
        ! more than one (not in a crystal: the fragment densities have
        ! no lattice sum, so the criterion would fail near the cell faces)
+       ! (with one molecule, there are no molecule rows: size zero)
+       nmolsel = merge(sys(isys)%c%nmol,0,sys(isys)%c%nmol > 1)
        if (allocated(w%nc%molsel)) then
-          if (size(w%nc%molsel,1) /= sys(isys)%c%nmol) deallocate(w%nc%molsel)
+          if (size(w%nc%molsel,1) /= nmolsel) deallocate(w%nc%molsel)
        end if
        if (.not.allocated(w%nc%molsel)) then
-          allocate(w%nc%molsel(sys(isys)%c%nmol))
-          w%nc%molsel = (ismol .and. sys(isys)%c%nmol > 1)
+          allocate(w%nc%molsel(nmolsel))
+          w%nc%molsel = ismol
        end if
     end if
 
-    ! a pending pick in the view it was armed on: a fragment, or a
-    ! region point in the mode it was armed in; dropped, releasing the
-    ! view, if the system is not ready, the window moved to another
-    ! view, or the region mode changed
-    if (w%nc%pickkind /= ncipick_none) then
-       if (goodsys .and. iview == w%nc%pickview .and.&
-          (w%nc%pickkind /= ncipick_region .or. w%nc%iregion == w%nc%pickmode)) then
-          call view_pick_result(iview,w%id,isys,w%nc%pick,istat,xc,atidx=atidx)
-          if (istat == ipick_point) then
-             if (w%nc%pickkind == ncipick_region) then
-                call iso_region_point_from_cart(isys,w%nc%iregion,xc,w%nc%rgn_x(:,w%nc%pickrow))
-             else
-                call add_pickfrag(atidx)
-             end if
-          end if
-          if (istat /= ipick_pending) w%nc%pickkind = ncipick_none
+    ! a pending pick of a region point in the view and the region mode
+    ! it was armed on; dropped, releasing the view, if the system is
+    ! not ready, the window moved to another view, or the region mode
+    ! changed
+    if (w%nc%picking) then
+       if (goodsys .and. iview == w%nc%pickview .and. w%nc%iregion == w%nc%pickmode) then
+          call view_pick_result(iview,w%id,isys,w%nc%pick,istat,xc)
+          if (istat == ipick_point) &
+             call iso_region_point_from_cart(isys,w%nc%iregion,xc,w%nc%rgn_x(:,w%nc%pickrow))
+          if (istat /= ipick_pending) w%nc%picking = .false.
        else
           call cancel_pick()
        end if
@@ -144,9 +134,9 @@ contains
 
        ! the region
        if (region_form(isys,w%nc%iregion,w%nc%rgn_x,w%nc%sec(nci_sec_region),"nci","the NCI plot",&
-          ttshown,irow,pickoff=(w%nc%pickkind /= ncipick_none),bboxbuf=nci_bbox_buffer)) w%errmsg = ""
+          ttshown,irow,pickoff=(w%nc%picking),bboxbuf=nci_bbox_buffer)) w%errmsg = ""
        if (irow >= 0) then
-          w%nc%pickkind = ncipick_region
+          w%nc%picking = .true.
           w%nc%pickrow = irow
           w%nc%pickmode = w%nc%iregion
           w%nc%pickview = iview
@@ -224,7 +214,7 @@ contains
 
     ! bottom row: reset, calculate, close
     okcalc = goodsys
-    if (okcalc) okcalc = okbox .and. okfield .and. all(nn > 0) .and. w%nc%pickkind == ncipick_none
+    if (okcalc) okcalc = okbox .and. okfield .and. all(nn > 0) .and. .not.w%nc%picking
     call iw_setpos_bottomright(len("Reset") + len("Calculate") + len("Close"),3)
     if (iw_button("Reset##ncireset",danger=.true.,disabled=.not.goodsys)) then
        ! a result is masked again with the default cutoffs
@@ -336,11 +326,12 @@ contains
 
     end subroutine reset_system
 
-    !> Forget the fragments: the molecule selection and the picks.
+    !> Forget the fragments: the molecule selection and the user-made
+    !> fragments.
     subroutine clear_fragments()
 
       if (allocated(w%nc%molsel)) deallocate(w%nc%molsel)
-      if (allocated(w%nc%pickfr)) deallocate(w%nc%pickfr)
+      if (allocated(w%nc%userfr)) deallocate(w%nc%userfr)
 
     end subroutine clear_fragments
 
@@ -361,13 +352,13 @@ contains
     end subroutine drop_results
 
     !> The number of fragments the form defines: the selected
-    !> molecules and the picked fragments.
+    !> molecules and the selected user-made fragments.
     function nfrag_total() result(nfrag)
       integer :: nfrag
 
       nfrag = 0
       if (allocated(w%nc%molsel)) nfrag = count(w%nc%molsel)
-      if (allocated(w%nc%pickfr)) nfrag = nfrag + size(w%nc%pickfr,1)
+      if (allocated(w%nc%userfr)) nfrag = nfrag + count(w%nc%userfr%sel)
 
     end function nfrag_total
 
@@ -434,71 +425,132 @@ contains
 
     end subroutine draw_cost
 
-    !> The Fragments section: the molecules of the system (selected in
-    !> a table) and the fragments picked in the view; More, the
-    !> fragment criterion parameters.
+    !> The Fragments section: a table with the molecules of the system
+    !> (if more than one) and the fragments the user made from the
+    !> atoms selected in the view, each selected or not as a fragment
+    !> of the plot (the user-made ones can be removed), and, with any
+    !> fragment selected, the fragment criterion parameters.
     subroutine draw_fragments()
-      integer :: j, irm, nfrag
+      integer :: i, icol, nmolrow, nrow, irm, nfrag
+      integer(c_int) :: flags
       logical :: havesel
+      type(fragment), pointer :: fr
+      logical, pointer :: sel
+      character(kind=c_char,len=:), allocatable, target :: str1
+      type(ImVec2) :: sz0
+      type(c_ptr), target :: clipper
+      type(ImGuiListClipper), pointer :: clipper_f
 
-      call iw_separatortext("Fragments",w%nc%sec(nci_sec_fragments),hasmore=.true.)
+      call iw_separatortext("Fragments",w%nc%sec(nci_sec_fragments))
       if (.not.w%nc%sec(nci_sec_fragments)%open) return
 
-      ! the molecules of the system
-      if (sys(isys)%c%nmol > 1) then
-         ihl = 0
-         hltype = 0
-         ch = mol_table_widget(isys,ihl,hltype,shown=w%nc%molsel,select=.true.)
-         if (ihl > 0) &
-            call sysc(isys)%highlight_atoms(.true.,(/ihl/),hltype,reshape(ColorHighlightScene,(/4,1/)))
-         if (iw_button("Select All##ncimolall")) w%nc%molsel = .true.
-         call iw_tooltip("Make every molecule of the system a fragment",ttshown)
-         if (iw_button("Clear##ncimolnone",sameline=.true.)) w%nc%molsel = .false.
-         call iw_tooltip("Deselect all the molecules",ttshown)
+      ! what is plotted: the fragment criterion needs two fragments
+      nfrag = nfrag_total()
+      if (nfrag > 1) then
+         call iw_text("Only regions between fragments are plotted",disabled=.true.,wrap=.true.)
+      elseif (nfrag == 1) then
+         call iw_text("All NCI domains are plotted (select at least two fragments to plot only&
+            & the regions between them)",disabled=.true.,wrap=.true.)
+      else
+         call iw_text("All NCI domains are plotted",disabled=.true.,wrap=.true.)
       end if
 
-      ! fragments picked in the view
-      call iw_text("Pick",alignframe=.true.)
-      if (iw_button("Molecule##ncipickmol",sameline=.true.,disabled=(w%nc%pickkind /= ncipick_none))) &
-         call arm_fragpick(ncipick_molecule)
-      call iw_tooltip("Click an atom in the view to add its whole molecule, at the lattice&
-         & translation shown, as a fragment",ttshown,whendisabled=.true.)
-      if (iw_button("Atom##ncipickatom",sameline=.true.,disabled=(w%nc%pickkind /= ncipick_none))) &
-         call arm_fragpick(ncipick_atom)
-      call iw_tooltip("Click an atom in the view to add it, on its own, as a fragment",ttshown,&
-         whendisabled=.true.)
+      ! the table: the molecules (if more than one), then the
+      ! user-made fragments; a removal is applied after the table so
+      ! the rows keep their IDs for the frame
+      nmolrow = 0
+      if (allocated(w%nc%molsel)) nmolrow = size(w%nc%molsel,1)
+      nrow = nmolrow
+      if (allocated(w%nc%userfr)) nrow = nrow + size(w%nc%userfr,1)
+      irm = 0
+      if (nrow > 0) then
+         flags = ImGuiTableFlags_None
+         flags = ior(flags,ImGuiTableFlags_Resizable)
+         flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+         flags = ior(flags,ImGuiTableFlags_Borders)
+         flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+         flags = ior(flags,ImGuiTableFlags_ScrollY)
+         str1 = "##ncifragments" // c_null_char
+         sz0%x = 0
+         sz0%y = iw_calcheight(min(5,nrow)+1,0,.false.)
+         if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
+            icol = -1
+            call iw_table_column("(remove)",icol=icol,flags=ImGuiTableColumnFlags_NoHeaderLabel)
+            call iw_table_column("Id",icol=icol)
+            call iw_table_column("Nat",icol=icol)
+            call iw_table_column("Select",icol=icol)
+            call iw_table_column(cmass_header(isys),icol=icol,flags=ImGuiTableColumnFlags_WidthStretch)
+            call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+
+            clipper = ImGuiListClipper_ImGuiListClipper()
+            call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
+            do while(ImGuiListClipper_Step(clipper))
+               call c_f_pointer(clipper,clipper_f)
+               do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                  call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+
+                  ! remove (user-made fragments only); the close icon is one
+                  ! line of text high: centered on the row frames
+                  if (i > nmolrow .and. igTableSetColumnIndex(0)) then
+                     call igSetCursorPosY(igGetCursorPosY() + g%Style%FramePadding%y)
+                     if (iw_close_button("##ncifragrm" // string(i))) irm = i - nmolrow
+                     call iw_tooltip("Remove this fragment",ttshown)
+                  end if
+
+                  ! the fragment of the row and its selection
+                  if (i <= nmolrow) then
+                     fr => sys(isys)%c%mol(i)
+                     sel => w%nc%molsel(i)
+                  else
+                     fr => w%nc%userfr(i-nmolrow)%fr
+                     sel => w%nc%userfr(i-nmolrow)%sel
+                  end if
+
+                  ! id, with the row highlight: the atoms of the fragment
+                  if (igTableSetColumnIndex(1)) then
+                     call iw_text(string(i),alignframe=.true.)
+                     if (iw_highlight_selectable("##ncifragrow_" // string(i))) &
+                        call sysc(isys)%highlight_atoms(.true.,fr%at(1:fr%nat)%cidx,&
+                        atlisttype_ncel_bohr,spread(ColorHighlightScene,2,fr%nat))
+                  end if
+
+                  ! number of atoms, whether it is a fragment of the plot,
+                  ! center of mass
+                  if (igTableSetColumnIndex(2)) call iw_text(string(fr%nat),alignframe=.true.)
+                  if (igTableSetColumnIndex(3)) then
+                     ch = iw_checkbox("##ncifragsel" // string(i),sel)
+                     call iw_tooltip("Use this as a fragment of the plot",ttshown)
+                  end if
+                  if (igTableSetColumnIndex(4)) &
+                     call iw_text(cmass_string(isys,fr%cmass(.false.)),alignframe=.true.)
+               end do
+            end do
+            call ImGuiListClipper_End(clipper)
+            call ImGuiListClipper_destroy(clipper)
+            call igEndTable()
+         end if
+      end if
+      if (irm > 0) w%nc%userfr = (/w%nc%userfr(1:irm-1),w%nc%userfr(irm+1:)/)
+
+      ! select all, clear, add from the selection in the view
+      if (nrow > 0) then
+         if (iw_button("All##ncifragall")) call select_all_fragments(1)
+         call iw_tooltip("Use every row of the table as a fragment",ttshown)
+         if (iw_button("None##ncifragnone",sameline=.true.)) call select_all_fragments(0)
+         call iw_tooltip("Use no row of the table as a fragment",ttshown)
+         if (iw_button("Toggle##ncifragtoggle",sameline=.true.)) call select_all_fragments(-1)
+         call iw_tooltip("Invert the selection of the rows of the table",ttshown)
+      end if
       havesel = .false.
       if (allocated(sysc(isys)%highlight_rgba)) havesel = any(sysc(isys)%highlight_rgba >= 0._c_float)
-      if (iw_button("From Selection##ncipicksel",sameline=.true.,disabled=.not.havesel)) &
+      if (iw_button("Add from Selection##ncifragadd",sameline=(nrow > 0),disabled=.not.havesel)) &
          call add_selfrag()
-      call iw_tooltip("Add the atoms selected in the view, together, as a fragment",ttshown,&
+      call iw_tooltip("Add the atoms selected in the view, together, as a new fragment",ttshown,&
          whendisabled=.true.)
-      if (allocated(w%nc%pickfr)) then
-         if (iw_button("Remove All##ncipickclear",sameline=.true.)) deallocate(w%nc%pickfr)
-         call iw_tooltip("Remove all the picked fragments",ttshown)
-      end if
-      ! the list, one row per fragment; a removal is applied after the
-      ! loop so the rows keep their IDs for the frame
-      irm = 0
-      if (allocated(w%nc%pickfr)) then
-         do j = 1, size(w%nc%pickfr,1)
-            if (iw_button("Remove##ncipickrm" // string(j))) irm = j
-            call iw_tooltip("Remove this fragment",ttshown)
-            call iw_text(w%nc%pickfr(j)%label,sameline=.true.)
-         end do
-         if (irm > 0) w%nc%pickfr = (/w%nc%pickfr(1:irm-1),w%nc%pickfr(irm+1:)/)
-      end if
 
-      ! how many
-      nfrag = nfrag_total()
-      if (nfrag > 0) then
-         call iw_text(string(nfrag) // " fragments: only the regions between them are plotted",&
-            disabled=.true.,wrap=.true.)
-      else
-         call iw_text("No fragments: all the regions are plotted",disabled=.true.,wrap=.true.)
-      end if
-
-      if (w%nc%sec(nci_sec_fragments)%more) then
+      ! the fragment criterion, with two or more fragments selected
+      ! (after the table, so a checkbox changed this frame counts)
+      if (nfrag_total() > 1) then
          call iw_text("Dominance",alignframe=.true.)
          ch = iw_dragfloat_real8("##ncirhoparam",x1=w%nc%opts%rhoparam,speed=0.005d0,decimal=3,&
             min=0d0,max=1d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
@@ -516,6 +568,16 @@ contains
       end if
 
     end subroutine draw_fragments
+
+    !> Select (mode = 1), deselect (0) or invert the selection (-1) of
+    !> every row of the fragment table.
+    subroutine select_all_fragments(mode)
+      integer, intent(in) :: mode
+
+      if (allocated(w%nc%molsel)) w%nc%molsel = merge(.not.w%nc%molsel,mode == 1,mode < 0)
+      if (allocated(w%nc%userfr)) w%nc%userfr%sel = merge(.not.w%nc%userfr%sel,mode == 1,mode < 0)
+
+    end subroutine select_all_fragments
 
     !> The Plot section: the cutoffs of the isosurface plot (RDG
     !> isovalue, density cutoff, signed density range, only negative)
@@ -803,80 +865,13 @@ contains
 
     end subroutine request_write
 
-    !> Arm a fragment pick of kind (ncipick_molecule or ncipick_atom)
-    !> in the anchor view.
-    subroutine arm_fragpick(kind)
-      integer, intent(in) :: kind
-
-      w%nc%pickkind = kind
-      w%nc%pickview = iview
-      call w%nc%pick%arm()
-      if (kind == ncipick_molecule) then
-         call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick an atom: its molecule is added as a&
-            & fragment",w%id)
-      else
-         call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick an atom: it is added as a fragment",&
-            w%id)
-      end if
-
-    end subroutine arm_fragpick
-
-    !> Add the fragment of the picked atom idx (cell index and lattice
-    !> vector): the atom, or its whole molecule at that lattice
-    !> translation (the pending pick kind).
-    subroutine add_pickfrag(idx)
-      integer, intent(in) :: idx(4)
-
-      integer :: idc, im, k, dl(3)
-      real*8 :: x(3,1)
-      type(nci_pickfrag) :: pf
-
-      idc = idx(1)
-      if (idc == 0) then
-         w%errmsg = "The picked point is not an atom"
-         return
-      end if
-      associate(c => sys(isys)%c)
-         if (w%nc%pickkind == ncipick_atom .or. .not.allocated(c%idatcelmol)) then
-            x(:,1) = c%atcel(idc)%r + c%x2c(real(idx(2:4),8))
-            pf%fr = c%identify_fragment(1,x)
-            pf%label = "Atom " // string(idc) // " (" // trim(c%spc(c%atcel(idc)%is)%name) // ")"
-         else
-            ! the molecule, displaced so its copy of the atom is the one picked
-            im = c%idatcelmol(1,idc)
-            k = c%idatcelmol(2,idc)
-            pf%fr = c%mol(im)
-            dl = idx(2:4) - c%mol(im)%at(k)%lvec
-            call pf%fr%translate(dl)
-            pf%label = "Molecule " // string(im) // " (" // string(pf%fr%nat) // " atoms)"
-            if (any(dl /= 0)) pf%label = pf%label // " at " // string(dl(1)) // "," //&
-               string(dl(2)) // "," // string(dl(3))
-         end if
-      end associate
-      call push_pickfrag(pf)
-
-    end subroutine add_pickfrag
-
-    !> Append pf to the picked fragments.
-    subroutine push_pickfrag(pf)
-      type(nci_pickfrag), intent(in) :: pf
-
-      if (allocated(w%nc%pickfr)) then
-         w%nc%pickfr = (/w%nc%pickfr,pf/)
-      else
-         w%nc%pickfr = (/pf/)
-      end if
-      w%errmsg = ""
-
-    end subroutine push_pickfrag
-
     !> Add the atoms selected in the view (the cell atoms with a
-    !> highlight, at their cell positions) as one fragment.
+    !> highlight, at their cell positions) as a new fragment, selected.
     subroutine add_selfrag()
       integer :: i, n
       integer, allocatable :: iat(:)
       real*8, allocatable :: x(:,:)
-      type(nci_pickfrag) :: pf
+      type(nci_userfrag) :: uf
 
       call sysc(isys)%highlighted_atom_list(n,iat)
       if (n == 0) return
@@ -884,9 +879,12 @@ contains
       do i = 1, n
          x(:,i) = sys(isys)%c%atcel(iat(i))%r
       end do
-      pf%fr = sys(isys)%c%identify_fragment(n,x)
-      pf%label = "Selection (" // string(pf%fr%nat) // " atoms)"
-      call push_pickfrag(pf)
+      uf%fr = sys(isys)%c%identify_fragment(n,x)
+      if (allocated(w%nc%userfr)) then
+         w%nc%userfr = (/w%nc%userfr,uf/)
+      else
+         w%nc%userfr = (/uf/)
+      end if
 
     end subroutine add_selfrag
 
@@ -895,7 +893,7 @@ contains
     !> the density field (native level) or nn points over the region
     !> (origin and steps, cell-frame Cartesian bohr; periodic over the
     !> whole cell of a crystal), the fragments are the selected
-    !> molecules and the picked fragments.
+    !> molecules and the selected user-made fragments.
     subroutine request_job()
       integer :: j, k, nfrag
 
@@ -920,23 +918,26 @@ contains
            end do
         end if
 
-        ! the fragments
+        ! the fragments: the criterion applies to two or more
         nfrag = nfrag_total()
         if (allocated(o%fr)) deallocate(o%fr)
         allocate(o%fr(max(nfrag,1)))
         o%nfrag = 0
-        if (allocated(w%nc%molsel)) then
-           do j = 1, size(w%nc%molsel,1)
-              if (.not.w%nc%molsel(j)) cycle
-              o%nfrag = o%nfrag + 1
-              o%fr(o%nfrag) = c%mol(j)
-           end do
-        end if
-        if (allocated(w%nc%pickfr)) then
-           do k = 1, size(w%nc%pickfr,1)
-              o%nfrag = o%nfrag + 1
-              o%fr(o%nfrag) = w%nc%pickfr(k)%fr
-           end do
+        if (nfrag > 1) then
+           if (allocated(w%nc%molsel)) then
+              do j = 1, size(w%nc%molsel,1)
+                 if (.not.w%nc%molsel(j)) cycle
+                 o%nfrag = o%nfrag + 1
+                 o%fr(o%nfrag) = c%mol(j)
+              end do
+           end if
+           if (allocated(w%nc%userfr)) then
+              do k = 1, size(w%nc%userfr,1)
+                 if (.not.w%nc%userfr(k)%sel) cycle
+                 o%nfrag = o%nfrag + 1
+                 o%fr(o%nfrag) = w%nc%userfr(k)%fr
+              end do
+           end if
         end if
       end associate
       w%nc%jwrite = .false.
@@ -946,10 +947,10 @@ contains
 
     !> Cancel a pending pick, releasing the view.
     subroutine cancel_pick()
-      if (w%nc%pickkind == ncipick_none) return
+      if (.not.w%nc%picking) return
       if (w%nc%pickview >= 1 .and. w%nc%pickview <= nwin) &
          call win(w%nc%pickview)%viewmode_release_forced(w%id)
-      w%nc%pickkind = ncipick_none
+      w%nc%picking = .false.
     end subroutine cancel_pick
 
   end subroutine draw_nci

@@ -2609,30 +2609,25 @@ contains
   !> molecule or fewer), with the columns the caller asks for: a Show
   !> checkbox column when shown is given (with Show All / Hide All /
   !> Toggle buttons under the table), and Tint / Scale columns when tint
-  !> and scale are given. With select, the checkbox column is a
-  !> selection (header Select, no section title and no buttons: the
-  !> caller draws its own). Returns whether anything changed.
+  !> and scale are given. Returns whether anything changed.
   !> ihighlight/highlight_type are set to the row under the mouse (and
   !> the molecule grouping), and left alone otherwise.
-  module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale,select) result(changed)
+  module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)
     use systems, only: sys, atlisttype_nmol
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
        iw_highlight_selectable, iw_dragfloat_real8, iw_table_column, iw_separatortext
-    use global, only: iunit_ang, dunit0
-    use tools_io, only: string, ioj_right
+    use tools_io, only: string
     integer, intent(in) :: isys
     integer, intent(inout) :: ihighlight
     integer, intent(inout) :: highlight_type
     logical, intent(inout), optional :: shown(:)
     real(c_float), intent(inout), optional :: tint(:,:)
     real*8, intent(inout), optional :: scale(:)
-    logical, intent(in), optional :: select
     logical :: changed
 
-    logical :: doshown, dostyle, ch, select_
+    logical :: doshown, dostyle, ch
     integer(c_int) :: flags
-    character(kind=c_char,len=:), allocatable, target :: s, str1, str2
-    real*8 :: x0(3)
+    character(kind=c_char,len=:), allocatable, target :: str1
     type(ImVec2) :: sz0
     integer :: i, ncol, icol, nmol
     type(c_ptr), target :: clipper
@@ -2644,8 +2639,6 @@ contains
     changed = .false.
     doshown = present(shown)
     dostyle = present(tint) .and. present(scale)
-    select_ = .false.
-    if (present(select)) select_ = select
     nmol = sys(isys)%c%nmol
     if (nmol <= 1) return
     if (doshown) then
@@ -2654,7 +2647,7 @@ contains
     if (dostyle) then
        if (size(tint,2) /= nmol .or. size(scale,1) /= nmol) return
     end if
-    if (doshown .and. .not.select_) then
+    if (doshown) then
        call iw_separatortext("Shown molecules")
     elseif (dostyle) then
        call iw_separatortext("Molecule style")
@@ -2682,23 +2675,12 @@ contains
        ! header setup
        call iw_table_column("Id",icol=icol)
        call iw_table_column("Nat",icol=icol)
-       if (doshown) then
-          if (select_) then
-             call iw_table_column("Select",icol=icol)
-          else
-             call iw_table_column("Show",icol=icol)
-          end if
-       end if
+       if (doshown) call iw_table_column("Show",icol=icol)
        if (dostyle) then
           call iw_table_column("Tint",icol=icol)
           call iw_table_column("Scale",icol=icol)
        end if
-       if (sys(isys)%c%ismolecule) then
-          str2 = "Center of mass (Å)"
-       else
-          str2 = "Center of mass (fractional)"
-       end if
-       call iw_table_column(str2,icol=icol,flags=ImGuiTableColumnFlags_WidthStretch)
+       call iw_table_column(cmass_header(isys),icol=icol,flags=ImGuiTableColumnFlags_WidthStretch)
 
        ! draw the header
        call iw_table_headers_row(freezetop=.true.,autofit=.true.)
@@ -2736,11 +2718,7 @@ contains
                 if (igTableSetColumnIndex(icol)) then
                    ch = iw_checkbox("##tablemolshown" // string(i),shown(i))
                    changed = changed .or. ch
-                   if (select_) then
-                      call iw_tooltip("Select this molecule",ttshown)
-                   else
-                      call iw_tooltip("Toggle display of all atoms in this molecule",ttshown)
-                   end if
+                   call iw_tooltip("Toggle display of all atoms in this molecule",ttshown)
                 end if
              end if
 
@@ -2766,15 +2744,7 @@ contains
              ! center of mass
              icol = icol + 1
              if (igTableSetColumnIndex(icol)) then
-                x0 = sys(isys)%c%mol(i)%cmass(.false.)
-                if (sys(isys)%c%ismolecule) then
-                   x0 = (x0+sys(isys)%c%molx0) * dunit0(iunit_ang)
-                else
-                   x0 = sys(isys)%c%c2x(x0)
-                endif
-                s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
-                   string(x0(3),'f',8,4,ioj_right)
-                call iw_text(s,alignframe=.true.)
+                call iw_text(cmass_string(isys,sys(isys)%c%mol(i)%cmass(.false.)),alignframe=.true.)
              end if
           end do ! clipper indices
        end do ! clipper step
@@ -2786,12 +2756,50 @@ contains
     end if
 
     ! show/hide buttons
-    if (doshown .and. .not.select_) then
+    if (doshown) then
        ch = showhide_buttons(shown,"molecules","molecules",ttshown)
        changed = changed .or. ch
     end if
 
   end function mol_table_widget
+
+  !> The header of a center-of-mass column of a table of system isys:
+  !> Cartesian in angstrom (molecules) or fractional (crystals).
+  module function cmass_header(isys) result(str)
+    use systems, only: sys
+    integer, intent(in) :: isys
+    character(len=:), allocatable :: str
+
+    if (sys(isys)%c%ismolecule) then
+       str = "Center of mass (Å)"
+    else
+       str = "Center of mass (fractional)"
+    end if
+
+  end function cmass_header
+
+  !> The center of mass xc (cell-frame Cartesian, bohr) of a fragment
+  !> of system isys, formatted for a center-of-mass column of a table
+  !> (in the units of cmass_header).
+  module function cmass_string(isys,xc) result(str)
+    use systems, only: sys
+    use global, only: iunit_ang, dunit0
+    use tools_io, only: string, ioj_right
+    integer, intent(in) :: isys
+    real*8, intent(in) :: xc(3)
+    character(len=:), allocatable :: str
+
+    real*8 :: x0(3)
+
+    if (sys(isys)%c%ismolecule) then
+       x0 = (xc+sys(isys)%c%molx0) * dunit0(iunit_ang)
+    else
+       x0 = sys(isys)%c%c2x(xc)
+    endif
+    str = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
+       string(x0(3),'f',8,4,ioj_right)
+
+  end function cmass_string
 
   !xx! private procedures
 

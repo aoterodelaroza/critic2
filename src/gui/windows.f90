@@ -850,11 +850,12 @@ module windows
   integer, parameter :: nci_nsec = 9
   integer, parameter, public :: nci_level_def = 3 ! default grid level of the NCI plot (Fine)
 
-  ! a fragment of the NCI plot picked in the view: a molecule or an atom
-  type nci_pickfrag
-     character(len=:), allocatable :: label ! what was picked, for the list
+  ! a fragment of the NCI plot made by the user from the atoms selected
+  ! in the view, and whether it is used in the plot
+  type nci_userfrag
      type(fragment) :: fr ! the fragment
-  end type nci_pickfrag
+     logical :: sel = .true. ! whether it is a fragment of the plot
+  end type nci_userfrag
 
   ! what the NCI plot window derives from its result and the cutoffs
   ! (nci_refresh), on the heap like the result: the points that pass
@@ -891,18 +892,18 @@ module windows
      integer :: icustom = 0
      integer :: nptscustom(3) = 2
      real*8 :: ptsangcustom = iso_level_ptsang(nci_level_def)
-     ! pending pick in the view (ncipick_* in windows@nci.f90; 0 =
-     ! none): a region point (its row, in the region mode it was armed
-     ! in) or a fragment
-     integer :: pickkind = 0
+     ! pending pick of a region point in the view: its row, the region
+     ! mode and the view it was armed in
+     logical :: picking = .false.
      integer :: pickrow = 0
      integer :: pickmode = 0
      integer :: pickview = 0
      type(pairpick) :: pick
-     ! the fragments: the selected molecules of the system (nmol;
-     ! unallocated = not set yet) and the fragments picked in the view
+     ! the fragments: the selected molecules of the system (nmol, or
+     ! zero with one molecule; unallocated = not set yet) and the
+     ! fragments made by the user
      logical, allocatable :: molsel(:)
-     type(nci_pickfrag), allocatable :: pickfr(:)
+     type(nci_userfrag), allocatable :: userfr(:)
      ! the results: the grids of the last calculation (on the heap, so
      ! that a copy of the window stack does not copy them; null = no
      ! result), the fields they were loaded as, and the void integrals
@@ -2303,7 +2304,7 @@ module windows
        real*8, intent(out) :: xc(3)
        logical, intent(out) :: ok
      end subroutine view_pick_point
-     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx,atidx)
+     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx)
        integer, intent(in) :: iview
        integer, intent(in) :: idcaller
        integer, intent(in) :: isys
@@ -2312,7 +2313,6 @@ module windows
        real*8, intent(out) :: xc(3)
        integer, intent(out), optional :: cpidx(5)
        integer, intent(out), optional :: latidx(4)
-       integer, intent(out), optional :: atidx(4)
      end subroutine view_pick_result
      module subroutine view_pick_winfrac(iview,idcaller,istat,winfrac)
        integer, intent(in) :: iview
@@ -2443,16 +2443,24 @@ module windows
        integer, intent(in) :: isys
        real*8, intent(in) :: x0(3), v(3,3)
      end subroutine region_show_box
-     module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale,select) result(changed)
+     module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)
        integer, intent(in) :: isys
        integer, intent(inout) :: ihighlight
        integer, intent(inout) :: highlight_type
        logical, intent(inout), optional :: shown(:)
        real(c_float), intent(inout), optional :: tint(:,:)
        real*8, intent(inout), optional :: scale(:)
-       logical, intent(in), optional :: select
        logical :: changed
      end function mol_table_widget
+     module function cmass_header(isys) result(str)
+       integer, intent(in) :: isys
+       character(len=:), allocatable :: str
+     end function cmass_header
+     module function cmass_string(isys,xc) result(str)
+       integer, intent(in) :: isys
+       real*8, intent(in) :: xc(3)
+       character(len=:), allocatable :: str
+     end function cmass_string
      module subroutine update_editrep(w)
        class(window), intent(inout), target :: w
      end subroutine update_editrep
