@@ -88,13 +88,16 @@ contains
        ! the reference field, if the field is gone
        if (.not.w%nc%fref%ok(sys(isys))) call set_field(sys(isys)%iref)
 
-       ! the molecule selection follows the molecule list
+       ! the molecule selection follows the molecule list; by default,
+       ! every molecule of a molecular system is a fragment if there is
+       ! more than one (not in a crystal: the fragment densities have
+       ! no lattice sum, so the criterion would fail near the cell faces)
        if (allocated(w%nc%molsel)) then
           if (size(w%nc%molsel,1) /= sys(isys)%c%nmol) deallocate(w%nc%molsel)
        end if
        if (.not.allocated(w%nc%molsel)) then
           allocate(w%nc%molsel(sys(isys)%c%nmol))
-          w%nc%molsel = .false.
+          w%nc%molsel = (ismol .and. sys(isys)%c%nmol > 1)
        end if
     end if
 
@@ -431,6 +434,7 @@ contains
     !> fragment criterion parameters.
     subroutine draw_fragments()
       integer :: j, irm, nfrag
+      logical :: havesel
 
       call iw_separatortext("Fragments",w%nc%sec(nci_sec_fragments),hasmore=.true.)
       if (.not.w%nc%sec(nci_sec_fragments)%open) return
@@ -457,6 +461,12 @@ contains
       if (iw_button("Atom##ncipickatom",sameline=.true.,disabled=(w%nc%pickkind /= ncipick_none))) &
          call arm_fragpick(ncipick_atom)
       call iw_tooltip("Click an atom in the view to add it, on its own, as a fragment",ttshown,&
+         whendisabled=.true.)
+      havesel = .false.
+      if (allocated(sysc(isys)%highlight_rgba)) havesel = any(sysc(isys)%highlight_rgba >= 0._c_float)
+      if (iw_button("From Selection##ncipicksel",sameline=.true.,disabled=.not.havesel)) &
+         call add_selfrag()
+      call iw_tooltip("Add the atoms selected in the view, together, as a fragment",ttshown,&
          whendisabled=.true.)
       if (allocated(w%nc%pickfr)) then
          if (iw_button("Remove All##ncipickclear",sameline=.true.)) deallocate(w%nc%pickfr)
@@ -838,6 +848,14 @@ contains
                string(dl(2)) // "," // string(dl(3))
          end if
       end associate
+      call push_pickfrag(pf)
+
+    end subroutine add_pickfrag
+
+    !> Append pf to the picked fragments.
+    subroutine push_pickfrag(pf)
+      type(nci_pickfrag), intent(in) :: pf
+
       if (allocated(w%nc%pickfr)) then
          w%nc%pickfr = (/w%nc%pickfr,pf/)
       else
@@ -845,7 +863,27 @@ contains
       end if
       w%errmsg = ""
 
-    end subroutine add_pickfrag
+    end subroutine push_pickfrag
+
+    !> Add the atoms selected in the view (the cell atoms with a
+    !> highlight, at their cell positions) as one fragment.
+    subroutine add_selfrag()
+      integer :: i, n
+      integer, allocatable :: iat(:)
+      real*8, allocatable :: x(:,:)
+      type(nci_pickfrag) :: pf
+
+      call sysc(isys)%highlighted_atom_list(n,iat)
+      if (n == 0) return
+      allocate(x(3,n))
+      do i = 1, n
+         x(:,i) = sys(isys)%c%atcel(iat(i))%r
+      end do
+      pf%fr = sys(isys)%c%identify_fragment(n,x)
+      pf%label = "Selection (" // string(pf%fr%nat) // " atoms)"
+      call push_pickfrag(pf)
+
+    end subroutine add_selfrag
 
     !> Request the blocking job that calculates the NCI plot (run_nci)
     !> on the grid and fragments of the form: the grid is the nodes of

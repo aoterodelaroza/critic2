@@ -2728,7 +2728,7 @@ contains
 
              ! nat
              icol = icol + 1
-             if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%mol(i)%nat))
+             if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%mol(i)%nat),alignframe=.true.)
 
              ! shown
              if (doshown) then
@@ -2755,9 +2755,10 @@ contains
 
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   changed = changed .or. iw_dragfloat_real8("##tablemolradius" // string(i),&
+                   ch = iw_dragfloat_real8("##tablemolradius" // string(i),&
                       x1=scale(i),speed=0.005d0,min=0d0,max=5d0,decimal=3,&
                       flags=ImGuiSliderFlags_AlwaysClamp)
+                   changed = changed .or. ch
                    call iw_tooltip("Scale factor for the atomic radii in this molecule",ttshown)
                 end if
              end if
@@ -2773,7 +2774,7 @@ contains
                 endif
                 s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
                    string(x0(3),'f',8,4,ioj_right)
-                call iw_text(s)
+                call iw_text(s,alignframe=.true.)
              end if
           end do ! clipper indices
        end do ! clipper step
