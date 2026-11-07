@@ -2408,7 +2408,8 @@ module windows
        integer, intent(inout), optional :: shift(:,:)
        logical :: changed
      end function atom_table_widget
-     module function region_form(isys,iregion,x,sec,sfx,what,ttshown,ipick,pickoff,nativeok,periodic) result(changed)
+     module function region_form(isys,iregion,x,sec,sfx,what,ttshown,ipick,pickoff,nativeok,periodic,&
+        bboxbuf) result(changed)
        integer, intent(in) :: isys
        integer, intent(inout) :: iregion
        real*8, intent(inout) :: x(3,0:3)
@@ -2419,6 +2420,7 @@ module windows
        logical, intent(in), optional :: pickoff
        logical, intent(in), optional :: nativeok
        logical, intent(in), optional :: periodic
+       real*8, intent(in), optional :: bboxbuf
        logical :: changed
      end function region_form
      module function grid_level_form(isys,ifield,iregion,box,okbox,navail,ilevel,icustom,nptscustom,&

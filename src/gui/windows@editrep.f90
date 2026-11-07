@@ -5706,9 +5706,11 @@ contains
   !> disables them). If nativeok, the mode region_native (the nodes of
   !> a grid field) is offered too. periodic: whether the grid on the
   !> region repeats with the lattice (default: on the whole cell and
-  !> the native grid), noted in crystals. Returns whether anything
-  !> changed.
-  module function region_form(isys,iregion,x,sec,sfx,what,ttshown,ipick,pickoff,nativeok,periodic) result(changed)
+  !> the native grid), noted in crystals. bboxbuf: the buffer (Å) of
+  !> the bounding-box mode when it is seeded (default
+  !> iso_bbox_buffer_def). Returns whether anything changed.
+  module function region_form(isys,iregion,x,sec,sfx,what,ttshown,ipick,pickoff,nativeok,periodic,&
+     bboxbuf) result(changed)
     use systems, only: sys
     use representations, only: iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
        iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name, iso_region_desc,&
@@ -5727,6 +5729,7 @@ contains
     logical, intent(in), optional :: pickoff
     logical, intent(in), optional :: nativeok
     logical, intent(in), optional :: periodic
+    real*8, intent(in), optional :: bboxbuf
     logical :: changed
 
     integer :: i, iknd, nmode, nrow
@@ -5764,7 +5767,7 @@ contains
     ! reset a staged mode this system kind does not offer
     if (all(rmodes(1:nmode) /= iregion)) then
        iregion = rmodes(1)
-       if (iregion /= region_native) call iso_region_seed(isys,iregion,x)
+       if (iregion /= region_native) call iso_region_seed(isys,iregion,x,bboxbuf)
        changed = .true.
     end if
     call iw_separatortext("Region",sec)
@@ -5782,7 +5785,7 @@ contains
           if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
              if (iregion /= rmodes(i)) then
                 iregion = rmodes(i)
-                if (iregion /= region_native) call iso_region_seed(isys,iregion,x)
+                if (iregion /= region_native) call iso_region_seed(isys,iregion,x,bboxbuf)
                 changed = .true.
              end if
           end if

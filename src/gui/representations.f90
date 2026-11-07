@@ -1813,10 +1813,11 @@ module representations
        real*8, intent(out) :: box(3,0:3)
        logical, intent(out), optional :: ok
      end subroutine iso_region_to_box
-     module subroutine iso_region_seed(isys,iregion,x)
+     module subroutine iso_region_seed(isys,iregion,x,bboxbuf)
        integer, intent(in) :: isys
        integer, intent(in) :: iregion
        real*8, intent(out) :: x(3,0:3)
+       real*8, intent(in), optional :: bboxbuf
      end subroutine iso_region_seed
      module subroutine iso_region_point_from_cart(isys,iregion,xc,x)
        integer, intent(in) :: isys

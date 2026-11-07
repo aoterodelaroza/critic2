@@ -30,6 +30,11 @@ submodule (windows) nci
   integer, parameter :: ncipick_molecule = 2 ! a fragment: the whole molecule of the clicked atom
   integer, parameter :: ncipick_atom = 3 ! a fragment: the clicked atom only
 
+  ! default buffer of the bounding-box region (molecules), angstrom;
+  ! tighter than iso_bbox_buffer_def because the NCI regions are
+  ! short-range and the grid points far from the atoms are wasted
+  real*8, parameter :: nci_bbox_buffer = 2d0
+
 contains
 
   !> Draw the NCI plot window: the density (a field of the system
@@ -139,7 +144,7 @@ contains
 
        ! the region
        if (region_form(isys,w%nc%iregion,w%nc%rgn_x,w%nc%sec(nci_sec_region),"nci","the NCI plot",&
-          ttshown,irow,pickoff=(w%nc%pickkind /= ncipick_none))) w%errmsg = ""
+          ttshown,irow,pickoff=(w%nc%pickkind /= ncipick_none),bboxbuf=nci_bbox_buffer)) w%errmsg = ""
        if (irow >= 0) then
           w%nc%pickkind = ncipick_region
           w%nc%pickrow = irow
@@ -324,7 +329,7 @@ contains
       else
          w%nc%iregion = iso_region_cell
       end if
-      call iso_region_seed(isys,w%nc%iregion,w%nc%rgn_x)
+      call iso_region_seed(isys,w%nc%iregion,w%nc%rgn_x,bboxbuf=nci_bbox_buffer)
       call set_field(sys(isys)%iref)
       call clear_fragments()
       w%okfile = okfile_default(isys,"nci","dat")

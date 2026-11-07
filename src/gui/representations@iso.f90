@@ -462,11 +462,14 @@ contains
   !> a sensible starting box: the whole-cell equivalent, except for the
   !> molecule-centered modes (simple box and cube), which start centered
   !> on the molecular centroid and covering the atoms plus a margin.
-  module subroutine iso_region_seed(isys,iregion,x)
+  !> In the bounding-box mode only the buffer is seeded: bboxbuf (Å)
+  !> if given, otherwise iso_bbox_buffer_def.
+  module subroutine iso_region_seed(isys,iregion,x,bboxbuf)
     use systems, only: sys, sys_init, ok_system
     integer, intent(in) :: isys
     integer, intent(in) :: iregion
     real*8, intent(out) :: x(3,0:3)
+    real*8, intent(in), optional :: bboxbuf
 
     integer :: i
     real*8 :: xmin(3), xmax(3), xsh(3), xc(3), hl(3)
@@ -498,6 +501,7 @@ contains
       elseif (iregion == iso_region_bbox) then
          ! only the buffer is stored; the box itself comes from the atoms
          x(:,1) = iso_bbox_buffer_def
+         if (present(bboxbuf)) x(:,1) = bboxbuf
       elseif (iregion == iso_region_simplebox .or. iregion == iso_region_cube) then
          ! origin at the molecular centroid; half-lengths covering the
          ! atoms plus a margin
