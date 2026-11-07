@@ -43,7 +43,6 @@ module nci
      ! the density
      integer :: ifield = 0 ! field whose density is used (0 = promolecular)
      logical :: fourierint = .false. ! derivatives of a grid field by Fourier transform (vs. differentiating the interpolant)
-     logical :: dopromol = .false. ! calculate the promolecular density grid even if no criterion needs it
      ! the grid: nstep points along each column of xmat, starting at x0 (Cartesian, cell frame)
      logical :: periodic = .true. ! the grid spans whole unit cells (crystals; the plot wraps around)
      real*8 :: x0(3) = 0d0 ! origin

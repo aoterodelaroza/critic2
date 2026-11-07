@@ -40,7 +40,7 @@ contains
   module subroutine draw_nci(w)
     use systems, only: sys, sysc, sys_init, ok_system, field_cost
     use representations, only: iso_region_cell, iso_region_bbox, iso_region_to_box, iso_region_seed,&
-       iso_region_point_from_cart, iso_isgridfield, iso_defaultlevel
+       iso_region_point_from_cart, iso_isgridfield
     use nci, only: nci_options, nci_options_set_field
     use types, only: field_evaluation_avail
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
@@ -68,7 +68,6 @@ contains
     ! initialize the state on the first pass
     if (w%firstpass) then
        w%nc = nci_state()
-       w%nc%ilevel = iso_defaultlevel
        w%errmsg = ""
     end if
 
@@ -155,6 +154,8 @@ contains
        ! cell (a partial grid does not cover the cell it is placed on)
        navail = isgrid .and. (w%nc%iregion == iso_region_cell)
        if (navail) navail = .not.sys(isys)%f(ifield)%grid%partial
+       ! (leaving the native grid: the NCI default, not the isosurface one)
+       if (.not.navail .and. w%nc%ilevel == 0) w%nc%ilevel = nci_level_def
        ch = grid_level_form(isys,ifield,w%nc%iregion,box,okbox,navail,w%nc%ilevel,w%nc%icustom,&
           w%nc%nptscustom,w%nc%ptsangcustom,w%nc%sec(nci_sec_grid),"nci","the NCI plot",ttshown,nn,capped)
        if (w%nc%ilevel == 0) nn = sys(isys)%f(ifield)%grid%n
@@ -297,7 +298,7 @@ contains
          w%nc%opts%nfrag = o0%nfrag
          call move_alloc(o0%fr,w%nc%opts%fr)
       end if
-      w%nc%ilevel = iso_defaultlevel
+      w%nc%ilevel = d%ilevel
       w%nc%icustom = d%icustom
       w%nc%nptscustom = d%nptscustom
       w%nc%ptsangcustom = d%ptsangcustom
@@ -363,12 +364,13 @@ contains
     end function nfrag_total
 
     !> The Density section: the field, and (More) how a grid field is
-    !> differentiated and whether the promolecular density is also
-    !> calculated.
+    !> differentiated.
     subroutine draw_density()
       integer :: id, ic
+      logical :: isgridf
 
-      call iw_separatortext("Density",w%nc%sec(nci_sec_density),hasmore=.true.)
+      isgridf = iso_isgridfield(isys,w%nc%fref%id)
+      call iw_separatortext("Density",w%nc%sec(nci_sec_density),hasmore=isgridf)
       if (.not.w%nc%sec(nci_sec_density)%open) return
 
       call iw_text("Field",alignframe=.true.)
@@ -381,20 +383,15 @@ contains
          & promolecular density (the sum of the in-vacuo atomic densities), as in NCIPLOT&
          & without a wavefunction",ttshown)
 
-      if (w%nc%sec(nci_sec_density)%more) then
-         if (iso_isgridfield(isys,w%nc%fref%id)) then
-            call iw_text("Derivatives",alignframe=.true.)
-            ic = merge(1,0,w%nc%opts%fourierint)
-            call iw_combo_simple("##nciderivs","Interpolant" // c_null_char // "Fourier transform" //&
-               c_null_char,ic,sameline=.true.,changed=ch)
-            if (ch) w%nc%opts%fourierint = (ic == 1)
-            call iw_tooltip("How the gradient and the Hessian of a grid field are calculated: by&
-               & differentiating the interpolant (INTERPOLATION in NCIPLOT) or by Fourier transform&
-               & of the grid (the default for grids without core densities)",ttshown)
-         end if
-         ch = iw_checkbox("Promolecular density##ncipromol",w%nc%opts%dopromol,labelleft=.true.)
-         call iw_tooltip("Also calculate the promolecular density on the grid (the -pdens cube&
-            & file of NCIPLOT)",ttshown)
+      if (w%nc%sec(nci_sec_density)%more .and. isgridf) then
+         call iw_text("Derivatives",alignframe=.true.)
+         ic = merge(1,0,w%nc%opts%fourierint)
+         call iw_combo_simple("##nciderivs","Interpolant" // c_null_char // "Fourier transform" //&
+            c_null_char,ic,sameline=.true.,changed=ch)
+         if (ch) w%nc%opts%fourierint = (ic == 1)
+         call iw_tooltip("How the gradient and the Hessian of a grid field are calculated: by&
+            & differentiating the interpolant (INTERPOLATION in NCIPLOT) or by Fourier transform&
+            & of the grid (the default for grids without core densities)",ttshown)
       end if
 
     end subroutine draw_density
@@ -764,7 +761,7 @@ contains
       if (iw_button("Write Files...##nciwrite",sameline=.true.,disabled=.not.okwrite)) &
          idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savencifiles,idparent=w%id,orraise=-1)
       call iw_tooltip("Write the files of the NCIPLOT keyword for the last calculation: the cube files&
-         & of the signed density and the masked RDG (and the promolecular density, if calculated),&
+         & of the signed density and the masked RDG (and the promolecular density, with fragments or voids),&
          & the s vs. density data, the VMD script with its xyz file, and the checkpoint, named&
          & from the file chosen without its extension (existing files with those names are&
          & replaced)",ttshown,whendisabled=.true.)

@@ -498,13 +498,13 @@ contains
   end subroutine nci_options_set_field
 
   !> Whether an NCI calculation with options opts calculates the
-  !> promolecular density grid: asked for, or needed by the fragment
-  !> or void criteria.
+  !> promolecular density grid: only when the fragment or void
+  !> criteria need it.
   pure module function nci_dopromol(opts) result(dopromol)
     type(nci_options), intent(in) :: opts
     logical :: dopromol
 
-    dopromol = opts%dopromol .or. opts%nfrag > 0 .or. opts%dovoid
+    dopromol = opts%nfrag > 0 .or. opts%dovoid
 
   end function nci_dopromol
 

@@ -22,7 +22,7 @@ module windows
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
      rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
-     reptype_atoms, rep_gpaths, gpaths_rad_def, plane_def, relief_def
+     reptype_atoms, rep_gpaths, gpaths_rad_def, plane_def, relief_def, iso_level_ptsang
   use scenes, only: scene, rep_ref
   use systems, only: sys_ref
   use nci, only: nci_options, nci_result
@@ -848,6 +848,7 @@ module windows
   integer, parameter :: nci_sec_domains = 8
   integer, parameter :: nci_sec_output = 9
   integer, parameter :: nci_nsec = 9
+  integer, parameter, public :: nci_level_def = 3 ! default grid level of the NCI plot (Fine)
 
   ! a fragment of the NCI plot picked in the view: a molecule or an atom
   type nci_pickfrag
@@ -884,12 +885,12 @@ module windows
      real*8 :: rgn_x(3,0:3) = 0d0
      ! the grid on the region, staged as in the isosurface editor
      ! (grid_level_form): a coarseness level (0 = native grid of the
-     ! density, 1..iso_nlevel = named, custom) and the custom grid, as
-     ! the number of points or a resolution
-     integer :: ilevel = 0
+     ! density, 1..iso_nlevel = named, custom; Fine by default) and the
+     ! custom grid, as the number of points or a resolution
+     integer :: ilevel = nci_level_def
      integer :: icustom = 0
      integer :: nptscustom(3) = 2
-     real*8 :: ptsangcustom = 5d0
+     real*8 :: ptsangcustom = iso_level_ptsang(nci_level_def)
      ! pending pick in the view (ncipick_* in windows@nci.f90; 0 =
      ! none): a region point (its row, in the region mode it was armed
      ! in) or a fragment
