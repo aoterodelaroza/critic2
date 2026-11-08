@@ -60,6 +60,7 @@ contains
     logical :: maskchanged, objchanged, datchanged, lcommit
     integer :: isys, iview, istat, irow, ifield, nn(3), ihover, nmolsel
     real*8 :: xc(3), box(3,0:3)
+    real(c_float) :: xbutton
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -172,13 +173,11 @@ contains
        call draw_fragments()
        call draw_plot()
 
-       ! the results, the scatter plot (whose range lines also change
-       ! the mask) and the domains (the row under the mouse is
-       ! highlighted on the isosurface)
+       ! the domains (the row under the mouse is highlighted on the
+       ! isosurface), then redo what the changes in the Plot section
+       ! require (the cutoffs and the range lines of the scatter plot)
        ihover = 0
        if (associated(w%nc%res)) then
-          call draw_results()
-          call draw_scatter()
           call draw_domains()
           if (maskchanged) then
              call nci_refresh(w,isys,iview)
@@ -219,10 +218,22 @@ contains
     end if
     w%okfile_set = .false.
 
-    ! bottom row: reset, calculate, close
+    ! bottom row: reset, calculate, close; on the left, whether the
+    ! result is still that of the form
     okcalc = goodsys
     if (okcalc) okcalc = okbox .and. okfield .and. all(nn > 0) .and. .not.w%nc%picking
     call iw_setpos_bottomright(len("Reset") + len("Calculate") + len("Close"),3)
+    if (okcalc) then
+       if (result_stale()) then
+          xbutton = igGetCursorPosX()
+          call igSetCursorPosX(g%Style%WindowPadding%x)
+          call iw_text("settings changed",danger=.true.,alignframe=.true.)
+          call iw_tooltip("The density, the derivatives, the region, the grid, the fragments,&
+             & or the voids changed since the last calculation: press Calculate to update the plot",&
+             ttshown)
+          call igSameLine(xbutton,-1._c_float)
+       end if
+    end if
     if (iw_button("Reset##ncireset",danger=.true.,disabled=.not.goodsys)) then
        ! a result is masked again with the default cutoffs
        call reset_form()
@@ -595,14 +606,17 @@ contains
 
     end subroutine select_all_fragments
 
-    !> The Plot section: the cutoffs of the isosurface plot (RDG
-    !> isovalue, density cutoff, signed density range, only negative)
-    !> and, More, those of the s vs. rho plot and the void criterion.
+    !> The Plot section: the s vs. signed density plot of the result,
+    !> the cutoffs of the isosurface plot (RDG isovalue, density
+    !> cutoff, signed density range, only negative) and, More, those of
+    !> the s vs. rho plot and the void criterion, with the void
+    !> integrals of the result.
     subroutine draw_plot()
       real*8 :: rhoprev
 
       call iw_separatortext("Plot",w%nc%sec(nci_sec_plot),hasmore=.true.)
       if (.not.w%nc%sec(nci_sec_plot)%open) return
+      call draw_scatter()
 
       associate(o => w%nc%opts)
         call iw_text("Isovalue (s)",alignframe=.true.)
@@ -661,46 +675,20 @@ contains
                  committed=lcommit)
               maskchanged = maskchanged .or. lcommit
               call iw_tooltip("Promolecular density below which a point belongs to a void",ttshown)
+              if (associated(w%nc%res) .and. w%nc%voidok) &
+                 call iw_text("Void charge (a.u.): " // string(w%nc%voidq,'f',decimal=6) //&
+                    ", promolecular charge (a.u.): " // string(w%nc%voidqp,'f',decimal=6) //&
+                    ", volume (bohr^3): " // string(w%nc%voidv,'f',decimal=6),wrap=.true.)
            end if
         end if
       end associate
 
     end subroutine draw_plot
 
-    !> The Results section: the grid of the last calculation, the
-    !> time it took, and the fields it was loaded as.
-    subroutine draw_results()
-      character(len=:), allocatable :: str
-
-      call iw_separatortext("Results",w%nc%sec(nci_sec_results))
-      if (.not.w%nc%sec(nci_sec_results)%open) return
-
-      associate(r => w%nc%res)
-        str = "Grid: " // string(r%n(1)) // " x " // string(r%n(2)) // " x " // string(r%n(3)) //&
-           " points, calculated in " // duration_string(w%nc%secs)
-        if (sys(isys)%goodfield(r%ifield)) str = str // " from field " // string(r%ifield)
-        call iw_text(str,wrap=.true.)
-      end associate
-      if (w%nc%fsref%ok(sys(isys))) &
-         call iw_text("Reduced density gradient (masked by the cutoffs): field " // string(w%nc%fsref%id))
-      if (w%nc%frref%ok(sys(isys))) &
-         call iw_text("Signed density: field " // string(w%nc%frref%id))
-      if (associated(win(iview)%sc)) then
-         if (w%nc%isoref%ok(win(iview)%sc)) &
-            call iw_text("Isosurface object: " // trim(win(iview)%sc%rep(w%nc%isoref%id)%name))
-      end if
-      if (w%nc%opts%dovoid .and. w%nc%voidok) then
-         call iw_text("Void charge (a.u.): " // string(w%nc%voidq,'f',decimal=6) //&
-            ", promolecular charge (a.u.): " // string(w%nc%voidqp,'f',decimal=6) //&
-            ", volume (bohr^3): " // string(w%nc%voidv,'f',decimal=6),wrap=.true.)
-      end if
-
-    end subroutine draw_results
-
-    !> The s vs. signed density section: the scatter plot of the
-    !> points under the dat-file cutoffs, with the signed density
-    !> range as two draggable lines (a release masks the result
-    !> again) and the density cutoff as two fixed ones.
+    !> The s vs. signed density plot of the result (top of the Plot
+    !> section): the points under the dat-file cutoffs, with the
+    !> signed density range as two draggable lines (a release masks
+    !> the result again) and the density cutoff as two fixed ones.
     subroutine draw_scatter()
       integer :: i, held
       real(c_double) :: xdrag
@@ -708,9 +696,8 @@ contains
       type(ImVec2) :: szplot
       type(ImVec4) :: col
 
-      call iw_separatortext("s vs. signed density",w%nc%sec(nci_sec_scatter))
       ! a line let go while the plot is not drawn lands nowhere
-      if (.not.w%nc%sec(nci_sec_scatter)%open .or. .not.associated(w%nc%drv)) then
+      if (.not.associated(w%nc%res) .or. .not.associated(w%nc%drv)) then
          w%nc%dragline = 0
          return
       end if
@@ -1105,6 +1092,31 @@ contains
 
     end function region_roll
 
+    !> Whether there is a result and the form asks for another
+    !> calculation: a different density field or derivatives, grid
+    !> (region and level) or fragments (form_grid_frags), or voids
+    !> on a result without the promolecular density. The cutoffs, the
+    !> plot settings and the fragment criterion only mask the result
+    !> again.
+    function result_stale() result(stale)
+      logical :: stale
+
+      type(nci_options) :: o
+
+      stale = .false.
+      if (.not.associated(w%nc%res)) return
+      associate(r => w%nc%res, opts => w%nc%opts)
+        stale = (opts%ifield /= r%ifield) .or. (opts%fourierint .neqv. r%fourierint)
+        if (.not.stale) stale = opts%dovoid .and. .not.allocated(r%rhoat)
+        if (.not.stale) then
+           ! (opts holds the grid and the fragments of the result)
+           call form_grid_frags(o)
+           stale = .not.same_grid_frags(o,opts)
+        end if
+      end associate
+
+    end function result_stale
+
     !> Cancel a pending pick, releasing the view.
     subroutine cancel_pick()
       if (.not.w%nc%picking) return
@@ -1165,6 +1177,7 @@ contains
     use nci, only: nci_compute, nci_compute_promol
     use gui_main, only: begin_cancellable, end_cancellable
     use interfaces_glfw, only: glfwGetTime
+    use utils, only: duration_string
     use tools_io, only: uout, string
     class(window), intent(inout), target :: w
 
@@ -1231,7 +1244,6 @@ contains
        deallocate(w%nc%res)
        return
     end if
-    w%nc%secs = t
     w%nc%timelast = sysc(isys)%timelastchange_geometry
     w%nc%gen = w%nc%gen + 1
 
@@ -1240,8 +1252,10 @@ contains
     call sysc(isys)%post_event(lastchange_cplist)
     sysc(isys)%showfields = .true.
     if (w%nc%fsref%ok(sys(isys)) .and. w%nc%frref%ok(sys(isys))) &
-       write (uout,'("* NCI plot grids loaded as fields ",A," (RDG) and ",A," (signed density)"/)') &
-       string(w%nc%fsref%id), string(w%nc%frref%id)
+       write (uout,'("* NCI plot grids (",A," x ",A," x ",A," points from field ",A,", calculated in ",A,&
+       &") loaded as fields ",A," (RDG) and ",A," (signed density)"/)') &
+       string(w%nc%res%n(1)), string(w%nc%res%n(2)), string(w%nc%res%n(3)), string(w%nc%res%ifield),&
+       duration_string(t), string(w%nc%fsref%id), string(w%nc%frref%id)
 
   end subroutine run_nci
 

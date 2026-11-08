@@ -843,11 +843,9 @@ module windows
   integer, parameter :: nci_sec_grid = 3
   integer, parameter :: nci_sec_fragments = 4
   integer, parameter :: nci_sec_plot = 5
-  integer, parameter :: nci_sec_results = 6
-  integer, parameter :: nci_sec_scatter = 7
-  integer, parameter :: nci_sec_domains = 8
-  integer, parameter :: nci_sec_output = 9
-  integer, parameter :: nci_nsec = 9
+  integer, parameter :: nci_sec_domains = 6
+  integer, parameter :: nci_sec_output = 7
+  integer, parameter :: nci_nsec = 7
   integer, parameter, public :: nci_level_def = 3 ! default grid level of the NCI plot (Fine)
 
   ! a fragment of the NCI plot made by the user from the atoms selected
@@ -915,7 +913,6 @@ module windows
      type(field_ref) :: frref ! the density times the sign of the second Hessian eigenvalue
      logical :: voidok = .false. ! the void integrals are those of the result with the current cutoffs
      real*8 :: voidq = 0d0, voidqp = 0d0, voidv = 0d0
-     real*8 :: secs = 0d0 ! time the calculation took (s)
      real*8 :: timelast = 0d0 ! geometry-change time of the system when it was calculated
      ! the objects of the scene of the anchor view: the isosurface of
      ! the masked RDG colored by the signed density, and its color bar
