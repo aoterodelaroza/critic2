@@ -990,13 +990,15 @@ contains
       logical :: found, changed, parchanged
       real*8 :: xr(3,0:3), xsh(3), x0(3)
 
+      ! (no fragment criterion with fewer than two fragments: the
+      ! region is turned off, not just hidden)
+      if (nfrag_total() < 2) w%nc%showregion = .false.
       if (.not.w%nc%showregion) then
          ! (off: the grids are not needed any more)
          if (associated(w%nc%pre)) deallocate(w%nc%pre)
          if (allocated(w%nc%region_g)) deallocate(w%nc%region_g)
          return
       end if
-      if (nfrag_total() < 2) return
       if (.not.okbox .or. any(nn < 2) .or. w%nc%picking) return
       call form_grid_frags(o)
 
