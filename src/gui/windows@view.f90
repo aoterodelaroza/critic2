@@ -1406,7 +1406,11 @@ contains
     ! its scene of the other space, which belonged to the old system
     w%isys = isys
     w%isys_uid = sysc(isys)%uid
-    if (sys(isys)%c%ismolecule) w%kspace = .false.
+    ! (a system still loading has no crystal yet; draw_view turns
+    ! k-space off when it is ready)
+    if (sysc(isys)%status == sys_init) then
+       if (sys(isys)%c%ismolecule) w%kspace = .false.
+    end if
     if (w%ismain) then
        w%sc => main_scene(w%isys,w%kspace)
     else
