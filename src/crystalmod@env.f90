@@ -619,8 +619,13 @@ contains
   !> grids up to a number of derivatives nder (max: 2). Returns the
   !> density (f), gradient (fp, nder >= 1), and Hessian (fpp, nder >=
   !> 2). If a fragment (fr) is given, then only the atoms in it
-  !> contribute. This routine is thread-safe.
-  module subroutine promolecular_atom(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
+  !> contribute. If frmask(ncel,nf) and ffr(nf) are given (both or
+  !> neither), ffr(j) is also the density of the cell atoms with
+  !> frmask(:,j) (and their lattice translations), from the same sum
+  !> (no derivatives), so several fragments cost one neighbor search:
+  !> fr filters what f/fp/fpp sum, frmask only splits it into ffr.
+  !> This routine is thread-safe.
+  module subroutine promolecular_atom(c,x0,icrd,f,fp,fpp,nder,zpsp,fr,frmask,ffr)
     use grid1mod, only: cgrid, agrid, grid1
     use global, only: cutrad
     use fragmentmod, only: fragment
@@ -635,6 +640,8 @@ contains
     integer, intent(in) :: nder
     integer, intent(in), optional :: zpsp(:)
     type(fragment), intent(in), optional :: fr
+    logical, intent(in), optional :: frmask(:,:)
+    real*8, intent(out), optional :: ffr(:)
 
     integer :: i, j, k, ii, iz
     real*8 :: xc(3), xx(3), rlvec(3), r, rinv1, rinv1rp
@@ -650,6 +657,7 @@ contains
     f = 0d0
     fp = 0d0
     fpp = 0d0
+    if (present(ffr)) ffr = 0d0
     iscore = present(zpsp)
     if (iscore) then
        if (all(zpsp <= 0)) return
@@ -728,6 +736,9 @@ contains
        call g%interp(r,rho,rhop,rhopp)
        rho = max(rho,0d0)
        f = f + rho
+       if (present(ffr) .and. present(frmask)) then
+          where (frmask(i,:)) ffr = ffr + rho
+       end if
 
        if (nder < 1) cycle
        rlvec = real(lvec(:,ii),8)

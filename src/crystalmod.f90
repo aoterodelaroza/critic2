@@ -808,7 +808,7 @@ module crystalmod
        real*8, intent(in), optional :: distmax
        integer :: identify_atom
      end function identify_atom
-     module subroutine promolecular_atom(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
+     module subroutine promolecular_atom(c,x0,icrd,f,fp,fpp,nder,zpsp,fr,frmask,ffr)
        use fragmentmod, only: fragment
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x0(3)
@@ -819,6 +819,8 @@ module crystalmod
        integer, intent(in) :: nder
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
+       logical, intent(in), optional :: frmask(:,:)
+       real*8, intent(out), optional :: ffr(:)
      end subroutine promolecular_atom
      module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij,bonddelta,allowed)
        use param, only: maxzat0

@@ -28,7 +28,8 @@ submodule (nci) proc
   ! function check_no_extra_word(line,lp,routine)
   ! function read_fragment(c,lu) result(fr)
   ! subroutine promol_checks(opts,s,errmsg)
-  ! subroutine promol_point(opts,s,x,dopromol,nfrag,res,i,j,k)
+  ! subroutine promol_point(opts,s,x,dopromol,nfrag,frmask,res,i,j,k)
+  ! subroutine frcell_mask(opts,s,nfrag,frmask)
 
   ! NCI checkpoint file format identifier and version
   character(len=8), parameter :: chk_magic = "CRI2NCCK"
@@ -538,6 +539,7 @@ contains
     type(scalar_value) :: sv, svg
     type(field_evaluation_avail) :: request0, request2
     logical :: dopromol
+    logical, allocatable :: frmask(:,:)
     integer :: n(3), i, j, k, l, istat, ier, nfrag, ierdiag
     real*8 :: x(3), ehess(3), dimgrad
 
@@ -601,6 +603,7 @@ contains
 
     ! calculate density, rdg, rhoat
     ierdiag = 0
+    call frcell_mask(opts,s,nfrag,frmask)
     call progress_start(n(3)*n(2),"lines")
     !$omp parallel do private (x,sv,svg,ehess,dimgrad,ier) schedule(dynamic)
     do k = 1, n(3)
@@ -638,7 +641,7 @@ contains
              res%srho(i,j,k) = sign(sv%f,ehess(2))
 
              ! promolecular density of the system and the fragments
-             call promol_point(opts,s,x,dopromol,nfrag,res,i,j,k)
+             call promol_point(opts,s,x,dopromol,nfrag,frmask,res,i,j,k)
           end do
           call progress_step()
        end do
@@ -679,6 +682,7 @@ contains
 
     integer :: n(3), i, j, k, istat, nfrag
     real*8 :: x(3)
+    logical, allocatable :: frmask(:,:)
 
     n = opts%nstep
     nfrag = opts%nfrag
@@ -695,6 +699,7 @@ contains
        return
     end if
 
+    call frcell_mask(opts,s,nfrag,frmask)
     call progress_start(n(3)*n(2),"lines")
     !$omp parallel do private (x) schedule(dynamic)
     do k = 1, n(3)
@@ -702,7 +707,7 @@ contains
           if (abort_poll()) cycle
           do i = 1, n(1)
              x = opts%x0 + (i-1)*opts%xmat(:,1) + (j-1)*opts%xmat(:,2) + (k-1)*opts%xmat(:,3)
-             call promol_point(opts,s,x,.true.,nfrag,res,i,j,k)
+             call promol_point(opts,s,x,.true.,nfrag,frmask,res,i,j,k)
           end do
           call progress_step()
        end do
@@ -1733,9 +1738,10 @@ contains
   !> At point x (cell-frame Cartesian bohr), grid node (i,j,k) of res:
   !> the promolecular density of system s (if dopromol, in res%rhoat)
   !> and of the first nfrag fragments of opts (in res%rhofrag): their
-  !> atoms where they are or, with opts%frcell, their cell atoms and
-  !> all the lattice translations.
-  subroutine promol_point(opts,s,x,dopromol,nfrag,res,i,j,k)
+  !> atoms where they are or, with opts%frcell, their cell atoms
+  !> (frmask, from frcell_mask) and all the lattice translations, in
+  !> the same neighbor search as the promolecular density.
+  subroutine promol_point(opts,s,x,dopromol,nfrag,frmask,res,i,j,k)
     use systemmod, only: system
     use grid1mod, only: agrid
     use param, only: icrd_cart
@@ -1744,21 +1750,19 @@ contains
     real*8, intent(in) :: x(3)
     logical, intent(in) :: dopromol
     integer, intent(in) :: nfrag
+    logical, allocatable, intent(in) :: frmask(:,:)
     type(nci_result), intent(inout) :: res
     integer, intent(in) :: i, j, k
 
     integer :: ifr, iat, iz
     real*8 :: xd(3), dist, rrho, rrho1, rrho2, rp(3), rpp(3,3)
 
-    if (dopromol) res%rhoat(i,j,k) = s%f(0)%grd0(x)
-    if (opts%frcell) then
-       ! (the cell atoms of each fragment and their lattice
-       ! translations, like the promolecular density)
-       do ifr = 1, nfrag
-          call s%c%promolecular_atom(x,icrd_cart,res%rhofrag(i,j,k,ifr),rp,rpp,0,fr=opts%fr(ifr))
-       end do
+    if (allocated(frmask)) then
+       call s%c%promolecular_atom(x,icrd_cart,rrho,rp,rpp,0,frmask=frmask,ffr=res%rhofrag(i,j,k,:))
+       if (dopromol) res%rhoat(i,j,k) = rrho
        return
     end if
+    if (dopromol) res%rhoat(i,j,k) = s%f(0)%grd0(x)
     do ifr = 1, nfrag
        res%rhofrag(i,j,k,ifr) = 0d0
        do iat = 1, opts%fr(ifr)%nat
@@ -1776,5 +1780,29 @@ contains
     end do
 
   end subroutine promol_point
+
+  !> With opts%frcell, the cell atoms of the first nfrag fragments of
+  !> options opts in system s: frmask(i,j) if cell atom i is in
+  !> fragment j (for promol_point). Not allocated otherwise.
+  subroutine frcell_mask(opts,s,nfrag,frmask)
+    use systemmod, only: system
+    type(nci_options), intent(in) :: opts
+    type(system), intent(in) :: s
+    integer, intent(in) :: nfrag
+    logical, allocatable, intent(out) :: frmask(:,:)
+
+    integer :: ifr, iat, ic
+
+    if (.not.opts%frcell .or. nfrag == 0) return
+    allocate(frmask(s%c%ncel,nfrag))
+    frmask = .false.
+    do ifr = 1, nfrag
+       do iat = 1, opts%fr(ifr)%nat
+          ic = opts%fr(ifr)%at(iat)%cidx
+          if (ic >= 1 .and. ic <= s%c%ncel) frmask(ic,ifr) = .true.
+       end do
+    end do
+
+  end subroutine frcell_mask
 
 end submodule proc
