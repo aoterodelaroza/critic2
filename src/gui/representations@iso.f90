@@ -1279,6 +1279,7 @@ contains
     c%iregion_built = iso%iregion_built
     c%rgn_x_built = iso%rgn_x_built
     c%per0_built = iso%per0_built
+    c%ioff_built = iso%ioff_built
     c%outdomain = iso%outdomain
     c%time_built = iso%time_built
     c%frange = iso%frange
@@ -1341,6 +1342,7 @@ contains
        iso%iregion_built = c%iregion_built
        iso%rgn_x_built = c%rgn_x_built
        iso%per0_built = c%per0_built
+       iso%ioff_built = c%ioff_built
        iso%outdomain = c%outdomain
        iso%time_built = c%time_built
        iso%frange = c%frange

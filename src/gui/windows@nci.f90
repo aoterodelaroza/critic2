@@ -1084,27 +1084,22 @@ contains
     end subroutine draw_region
 
     !> The nodes the region of a periodic grid of options o (n nodes)
-    !> is rolled by along each axis, so it is drawn where the view
-    !> draws the atoms: along a vacuum axis, the view reassembles the
-    !> slab across the vacuum (atom_image_vacuum, representations), so
-    !> the region spans the cell that starts in the middle of the
-    !> vacuum instead of the cell at the origin.
+    !> is rolled by along each axis, so it covers the cell in which the
+    !> anchor view draws the atoms (display_cell_window: the display
+    !> origin, or the middle of the vacuum of a slab), like the
+    !> periodic isosurfaces.
     function region_roll(o,n) result(m)
-      use crystalmod, only: iperiod_vacthr
+      use representations, only: display_cell_window
+      use display, only: rep_display
       type(nci_options), intent(in) :: o
       integer, intent(in) :: n(3)
       integer :: m(3)
 
-      integer :: j
-
       m = 0
-      if (.not.o%periodic .or. sysc(isys)%md%ready) return
-      associate(c => sys(isys)%c)
-        do j = 1, 3
-           if (c%vaclength(j) > iperiod_vacthr) &
-              m(j) = nint((0.5d0 * (c%vacbot(j) + c%vactop(j)) - 1d0) * real(n(j),8))
-        end do
-      end associate
+      if (.not.o%periodic) return
+      if (iview < 1 .or. iview > nwin) return
+      if (.not.associated(win(iview)%sc)) return
+      m = nint(display_cell_window(isys,win(iview)%sc%disp,rep_display()) * real(n,8))
 
     end function region_roll
 

@@ -25,7 +25,7 @@ module isosurfacemod
   public :: marching_cubes
 
   interface
-     module subroutine marching_cubes(n,f,x2c,c2x,isoval,periodic,nv,xv,nrm,nf,idx)
+     module subroutine marching_cubes(n,f,x2c,c2x,isoval,periodic,nv,xv,nrm,nf,idx,ioff)
        integer, intent(in) :: n(3)
        real*8, intent(in) :: f(:,:,:)
        real*8, intent(in) :: x2c(3,3)
@@ -37,6 +37,7 @@ module isosurfacemod
        real*8, allocatable, intent(inout) :: nrm(:,:)
        integer, intent(out) :: nf
        integer, allocatable, intent(inout) :: idx(:,:)
+       integer, intent(in), optional :: ioff(3)
      end subroutine marching_cubes
   end interface
 

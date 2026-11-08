@@ -478,6 +478,33 @@ contains
 
   end subroutine lattice_points
 
+  !> The fractional start s of the cell in which the atoms of system
+  !> isys are drawn by an object with periodicity override ovr in a
+  !> view with Display disp, for what is drawn over a whole cell (a
+  !> periodic isosurface): the display origin (tshift), or, along a
+  !> vacuum direction, where the atoms are moved to reassemble the
+  !> slab (atom_image_vacuum), the middle of the vacuum. The cells
+  !> drawn are then [s, s+1), [s+1, s+2), etc. Zero in molecules.
+  !> Along a vacuum direction the display origin is ignored (the atom
+  !> loops apply both and split the slab again there).
+  module function display_cell_window(isys,disp,ovr) result(s)
+    use systems, only: sys
+    integer, intent(in) :: isys
+    type(scene_display), intent(in) :: disp
+    type(rep_display), intent(in) :: ovr
+    real*8 :: s(3)
+
+    logical :: dovac(3)
+    real*8 :: ucini(3), ucend(3)
+
+    s = 0d0
+    if (sys(isys)%c%ismolecule) return
+    if (.not.ovr%ignoresel) s = disp%tshift
+    call atom_image_vacuum(sys(isys)%c,isys,dovac,ucini,ucend)
+    where (dovac) s = 0.5d0 * (sys(isys)%c%vacbot + sys(isys)%c%vactop) - 1d0
+
+  end function display_cell_window
+
   !> Whether the Wigner-Seitz cell object ws draws a cell at the
   !> lattice point with fractional coordinates x.
   module function wscell_isdrawn(ws,x) result(ok)
@@ -2719,15 +2746,17 @@ contains
     end subroutine append_label
 
     !> Build (if stale) and append the isosurface meshes of this
-    !> representation. The field is triangulated over the full unit cell:
-    !> at the native grid resolution when the applied coarseness is
+    !> representation. The field is triangulated over its domain: at
+    !> the native grid resolution when the applied coarseness is
     !> "native" (grid fields only), otherwise sampled on the applied
     !> nptsxyz grid (OpenMP; the samples are cached so isovalue edits do
-    !> not resample). The cached triangulations in r%iso are reused until
-    !> the field, the isovalue, or the applied grid changes.
+    !> not resample). A periodic mesh covers the cell the atoms are
+    !> drawn in (display_cell_window). The cached triangulations in
+    !> r%iso are reused until the field, the isovalue, the applied grid,
+    !> or that cell changes.
     subroutine add_isosurface_meshes()
-      integer :: i, l, ncp(3), i1, i2, i3
-      logical :: usegrid, resample, rebuild, per0, pereval, okbox
+      integer :: i, l, ncp(3), i1, i2, i3, ioff(3), nd(3)
+      logical :: usegrid, resample, rebuild, per0, pereval, okbox, reoff
       real*8 :: xmat(3,3), cmat(3,3), x0c(3)
       real*8, allocatable :: ff(:,:,:)
       real(c_float), allocatable :: xrep(:,:)
@@ -2755,29 +2784,45 @@ contains
          rebuild = rebuild .or. slot_stale(r%iso%slot(i))
       end do
 
+      ! the domain the data cover and whether it is periodic: the native
+      ! grid's own domain (partial grids span only part of the cell and
+      ! never wrap), or the sampled box, its periodicities (mesh and
+      ! field evaluation), and the endpoint-inclusive scaling, from the
+      ! domain policy in iso_sampled_box
+      if (usegrid) then
+         associate(g => sys(r%id)%f(r%iso%fref%id)%grid)
+           call g%get_domain(xmat,x0c,cmat)
+           per0 = .not.c%ismolecule .and. .not.g%partial
+           nd = g%n
+         end associate
+      else
+         call r%iso%sampled_box(r%id,xmat,x0c,cmat,per0,pereval,okbox)
+         nd = r%iso%nptsxyz
+      end if
+
+      ! a periodic mesh covers the cell the atoms are drawn in
+      ! (display_cell_window), not necessarily the one at the origin: it
+      ! is triangulated starting ioff grid points away; a new ioff
+      ! re-triangulates every isosurface, without resampling
+      ioff = 0
+      if (per0) ioff = nint(display_cell_window(r%id,disp,r%disp) * real(nd,8))
+      reoff = any(ioff /= r%iso%ioff_built)
+      rebuild = rebuild .or. reoff
+
       ! re-triangulate the isosurfaces that are stale (all of them if the
       ! data were resampled); the others keep their meshes, so dragging
       ! one level does not re-triangulate the rest
       if (rebuild) then
          if (usegrid) then
             ! native grid: triangulate the grid values at their own
-            ! resolution over the grid's own domain (partial grids span
-            ! only part of the cell and never wrap)
-            associate(g => sys(r%id)%f(r%iso%fref%id)%grid)
-              call g%get_domain(xmat,x0c,cmat)
-              per0 = .not.c%ismolecule .and. .not.g%partial
-            end associate
+            ! resolution
             if (allocated(r%iso%ff)) deallocate(r%iso%ff)
             r%iso%outdomain = .false. ! native data needs no evaluation
             if (resample) &
                call r%iso%stamp_histogram(sys(r%id)%f(r%iso%fref%id)%grid%f)
-            call triangulate(sys(r%id)%f(r%iso%fref%id)%grid%f,xmat,cmat,x0c,per0,resample)
+            call triangulate(sys(r%id)%f(r%iso%fref%id)%grid%f,xmat,cmat,x0c,per0,resample .or. reoff,ioff)
          else
-            ! sample on the applied grid; the sampled box, its
-            ! periodicities (mesh and field evaluation), and the
-            ! endpoint-inclusive scaling all come from the domain policy
-            ! in iso_sampled_box
-            call r%iso%sampled_box(r%id,xmat,x0c,cmat,per0,pereval,okbox)
+            ! sample on the applied grid
             if (.not.okbox) return ! degenerate applied region: draw nothing
 
             if (resample) then
@@ -2786,8 +2831,9 @@ contains
                call move_alloc(ff,r%iso%ff)
                call r%iso%stamp_histogram(r%iso%ff)
             end if
-            call triangulate(r%iso%ff,xmat,cmat,x0c,per0,resample)
+            call triangulate(r%iso%ff,xmat,cmat,x0c,per0,resample .or. reoff,ioff)
          end if
+         r%iso%ioff_built = ioff
          ! each key is refreshed by the event it describes: these three
          ! answer "were the samples taken from this field, at this time?",
          ! and this block also runs for a rebuild that only re-triangulated
@@ -2843,14 +2889,16 @@ contains
 
     !> Triangulate the isosurfaces of this object over the data ff
     !> (domain vectors xmat and their inverse cmat, Cartesian origin x0c,
-    !> per0 = periodic data). Only the isosurfaces whose level changed
-    !> are rebuilt, unless force (the data itself changed, so every mesh
-    !> is stale).
-    subroutine triangulate(ff,xmat,cmat,x0c,per0,force)
+    !> per0 = periodic data; the periodic meshes cover the cell that
+    !> starts ioff grid points away). Only the isosurfaces whose level
+    !> changed are rebuilt, unless force (the data itself changed, or
+    !> ioff, so every mesh is stale).
+    subroutine triangulate(ff,xmat,cmat,x0c,per0,force,ioff)
       use isosurfacemod, only: marching_cubes
       real*8, intent(in), contiguous :: ff(:,:,:)
       real*8, intent(in) :: xmat(3,3), cmat(3,3), x0c(3)
       logical, intent(in) :: per0, force
+      integer, intent(in) :: ioff(3)
 
       integer :: i, nv, nf
       real*8, allocatable :: xv(:,:), nrm(:,:)
@@ -2859,7 +2907,7 @@ contains
       do i = 1, r%iso%niso
          associate (s => r%iso%slot(i))
            if (.not.force .and. .not.slot_stale(s)) cycle
-           call marching_cubes(int(shape(ff)),ff,xmat,cmat,s%isoval,per0,nv,xv,nrm,nf,idx)
+           call marching_cubes(int(shape(ff)),ff,xmat,cmat,s%isoval,per0,nv,xv,nrm,nf,idx,ioff)
            call save_mesh(s%mesh,nv,xv,nrm,nf,idx,x0c)
            s%isoval_built = s%isoval
            s%built = .true.

@@ -1196,6 +1196,7 @@ module representations
      real*8 :: rgn_x_built(3,0:3) = 0d0 ! applied region coordinates the samples were taken on
      logical :: per0_built = .false. ! whether the built meshes are periodic (whole cell of a crystal,
                                      ! non-partial data); gates the periodic replication and its editor UI
+     integer :: ioff_built(3) = 0 ! grid points the periodic meshes are shifted by (display_cell_window)
      logical :: outdomain = .false. ! some samples fell outside the field's domain (zeroed) in the last build
      real*8 :: time_built = -1d0 ! time the meshes were built (vs sysc timelastchange)
      real*8 :: frange(2) = (/1d0,-1d0/) ! min/max of the data backing the mesh; invalid if frange(1) > frange(2)
@@ -1269,6 +1270,7 @@ module representations
      integer :: ihighlight_built = -1, nptsxyz_built(3) = -1, iregion_built = -1
      real*8 :: rgn_x_built(3,0:3) = 0d0
      logical :: per0_built = .false., outdomain = .false.
+     integer :: ioff_built(3) = 0
      real*8 :: time_built = -1d0
      real*8 :: frange(2) = 0d0
      logical :: hist_have(hscale_num) = .false.
@@ -1526,6 +1528,7 @@ module representations
   public :: recip_scale
   public :: reptype_is_recip
   public :: lattice_points
+  public :: display_cell_window
   public :: wscell_isdrawn
   public :: point_in_list
   public :: labels_row
@@ -1601,6 +1604,12 @@ module representations
        integer, allocatable, intent(inout) :: ipt(:,:)
        integer, intent(in), optional :: margin
      end subroutine lattice_points
+     module function display_cell_window(isys,disp,ovr) result(s)
+       integer, intent(in) :: isys
+       type(scene_display), intent(in) :: disp
+       type(rep_display), intent(in) :: ovr
+       real*8 :: s(3)
+     end function display_cell_window
      module function wscell_isdrawn(ws,x) result(ok)
        type(rep_wscell), intent(in) :: ws
        real*8, intent(in) :: x(3)

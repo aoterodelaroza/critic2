@@ -337,8 +337,11 @@ contains
   !> Returns nv vertices with Cartesian coordinates xv(3,1:nv) and unit
   !> normals nrm(3,1:nv) pointing towards lower field values, and nf
   !> triangles idx(3,1:nf) (1-based vertex indices) wound
-  !> counter-clockwise seen from the normal side.
-  module subroutine marching_cubes(n,f,x2c,c2x,isoval,periodic,nv,xv,nrm,nf,idx)
+  !> counter-clockwise seen from the normal side. If periodic and ioff
+  !> is given, the mesh covers the cell that starts ioff grid points
+  !> away (fractional ioff/n to ioff/n + 1) instead of the one at the
+  !> origin: the same periodic surface, cut elsewhere.
+  module subroutine marching_cubes(n,f,x2c,c2x,isoval,periodic,nv,xv,nrm,nf,idx,ioff)
     use types, only: realloc
     integer, intent(in) :: n(3)
     real*8, intent(in) :: f(:,:,:)
@@ -351,8 +354,9 @@ contains
     real*8, allocatable, intent(inout) :: nrm(:,:)
     integer, intent(out) :: nf
     integer, allocatable, intent(inout) :: idx(:,:)
+    integer, intent(in), optional :: ioff(3)
 
-    integer :: ncell(3), i, j, k, l, e, ax, icase, iv, i1w, j1w, k1w
+    integer :: ncell(3), i, j, k, l, e, ax, icase, iv, i1w, j1w, k1w, iw, jw, kw, off(3)
     integer :: praw(3,8), pw(3), braw(3), ow(3), vid(12)
     integer, allocatable :: emap(:,:,:,:)
     real*8 :: vals(8), c2xt(3,3), fb, fo, den, t, xf(3), gb(3), go(3), gg(3), gnorm
@@ -364,6 +368,8 @@ contains
     if (.not.allocated(nrm)) allocate(nrm(3,4096))
     if (.not.allocated(idx)) allocate(idx(3,4096))
     c2xt = transpose(c2x)
+    off = 0
+    if (periodic .and. present(ioff)) off = ioff
 
     ! number of cells per direction; the edge-to-vertex map covers the
     ! current and the next z-layer of edge base points, addressed by the
@@ -376,25 +382,28 @@ contains
     allocate(emap(3,n(1)+1,n(2)+1,2))
     emap = 0
 
+    ! (the data indices of cell (i,j,k) are wrapped and offset by
+    ! off; the loop and the edge map use the unwrapped ones. The +1
+    ! index wraps only in the periodic case: otherwise i < n)
     do k = 1, ncell(3)
-       k1w = k + 1
-       if (k1w > n(3)) k1w = 1 ! wraps only in the periodic case
+       kw = modulo(k-1+off(3),n(3)) + 1
+       k1w = modulo(k+off(3),n(3)) + 1
        do j = 1, ncell(2)
-          j1w = j + 1
-          if (j1w > n(2)) j1w = 1
+          jw = modulo(j-1+off(2),n(2)) + 1
+          j1w = modulo(j+off(2),n(2)) + 1
           do i = 1, ncell(1)
-             i1w = i + 1
-             if (i1w > n(1)) i1w = 1
+             iw = modulo(i-1+off(1),n(1)) + 1
+             i1w = modulo(i+off(1),n(1)) + 1
 
              ! corner values (Bourke corner order; +1 indices wrapped)
-             vals(1) = f(i,j,k)
-             vals(2) = f(i1w,j,k)
-             vals(3) = f(i1w,j1w,k)
-             vals(4) = f(i,j1w,k)
-             vals(5) = f(i,j,k1w)
-             vals(6) = f(i1w,j,k1w)
+             vals(1) = f(iw,jw,kw)
+             vals(2) = f(i1w,jw,kw)
+             vals(3) = f(i1w,j1w,kw)
+             vals(4) = f(iw,j1w,kw)
+             vals(5) = f(iw,jw,k1w)
+             vals(6) = f(i1w,jw,k1w)
              vals(7) = f(i1w,j1w,k1w)
-             vals(8) = f(i,j1w,k1w)
+             vals(8) = f(iw,j1w,k1w)
 
              ! the marching cubes case for this cell
              icase = 1
@@ -416,12 +425,12 @@ contains
                 iv = emap(ax,braw(1),braw(2),mod(braw(3),2)+1)
                 if (iv == 0) then
                    ! interpolate the crossing along the edge
-                   pw = modulo(braw-1,n) + 1
+                   pw = modulo(braw-1+off,n) + 1
                    fb = f(pw(1),pw(2),pw(3))
                    gb = gradpt(pw)
                    ow = braw
                    ow(ax) = ow(ax) + 1
-                   ow = modulo(ow-1,n) + 1
+                   ow = modulo(ow-1+off,n) + 1
                    fo = f(ow(1),ow(2),ow(3))
                    go = gradpt(ow)
                    den = fo - fb
@@ -434,7 +443,7 @@ contains
                    ! vertex position: fractional (from the unwrapped base
                    ! point, so seam vertices land on the far cell face),
                    ! then Cartesian
-                   xf = real(braw-1,8)
+                   xf = real(braw-1+off,8)
                    xf(ax) = xf(ax) + t
                    xf = xf / real(n,8)
 
