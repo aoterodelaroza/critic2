@@ -2890,6 +2890,16 @@ function ipDragLineX(id,x,col,thickness,flags) bind(c,name="ipDragLineX")
   integer(c_int), value :: flags
   logical(c_bool) :: ipDragLineX
 end function ipDragLineX
+! bool ipDragLineY(int id, double* y, const ImVec4 col, float thickness, ImPlotDragToolFlags flags);
+function ipDragLineY(id,y,col,thickness,flags) bind(c,name="ipDragLineY")
+  import c_int, c_double, c_float, c_bool, ImVec4
+  integer(c_int), value :: id
+  real(c_double) :: y
+  type(ImVec4), intent(in), value :: col
+  real(c_float), value :: thickness
+  integer(c_int), value :: flags
+  logical(c_bool) :: ipDragLineY
+end function ipDragLineY
 ! void ipPlotToPixels(double x, double y, ImAxis x_axis, ImAxis y_axis, float *px, float *py);
 subroutine ipPlotToPixels(x,y,x_axis,y_axis,px,py) bind(c,name="ipPlotToPixels")
   import c_int, c_double, c_float

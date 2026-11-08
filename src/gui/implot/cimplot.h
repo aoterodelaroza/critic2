@@ -42,6 +42,7 @@ CIMGUI_API void ipSetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_
 CIMGUI_API void ipSetupAxisScale(ImAxis axis, ImPlotScale scale);
 CIMGUI_API void ipSetupAxisLimits(ImAxis axis, double v_min, double v_max, ImPlotCond cond);
 CIMGUI_API bool ipDragLineX(int id, double* x, const ImVec4 col, float thickness, ImPlotDragToolFlags flags);
+CIMGUI_API bool ipDragLineY(int id, double* y, const ImVec4 col, float thickness, ImPlotDragToolFlags flags);
 CIMGUI_API void ipPlotToPixels(double x, double y, ImAxis x_axis, ImAxis y_axis, float *px, float *py);
 CIMGUI_API void ipSampleColormap(float t, ImPlotColormap cmap, ImVec4 *out);
 CIMGUI_API void ipSetupAxisTicksValues(ImAxis axis, const double* values, int n_ticks, bool keep_default);

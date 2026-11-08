@@ -55,6 +55,13 @@ contains
     class(window), intent(inout), target :: w
 
     integer, parameter :: itable_domains = 1 ! the domain table, for table_write_*
+    ! colors of the lines of the scatter plot and of the labels of their values
+    real(c_float), parameter :: rgb_range(3) = (/0.3_c_float,0.6_c_float,1._c_float/)
+    real(c_float), parameter :: rgb_rhoplot(3) = (/1._c_float,0.6_c_float,0.2_c_float/)
+    real(c_float), parameter :: rgb_isoval(3) = (/0.3_c_float,0.8_c_float,0.4_c_float/)
+    ! limits of the isovalue and of the density cutoff
+    real*8, parameter :: dimplot_min = 0.001d0, dimplot_max = 10d0
+    real*8, parameter :: rhoplot_min = 0.0001d0, rhoplot_max = 10d0
 
     logical :: doquit, goodsys, syschanged, ismol, isgrid, okbox, okfield, okcalc, ch, navail, capped
     logical :: maskchanged, objchanged, datchanged, lcommit
@@ -619,22 +626,22 @@ contains
       call draw_scatter()
 
       associate(o => w%nc%opts)
-        call iw_text("Isovalue (s)",alignframe=.true.)
-        ch = iw_dragfloat_real8("##ncidimplot",x1=o%dimplot,speed=0.005d0,decimal=3,min=0.001d0,&
-           max=10d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,committed=lcommit)
+        call iw_text("Isovalue (s)",alignframe=.true.,rgb=rgb_isoval)
+        ch = iw_dragfloat_real8("##ncidimplot",x1=o%dimplot,speed=0.005d0,decimal=3,min=dimplot_min,&
+           max=dimplot_max,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,committed=lcommit)
         objchanged = objchanged .or. lcommit
         call iw_tooltip("Value of the reduced density gradient (s) of the isosurface (DIMPLOT)",ttshown)
-        call iw_text("Density cutoff (a.u.)",alignframe=.true.,gap=.true.)
+        call iw_text("Density cutoff (a.u.)",alignframe=.true.,gap=.true.,rgb=rgb_rhoplot)
         rhoprev = o%rhoplot
-        ch = iw_dragfloat_real8("##ncirhoplot",x1=o%rhoplot,speed=0.001d0,decimal=4,min=0.0001d0,&
-           max=10d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,committed=lcommit)
+        ch = iw_dragfloat_real8("##ncirhoplot",x1=o%rhoplot,speed=0.001d0,decimal=4,min=rhoplot_min,&
+           max=rhoplot_max,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,committed=lcommit)
         call iw_tooltip("Points with density above this value are left out of the isosurface,&
            & and the color scale of the signed density spans minus to plus this value (CUTPLOT)",&
            ttshown)
         if (ch) call srhorange_follow(rhoprev)
         maskchanged = maskchanged .or. lcommit
 
-        call iw_text("Signed density range (a.u.)",alignframe=.true.)
+        call iw_text("Signed density range (a.u.)",alignframe=.true.,rgb=rgb_range)
         ch = iw_dragfloat_real8("##ncisrhorange",x2=o%srhorange,speed=0.001d0,decimal=4,&
            min=-o%rhoplot,max=o%rhoplot,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,&
            notlive=.true.,committed=lcommit)
@@ -686,12 +693,15 @@ contains
     end subroutine draw_plot
 
     !> The s vs. signed density plot of the result (top of the Plot
-    !> section): the points under the dat-file cutoffs, with the
-    !> signed density range as two draggable lines (a release masks
-    !> the result again) and the density cutoff as two fixed ones.
+    !> section): the points under the dat-file cutoffs, with draggable
+    !> lines for the signed density range (two), the density cutoff
+    !> (two, at minus and plus the cutoff, that move together) and
+    !> the isovalue (one, horizontal). Letting go of a line masks the
+    !> result again (range, cutoff) or redoes the objects (isovalue).
     subroutine draw_scatter()
       integer :: i, held
       real(c_double) :: xdrag
+      real*8 :: x
       character(kind=c_char,len=:), allocatable, target :: str1, str2
       type(ImVec2) :: szplot
       type(ImVec4) :: col
@@ -725,31 +735,67 @@ contains
               end if
            end if
 
-           ! the density cutoff, fixed
-           col = ImVec4(0.8_c_float,0.3_c_float,0.3_c_float,0.7_c_float)
-           do i = 1, 2
-              xdrag = real(o%rhoplot * (2*i-3),c_double)
-              ch = logical(ipDragLineX(int(i+1,c_int),xdrag,col,1._c_float,ImPlotDragToolFlags_NoInputs))
-           end do
+           ! a held line moves the values from where they were when it
+           ! was grabbed, so a range bound the cutoff swept over comes
+           ! back when the cutoff does
+           if (w%nc%dragline == 0) then
+              w%nc%drag0(1) = o%rhoplot
+              w%nc%drag0(2:3) = o%srhorange
+           end if
 
-           ! the signed density range, draggable inside the cutoff
-           col = ImVec4(0.3_c_float,0.6_c_float,1._c_float,1._c_float)
+           ! the signed density range, inside the cutoff. These lines
+           ! sit on the cutoff lines when they do not restrict anything
+           ! (the default): they are submitted first, so they take the
+           ! click, and pushing one past the cutoff takes the cutoff
+           ! with it. Drawn wider, so they show around the cutoff.
+           col = ImVec4(rgb_range(1),rgb_range(2),rgb_range(3),1._c_float)
            do i = 1, 2
               xdrag = real(o%srhorange(i),c_double)
-              if (logical(ipDragLineX(int(i-1,c_int),xdrag,col,2._c_float,ImPlotDragToolFlags_None))) then
+              if (logical(ipDragLineX(int(i-1,c_int),xdrag,col,5._c_float,ImPlotDragToolFlags_None))) then
                  held = i
-                 o%srhorange(i) = min(max(real(xdrag,8),-o%rhoplot),o%rhoplot)
+                 x = max(min(real(xdrag,8),o%rhocut),-o%rhocut)
+                 o%rhoplot = w%nc%drag0(1)
+                 o%srhorange = w%nc%drag0(2:3)
+                 if (x * (2*i-3) > o%rhoplot) then
+                    o%rhoplot = min(abs(x),rhoplot_max)
+                    call srhorange_follow(w%nc%drag0(1))
+                 end if
+                 o%srhorange(i) = min(max(x,-o%rhoplot),o%rhoplot)
               end if
            end do
+
+           ! the density cutoff: dragging one line moves both
+           col = ImVec4(rgb_rhoplot(1),rgb_rhoplot(2),rgb_rhoplot(3),1._c_float)
+           do i = 1, 2
+              xdrag = real(o%rhoplot * (2*i-3),c_double)
+              if (logical(ipDragLineX(int(i+1,c_int),xdrag,col,2._c_float,ImPlotDragToolFlags_None))) then
+                 held = i + 2
+                 o%rhoplot = max(min(abs(real(xdrag,8)),o%rhocut,rhoplot_max),rhoplot_min)
+                 o%srhorange = w%nc%drag0(2:3)
+                 call srhorange_follow(w%nc%drag0(1))
+              end if
+           end do
+
+           ! the isovalue
+           col = ImVec4(rgb_isoval(1),rgb_isoval(2),rgb_isoval(3),1._c_float)
+           xdrag = real(o%dimplot,c_double)
+           if (logical(ipDragLineY(4_c_int,xdrag,col,2._c_float,ImPlotDragToolFlags_None))) then
+              held = 5
+              o%dimplot = max(min(real(xdrag,8),o%dimcut,dimplot_max),dimplot_min)
+           end if
            if (o%srhorange(2) < o%srhorange(1)) o%srhorange(2) = o%srhorange(1)
            call ipEndPlot()
         end if
         call iw_tooltip("Reduced density gradient against the signed density at the grid&
-           & points under the plot cutoffs (the dat file of NCIPLOT). Drag the blue lines to&
-           & change the signed density range of the isosurface; the red lines are the&
-           & density cutoff",ttshown)
-        ! the range lands when its line is let go
-        if (w%nc%dragline /= 0 .and. held == 0) maskchanged = .true.
+           & points under the plot cutoffs (the dat file of NCIPLOT). Drag the lines to change&
+           & the isovalue (green), the density cutoff (orange) and the signed density range&
+           & (blue) of the isosurface",ttshown)
+        ! the values land when their line is let go
+        if (w%nc%dragline == 5 .and. held == 0) then
+           objchanged = .true.
+        elseif (w%nc%dragline /= 0 .and. held == 0) then
+           maskchanged = .true.
+        end if
         w%nc%dragline = held
         if (allocated(d%scx)) call iw_text(string(size(d%scx,1)) // " points shown",disabled=.true.)
       end associate
