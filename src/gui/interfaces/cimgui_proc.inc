@@ -136,7 +136,11 @@ function igGetWindowHeight() bind(c,name="igGetWindowHeight")
   import c_float
   real(c_float) :: igGetWindowHeight
 end function igGetWindowHeight
-!x! ImGuiViewport* igGetWindowViewport(void);
+! ImGuiViewport* igGetWindowViewport(void);
+function igGetWindowViewport() bind(c,name="igGetWindowViewport")
+  import c_ptr
+  type(c_ptr) :: igGetWindowViewport
+end function igGetWindowViewport
 ! void igSetNextWindowPos(const ImVec2 pos,ImGuiCond cond,const ImVec2 pivot);
 subroutine igSetNextWindowPos(pos,cond,pivot) bind(c,name="igSetNextWindowPos")
   import ImVec2, c_int
@@ -3038,11 +3042,12 @@ subroutine own_progress_bar(x0,y0,x1,y1,frac,text) bind(c,name="own_progress_bar
   real(c_float), value :: x0, y0, x1, y1, frac
   type(c_ptr), intent(in), value :: text
 end subroutine own_progress_bar
-! ImDrawData* own_progress_bar_drawdata(float x0, float y0, float x1, float y1, float frac, const char* text);
-function own_progress_bar_drawdata(x0,y0,x1,y1,frac,text) bind(c,name="own_progress_bar_drawdata")
+! ImDrawData* own_progress_bar_drawdata(float x0, float y0, float x1, float y1, float frac, const char* text, const ImDrawData* ref);
+function own_progress_bar_drawdata(x0,y0,x1,y1,frac,text,ref) bind(c,name="own_progress_bar_drawdata")
   import c_float, c_ptr
   real(c_float), value :: x0, y0, x1, y1, frac
   type(c_ptr), intent(in), value :: text
+  type(c_ptr), intent(in), value :: ref
   type(c_ptr) :: own_progress_bar_drawdata
 end function own_progress_bar_drawdata
 ! void own_add_text_rotated(ImDrawList* dl, ImFont* font, float size, float cx, float cy, float angle, ImU32 col, const char* text);

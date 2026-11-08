@@ -750,14 +750,18 @@ contains
   !> main thread): process the window events, cancel the job if Esc
   !> is pressed or the main window is being closed, and show the
   !> progress of the job (progress_done/progress_total) in the
-  !> overlay's progress bar (job_progress_rect). The screen is the
+  !> overlay's progress bar (job_progress_rect). The OS window that
+  !> holds the overlay (the main window, or its own one when a
+  !> detached window covers the middle of the main window) is its
   !> last frame drawn again (its draw data are still valid: no frame
   !> is started during the job) with the bar on top. The Esc key is
   !> fixed: it does not follow the rebinding of BIND_CANCEL.
   subroutine cancel_hook()
-    use interfaces_cimgui, only: own_progress_bar_drawdata, ImGui_ImplOpenGL3_RenderDrawData
+    use iso_c_binding, only: c_associated, c_f_pointer
+    use interfaces_cimgui, only: own_progress_bar_drawdata, ImGui_ImplOpenGL3_RenderDrawData,&
+       igGetDrawData, igGetMainViewport, ImGuiViewport
     use interfaces_glfw, only: glfwPollEvents, glfwGetKey, glfwWindowShouldClose,&
-       glfwGetFramebufferSize, glfwSwapBuffers, GLFW_KEY_ESCAPE, GLFW_PRESS
+       glfwGetFramebufferSize, glfwSwapBuffers, glfwMakeContextCurrent, GLFW_KEY_ESCAPE, GLFW_PRESS
     use global, only: abort_requested, progress_done, progress_total, progress_what
     use tools_io, only: string
 
@@ -765,6 +769,8 @@ contains
     integer(c_int) :: display_w, display_h
     integer :: ndone, ntot
     character(kind=c_char,len=:), allocatable, target :: text
+    type(c_ptr) :: glwin, dd
+    type(ImGuiViewport), pointer :: vp
 
     call glfwPollEvents()
     if (glfwGetKey(rootwin,GLFW_KEY_ESCAPE) == GLFW_PRESS .or. glfwWindowShouldClose(rootwin) /= 0) then
@@ -779,32 +785,56 @@ contains
     ndone = progress_done
     ntot = progress_total
     if (ntot <= 0 .or. (ndone == nlast(1) .and. ntot == nlast(2))) return
-    call glfwGetFramebufferSize(rootwin,display_w,display_h)
+
+    ! the OS window of the overlay and its draw data
+    glwin = rootwin
+    dd = igGetDrawData()
+    if (c_associated(job_progress_vp)) then
+       if (.not.c_associated(job_progress_vp,igGetMainViewport())) then
+          call c_f_pointer(job_progress_vp,vp)
+          glwin = vp%PlatformHandle
+          dd = vp%DrawData
+          if (.not.c_associated(glwin) .or. .not.c_associated(dd)) return
+       end if
+    end if
+    call glfwGetFramebufferSize(glwin,display_w,display_h)
     if (display_w <= 0 .or. display_h <= 0) return
     nlast = (/ndone,ntot/)
     text = string(ndone) // " / " // string(ntot) // " " // trim(progress_what) // c_null_char
-    call render_draw_data()
+    if (.not.c_associated(glwin,rootwin)) call glfwMakeContextCurrent(glwin)
+    call render_draw_data(glwin,dd)
     call ImGui_ImplOpenGL3_RenderDrawData(own_progress_bar_drawdata(job_progress_rect(1),&
        job_progress_rect(2),job_progress_rect(3),job_progress_rect(4),&
-       real(ndone,c_float)/real(ntot,c_float),c_loc(text)))
-    call glfwSwapBuffers(rootwin)
+       real(ndone,c_float)/real(ntot,c_float),c_loc(text),dd))
+    call glfwSwapBuffers(glwin)
+    if (.not.c_associated(glwin,rootwin)) call glfwMakeContextCurrent(rootwin)
 
   end subroutine cancel_hook
 
   !> Draw the draw data of the last ImGui frame (igRender) on the
-  !> cleared framebuffer, without swapping.
-  subroutine render_draw_data()
+  !> cleared framebuffer, without swapping: those of the main window,
+  !> or dd on OS window glwin (whose GL context is current).
+  subroutine render_draw_data(glwin,dd)
     use interfaces_cimgui, only: igGetDrawData, ImGui_ImplOpenGL3_RenderDrawData
     use interfaces_glfw, only: glfwGetFramebufferSize
     use interfaces_opengl3, only: glViewport, glClearColor, glClear, GL_COLOR_BUFFER_BIT
+    type(c_ptr), intent(in), optional :: glwin, dd
 
     integer(c_int) :: display_w, display_h
 
-    call glfwGetFramebufferSize(rootwin,display_w,display_h)
+    if (present(glwin)) then
+       call glfwGetFramebufferSize(glwin,display_w,display_h)
+    else
+       call glfwGetFramebufferSize(rootwin,display_w,display_h)
+    end if
     call glViewport(0,0,display_w,display_h)
     call glClearColor(ColorRootBg(1),ColorRootBg(2),ColorRootBg(3),ColorRootBg(4))
     call glClear(GL_COLOR_BUFFER_BIT)
-    call ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData())
+    if (present(dd)) then
+       call ImGui_ImplOpenGL3_RenderDrawData(dd)
+    else
+       call ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData())
+    end if
 
   end subroutine render_draw_data
 

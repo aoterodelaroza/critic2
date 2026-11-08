@@ -980,7 +980,7 @@ contains
   !> the job at job_progress_rect) and the Esc message (in red).
   module subroutine iw_wait_overlay(title,info,cancellable)
     use interfaces_cimgui
-    use gui_main, only: g, mainvwp, job_progress_on, job_progress_rect
+    use gui_main, only: g, mainvwp, job_progress_on, job_progress_rect, job_progress_vp
     character(len=*), intent(in) :: title
     character(len=*), intent(in) :: info
     logical, intent(in) :: cancellable
@@ -996,6 +996,7 @@ contains
 
     call iw_blank_background()
     job_progress_on = .false.
+    job_progress_vp = c_null_ptr
 
     ! a centered window, sized for its contents: it is only drawn in
     ! one frame, and an auto-resized window is invisible in its first
@@ -1031,6 +1032,9 @@ contains
           call igGetCursorScreenPos(p0)
           job_progress_on = .true.
           job_progress_rect = (/p0%x,p0%y,p0%x+wid,p0%y+hbar/)
+          ! (with detachable windows, the overlay is its own OS window
+          ! when another one covers the middle of the main window)
+          job_progress_vp = igGetWindowViewport()
           str1 = progmsg // c_null_char
           call own_progress_bar(p0%x,p0%y,p0%x+wid,p0%y+hbar,0._c_float,c_loc(str1))
           call igDummy(ImVec2(wid,hbar))

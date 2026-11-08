@@ -2311,7 +2311,8 @@ extern "C" void own_progress_bar(float x0, float y0, float x1, float y1, float f
 // progress of a blocking job can be shown without starting a frame,
 // which would change the state of the windows. Valid until the next
 // call.
-extern "C" ImDrawData* own_progress_bar_drawdata(float x0, float y0, float x1, float y1, float frac, const char* text){
+extern "C" ImDrawData* own_progress_bar_drawdata(float x0, float y0, float x1, float y1, float frac, const char* text,
+                                                 const ImDrawData* ref){
   static ImDrawList* dl = NULL;
   static ImDrawData dd;
   ImGuiIO& io = ImGui::GetIO();
@@ -2335,10 +2336,12 @@ extern "C" ImDrawData* own_progress_bar_drawdata(float x0, float y0, float x1, f
   dd.CmdListsCount = 1;
   dd.TotalVtxCount = dl->VtxBuffer.Size;
   dd.TotalIdxCount = dl->IdxBuffer.Size;
-  ImDrawData* last = ImGui::GetDrawData();
-  dd.DisplayPos = last ? last->DisplayPos : ImVec2(0.f,0.f);
-  dd.DisplaySize = io.DisplaySize;
-  dd.FramebufferScale = io.DisplayFramebufferScale;
+  // the frame of the window it is drawn on (ref, the draw data of its
+  // viewport; the main viewport if NULL)
+  if (!ref) ref = ImGui::GetDrawData();
+  dd.DisplayPos = ref ? ref->DisplayPos : ImVec2(0.f,0.f);
+  dd.DisplaySize = ref ? ref->DisplaySize : io.DisplaySize;
+  dd.FramebufferScale = ref ? ref->FramebufferScale : io.DisplayFramebufferScale;
   return &dd;
 }
 

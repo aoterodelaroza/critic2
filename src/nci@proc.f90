@@ -546,6 +546,7 @@ contains
     ! named constants
     real*8, parameter :: fthirds = 4d0/3d0
     real*8, parameter :: const = 2.d0*(3.d0*pi**2)**(1.d0/3.d0)
+    integer, parameter :: iftxx(3) = (/ifformat_as_ft_xx,ifformat_as_ft_yy,ifformat_as_ft_zz/)
 
     ! checks
     n = opts%nstep
@@ -587,12 +588,21 @@ contains
     call request0%field_only()
     call request2%field_nder2()
 
-    ! Initialize gradrho out of the omp loop
+    ! Initialize gradrho out of the omp loop. These are serial FFTs of
+    ! the whole grid (6 for the gradient, 2 for each second
+    ! derivative), often longer than the loop below: they count as
+    ! progress, and a cancel is checked between them.
     if (opts%fourierint) then
+       call progress_start(12,"Fourier transforms")
+       if (abort_poll()) return
        call fgrho%load_as_fftgrid(s%c,-1,"",s%f(opts%ifield)%grid,ifformat_as_ft_grad)
-       call fxx(1)%load_as_fftgrid(s%c,-1,"",s%f(opts%ifield)%grid,ifformat_as_ft_xx)
-       call fxx(2)%load_as_fftgrid(s%c,-1,"",s%f(opts%ifield)%grid,ifformat_as_ft_yy)
-       call fxx(3)%load_as_fftgrid(s%c,-1,"",s%f(opts%ifield)%grid,ifformat_as_ft_zz)
+       call progress_step(6)
+       do l = 1, 3
+          if (abort_poll()) return
+          call fxx(l)%load_as_fftgrid(s%c,-1,"",s%f(opts%ifield)%grid,iftxx(l))
+          call progress_step(2)
+       end do
+       if (abort_poll()) return
        ! Set trilinear interpolation to prevent wonky negative values in the derivatives
        ! of the field in the low-density regions (which may have been noisy to begin with).
        call fgrho%grid%setmode("trilinear")
