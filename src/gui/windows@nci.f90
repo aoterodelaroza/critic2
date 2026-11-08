@@ -62,6 +62,9 @@ contains
     ! limits of the isovalue and of the density cutoff
     real*8, parameter :: dimplot_min = 0.001d0, dimplot_max = 10d0
     real*8, parameter :: rhoplot_min = 0.0001d0, rhoplot_max = 10d0
+    ! lower limit of the plot cutoffs (zero would leave the plot axes
+    ! without width)
+    real*8, parameter :: plotcut_min = 0.001d0
 
     logical :: doquit, goodsys, syschanged, ismol, isgrid, okbox, okfield, okcalc, ch, navail, capped
     logical :: maskchanged, objchanged, datchanged, lcommit
@@ -659,14 +662,14 @@ contains
            call iw_text("Plot cutoffs: density",alignframe=.true.)
            ! (the dat-file cutoffs only touch the scatter plot)
            ch = iw_dragfloat_real8("##ncirhocut",x1=o%rhocut,speed=0.005d0,decimal=3,&
-              min=0d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
+              min=plotcut_min,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
               committed=lcommit)
            datchanged = datchanged .or. lcommit
            call iw_tooltip("Points with density above this value are left out of the s vs.&
               & density plot (the dat file; CUTOFFS)",ttshown)
            call iw_text("s",alignframe=.true.,gap=.true.)
            ch = iw_dragfloat_real8("##ncidimcut",x1=o%dimcut,speed=0.005d0,decimal=3,&
-              min=0d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
+              min=plotcut_min,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
               committed=lcommit)
            datchanged = datchanged .or. lcommit
            call iw_tooltip("Points with reduced density gradient above this value are left out&
@@ -721,8 +724,10 @@ contains
            str1 = "sign(λ2)ρ (a.u.)" // c_null_char
            str2 = "s" // c_null_char
            call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
-           call ipSetupAxisLimits(ImAxis_X1,real(-o%rhocut,c_double),real(o%rhocut,c_double),ImPlotCond_Always)
-           call ipSetupAxisLimits(ImAxis_Y1,0._c_double,real(o%dimcut,c_double),ImPlotCond_Always)
+           xdrag = real(max(o%rhocut,plotcut_min),c_double)
+           call ipSetupAxisLimits(ImAxis_X1,-xdrag,xdrag,ImPlotCond_Always)
+           xdrag = real(max(o%dimcut,plotcut_min),c_double)
+           call ipSetupAxisLimits(ImAxis_Y1,0._c_double,xdrag,ImPlotCond_Always)
 
            ! the points
            if (allocated(d%scx)) then
