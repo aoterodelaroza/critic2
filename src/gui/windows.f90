@@ -864,6 +864,13 @@ module windows
   type nci_derived
      logical(1), allocatable :: inter(:,:,:)
      real(c_double), allocatable :: scx(:), scy(:) ! signed density and s of each scatter point
+     ! the scatter points, sorted in place into color bins: bin i is
+     ! scx/scy(scbin(i-1)+1:scbin(i)), bin 0 the points outside the
+     ! sign(lambda2)*rho range scb_rng, bins 1..nscbin the others over
+     ! the color scale scb_cs
+     integer, allocatable :: scbin(:)
+     real*8 :: scb_cs(2) = 0d0
+     real*8 :: scb_rng(2) = 0d0
      integer :: ndom = 0 ! number of domains
      integer, allocatable :: lbl(:,:,:) ! domain of each grid point (0 = none), until given to the isosurface
      integer, allocatable :: dom_npts(:) ! grid points of each domain

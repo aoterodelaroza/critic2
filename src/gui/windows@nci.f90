@@ -33,6 +33,9 @@ submodule (windows) nci
   ! short-range and the grid points far from the atoms are wasted
   real*8, parameter :: nci_bbox_buffer = 2d0
 
+  ! color bins of the points of the s vs. sign(lambda2)*rho plot
+  integer, parameter :: nscbin = 64
+
 contains
 
   !> Draw the NCI plot window: the density (a field of the system
@@ -49,7 +52,8 @@ contains
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
        iw_separatortext, iw_combo_simple, iw_dragfloat_real8, iw_checkbox, iw_field_combo,&
        iw_calcwidth, iw_calcheight, iw_table_column, iw_table_headers_row, iw_highlight_selectable,&
-       iw_cell_right, iw_close_button, duration_string, file_name_root, file_name_base
+       iw_cell_right, iw_close_button, duration_string, file_name_root, file_name_base,&
+       iw_colormap_lut
     use gui_main, only: ColorHighlightScene, g
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -678,8 +682,9 @@ contains
     !> redoes the objects (isovalue); the color scale changes as its
     !> lines move.
     subroutine draw_scatter()
-      integer :: i, held
+      integer :: i, held, icmap, nb
       real(c_double) :: xdrag
+      real(c_float) :: lut(3,nscbin)
       character(kind=c_char,len=:), allocatable, target :: str1, str2
       type(ImVec2) :: szplot
       type(ImVec4) :: col
@@ -710,14 +715,30 @@ contains
               w%nc%fitplot = .false.
            end if
 
-           ! the points
+           ! the points, colored by their signed density as the
+           ! isosurface (its colormap and color scale), gray outside the
+           ! sign(lambda2)*rho range (drawn first, under the others):
+           ! one scatter per color bin, as implot has no per-point colors
            if (allocated(d%scx)) then
               if (size(d%scx,1) > 0) then
-                 str1 = "Points" // c_null_char
-                 col = ImVec4(0.55_c_float,0.55_c_float,0.55_c_float,0.6_c_float)
-                 call ipSetNextMarkerStyle(ImPlotMarker_Square,1.5_c_float,col,0._c_float,col)
-                 call ipPlotScatter(c_loc(str1),c_loc(d%scx),c_loc(d%scy),int(size(d%scx,1),c_int),&
-                    0_c_int,0_c_int)
+                 ok = nci_cscale(w,cscale,icmap=icmap)
+                 call nci_scatter_bins(d,cscale,o%srhorange)
+                 call iw_colormap_lut(icmap,lut)
+                 do i = 0, nscbin
+                    nb = d%scbin(i) - d%scbin(i-1)
+                    if (nb == 0) cycle
+                    str1 = "##ncipoints" // string(i) // c_null_char
+                    if (i == 0 .or. .not.ok) then
+                       ! (all gray if the isosurface is not colored by
+                       ! the signed density of the window)
+                       col = ImVec4(0.55_c_float,0.55_c_float,0.55_c_float,0.6_c_float)
+                    else
+                       col = ImVec4(lut(1,i),lut(2,i),lut(3,i),0.7_c_float)
+                    end if
+                    call ipSetNextMarkerStyle(ImPlotMarker_Square,1.5_c_float,col,0._c_float,col)
+                    call ipPlotScatter(c_loc(str1),c_loc(d%scx(d%scbin(i-1)+1)),c_loc(d%scy(d%scbin(i-1)+1)),&
+                       int(nb,c_int),0_c_int,0_c_int)
+                 end do
               end if
            end if
 
@@ -762,7 +783,8 @@ contains
            call ipEndPlot()
         end if
         call iw_tooltip("Reduced density gradient against the signed density at the grid&
-           & points under the default cutoffs of the dat file of NCIPLOT. Drag the lines to&
+           & points under the default cutoffs of the dat file of NCIPLOT, colored as the&
+           & isosurface (gray outside the sign(λ2)ρ range). Drag the lines to&
            & change the isovalue (green), the sign(λ2)ρ range (blue) and the color scale&
            & (pink) of the isosurface (where a pink line is under a blue one, move the blue&
            & one or use the field); the mouse wheel zooms, a drag pans, a right-drag zooms&
@@ -1551,6 +1573,7 @@ contains
     associate(r => w%nc%res, d => w%nc%drv)
       if (allocated(d%scx)) deallocate(d%scx)
       if (allocated(d%scy)) deallocate(d%scy)
+      if (allocated(d%scbin)) deallocate(d%scbin)
       if (.not.allocated(d%inter)) return
       n = r%n
       allocate(msk(n(1),n(2),n(3)))
@@ -1569,6 +1592,59 @@ contains
     end associate
 
   end subroutine nci_scatter
+
+  !> Sort the scatter points of the derived data d in place into the
+  !> color bins: bin 0 for the points outside the sign(lambda2)*rho
+  !> range rng, bins 1..nscbin over the color scale cs for the others
+  !> (clamped at its ends, as the isosurface); unless they are sorted
+  !> for those already.
+  subroutine nci_scatter_bins(d,cs,rng)
+    type(nci_derived), intent(inout), target :: d
+    real*8, intent(in) :: cs(2), rng(2)
+
+    integer :: i, n
+    integer, allocatable :: ib(:), pos(:)
+    real(c_double), allocatable :: tx(:), ty(:)
+    real*8 :: lo, hi
+
+    if (.not.allocated(d%scx)) return
+    if (allocated(d%scbin)) then
+       if (all(d%scb_cs == cs) .and. all(d%scb_rng == rng)) return
+    end if
+    n = size(d%scx,1)
+    lo = min(cs(1),cs(2))
+    hi = max(cs(1),cs(2))
+    allocate(ib(n))
+    do i = 1, n
+       if (d%scx(i) < rng(1) .or. d%scx(i) > rng(2)) then
+          ib(i) = 0
+       else
+          ib(i) = 1 + nint(min(max((d%scx(i) - lo) / max(hi - lo,1d-30),0d0),1d0) * (nscbin-1))
+       end if
+    end do
+
+    ! counting sort into the bins
+    if (allocated(d%scbin)) deallocate(d%scbin)
+    allocate(d%scbin(-1:nscbin),pos(0:nscbin))
+    d%scbin = 0
+    do i = 1, n
+       d%scbin(ib(i)) = d%scbin(ib(i)) + 1
+    end do
+    do i = 0, nscbin
+       d%scbin(i) = d%scbin(i) + d%scbin(i-1)
+    end do
+    pos = d%scbin(-1:nscbin-1)
+    tx = d%scx
+    ty = d%scy
+    do i = 1, n
+       pos(ib(i)) = pos(ib(i)) + 1
+       d%scx(pos(ib(i))) = tx(i)
+       d%scy(pos(ib(i))) = ty(i)
+    end do
+    d%scb_cs = cs
+    d%scb_rng = rng
+
+  end subroutine nci_scatter_bins
 
   !> Find the domains of the isosurface plot of the NCI plot window w
   !> (nci_domains on the masked RDG f) into its derived data; the
@@ -1656,12 +1732,15 @@ contains
   !> color bar of the isosurface follows); with reset, the default is
   !> written. If there is no such object, cs is the default: minus to
   !> plus the default density cutoff of the field, or the widest bound
-  !> of the sign(lambda2)*rho range.
-  function nci_cscale(w,cs,set,reset) result(ok)
+  !> of the sign(lambda2)*rho range. icmap is the colormap of the
+  !> isosurface (jet, the default, if there is no such object).
+  function nci_cscale(w,cs,set,reset,icmap) result(ok)
     use representations, only: iso_map_field
+    use utils, only: iw_cmap_jet
     type(window), intent(inout), target :: w
     real*8, intent(inout) :: cs(2)
     logical, intent(in), optional :: set, reset
+    integer, intent(out), optional :: icmap
     logical :: ok
 
     integer :: iview, irep
@@ -1676,6 +1755,7 @@ contains
        cs(2) = max(w%nc%opts%rhoplot,maxval(abs(w%nc%opts%srhorange)))
        cs(1) = -cs(2)
     end if
+    if (present(icmap)) icmap = iw_cmap_jet
     iview = w%anchor_view()
     if (iview < 1 .or. iview > nwin) return
     if (win(iview)%type /= wintype_view .or. .not.associated(win(iview)%sc)) return
@@ -1693,6 +1773,7 @@ contains
         else
            cs = r%iso%slot(1)%maprange
         end if
+        if (present(icmap)) icmap = r%iso%slot(1)%icmap
         ok = .true.
       end associate
     end associate
