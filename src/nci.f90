@@ -39,7 +39,9 @@ module nci
   !> for a density; the grid (x0, xmat, nstep, periodic) is set by the
   !> caller before nci_compute. The cutoffs are not used by
   !> nci_compute: they can be changed and the masks and files redone
-  !> without recalculating.
+  !> without recalculating (the GUI keeps the dat-file cutoffs,
+  !> rhocut and dimcut, at the defaults the result was calculated
+  !> with).
   type nci_options
      ! the density
      integer :: ifield = 0 ! field whose density is used (0 = promolecular)

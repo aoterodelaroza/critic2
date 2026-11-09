@@ -61,12 +61,9 @@ contains
     ! limits of the isovalue and of the sign(lambda2)*rho range
     real*8, parameter :: dimplot_min = 0.001d0, dimplot_max = 10d0
     real*8, parameter :: srhorange_max = 10d0
-    ! lower limit of the plot cutoffs (zero would leave the plot axes
-    ! without width)
-    real*8, parameter :: plotcut_min = 0.001d0
 
     logical :: doquit, goodsys, syschanged, ismol, isgrid, okbox, okfield, okcalc, ch, navail, capped
-    logical :: maskchanged, objchanged, datchanged, lcommit
+    logical :: maskchanged, objchanged, lcommit
     integer :: isys, iview, istat, irow, ifield, nn(3), ihover, nmolsel
     real*8 :: xc(3), box(3,0:3)
     real(c_float) :: xbutton
@@ -178,7 +175,6 @@ contains
        ! objects, one of the plot settings only the objects
        maskchanged = .false.
        objchanged = .false.
-       datchanged = .false.
        call draw_fragments()
        call draw_plot()
 
@@ -196,7 +192,6 @@ contains
                    call nci_find_domains(w,sys(isys)%f(w%nc%fsref%id)%grid%f)
                 call nci_objects(w,isys,iview)
              end if
-             if (datchanged) call nci_scatter(w)
           end if
           call nci_highlight(w,isys,iview,ihover)
        end if
@@ -244,7 +239,6 @@ contains
        end if
     end if
     if (iw_button("Reset##ncireset",danger=.true.,disabled=.not.goodsys)) then
-       ! a result is masked again with the default cutoffs
        call reset_form()
        if (associated(w%nc%res)) call nci_refresh(w,isys,iview)
     end if
@@ -612,11 +606,11 @@ contains
 
     !> The Plot section: the s vs. signed density plot of the result,
     !> the cutoffs of the isosurface plot (RDG isovalue, sign(lambda2)*rho
-    !> range) and, More, those of the s vs. rho plot and the void
-    !> criterion, with the void integrals of the result. The density
-    !> cutoff (CUTPLOT) and ONLYNEG of the CLI are ranges too, so the
-    !> range does their job; the color scale belongs to the isosurface
-    !> object.
+    !> range) and, More, the void criterion, with the void integrals of
+    !> the result. The density cutoff (CUTPLOT) and ONLYNEG of the CLI
+    !> are ranges too, so the range does their job; the color scale
+    !> belongs to the isosurface object. The dat-file cutoffs (CUTOFFS)
+    !> stay at their defaults: the plot zooms instead.
     subroutine draw_plot()
 
       call iw_separatortext("Plot",w%nc%sec(nci_sec_plot),hasmore=.true.)
@@ -640,21 +634,6 @@ contains
            & (SRHORANGE). An upper bound of zero keeps only the attractive interactions.",ttshown)
 
         if (w%nc%sec(nci_sec_plot)%more) then
-           call iw_text("Plot cutoffs: density",alignframe=.true.)
-           ! (the dat-file cutoffs only touch the scatter plot)
-           ch = iw_dragfloat_real8("##ncirhocut",x1=o%rhocut,speed=0.005d0,decimal=3,&
-              min=plotcut_min,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
-              committed=lcommit)
-           datchanged = datchanged .or. lcommit
-           call iw_tooltip("Points with density above this value are left out of the s vs.&
-              & density plot (the dat file; CUTOFFS)",ttshown)
-           call iw_text("s",alignframe=.true.,gap=.true.)
-           ch = iw_dragfloat_real8("##ncidimcut",x1=o%dimcut,speed=0.005d0,decimal=3,&
-              min=plotcut_min,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
-              committed=lcommit)
-           datchanged = datchanged .or. lcommit
-           call iw_tooltip("Points with reduced density gradient above this value are left out&
-              & of the s vs. density plot (the dat file; CUTOFFS)",ttshown)
            ch = iw_checkbox("Voids only##ncidovoid",o%dovoid,labelleft=.true.)
            maskchanged = maskchanged .or. ch
            call iw_tooltip("Plot only the regions where the promolecular density is below a&
@@ -703,10 +682,16 @@ contains
            str1 = "sign(λ2)ρ (a.u.)" // c_null_char
            str2 = "s" // c_null_char
            call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
-           xdrag = real(max(o%rhocut,plotcut_min),c_double)
-           call ipSetupAxisLimits(ImAxis_X1,-xdrag,xdrag,ImPlotCond_Always)
-           xdrag = real(max(o%dimcut,plotcut_min),c_double)
-           call ipSetupAxisLimits(ImAxis_Y1,0._c_double,xdrag,ImPlotCond_Always)
+           ! the axes span the points (the cutoffs of the dat file of
+           ! the result) when a result arrives; the user can zoom and
+           ! pan them afterwards
+           if (w%nc%fitplot) then
+              xdrag = real(w%nc%datcut(1),c_double)
+              call ipSetupAxisLimits(ImAxis_X1,-xdrag,xdrag,ImPlotCond_Always)
+              xdrag = real(w%nc%datcut(2),c_double)
+              call ipSetupAxisLimits(ImAxis_Y1,0._c_double,xdrag,ImPlotCond_Always)
+              w%nc%fitplot = .false.
+           end if
 
            ! the points
            if (allocated(d%scx)) then
@@ -719,29 +704,33 @@ contains
               end if
            end if
 
-           ! the sign(lambda2)*rho range, inside the axis
+           ! the sign(lambda2)*rho range and the isovalue, inside the
+           ! span of the points; not counted in a fit (double click),
+           ! which is to the points
            col = ImVec4(rgb_range(1),rgb_range(2),rgb_range(3),1._c_float)
            do i = 1, 2
               xdrag = real(o%srhorange(i),c_double)
-              if (logical(ipDragLineX(int(i-1,c_int),xdrag,col,2._c_float,ImPlotDragToolFlags_None))) then
+              if (logical(ipDragLineX(int(i-1,c_int),xdrag,col,2._c_float,ImPlotDragToolFlags_NoFit))) then
                  held = i
-                 o%srhorange(i) = max(min(real(xdrag,8),o%rhocut),-o%rhocut)
+                 o%srhorange(i) = max(min(real(xdrag,8),w%nc%datcut(1)),-w%nc%datcut(1))
               end if
            end do
 
            ! the isovalue
            col = ImVec4(rgb_isoval(1),rgb_isoval(2),rgb_isoval(3),1._c_float)
            xdrag = real(o%dimplot,c_double)
-           if (logical(ipDragLineY(2_c_int,xdrag,col,2._c_float,ImPlotDragToolFlags_None))) then
+           if (logical(ipDragLineY(2_c_int,xdrag,col,2._c_float,ImPlotDragToolFlags_NoFit))) then
               held = 3
-              o%dimplot = max(min(real(xdrag,8),o%dimcut,dimplot_max),dimplot_min)
+              o%dimplot = max(min(real(xdrag,8),w%nc%datcut(2),dimplot_max),dimplot_min)
            end if
            if (o%srhorange(2) < o%srhorange(1)) o%srhorange(2) = o%srhorange(1)
            call ipEndPlot()
         end if
         call iw_tooltip("Reduced density gradient against the signed density at the grid&
-           & points under the plot cutoffs (the dat file of NCIPLOT). Drag the lines to change&
-           & the isovalue (green) and the sign(λ2)ρ range (blue) of the isosurface",ttshown)
+           & points under the default cutoffs of the dat file of NCIPLOT. Drag the lines to&
+           & change the isovalue (green) and the sign(λ2)ρ range (blue) of the isosurface; the&
+           & mouse wheel zooms, a drag pans, a right-drag zooms into a box and a double&
+           & click fits the points",ttshown)
         ! the values land when their line is let go
         if (w%nc%dragline == 3 .and. held == 0) then
            objchanged = .true.
@@ -1244,6 +1233,10 @@ contains
     end if
     w%nc%timelast = sysc(isys)%timelastchange_geometry
     w%nc%gen = w%nc%gen + 1
+    ! the dat-file cutoffs of this result (the defaults of its field),
+    ! for its scatter plot and its files, and fit the plot to them
+    w%nc%datcut = (/w%nc%opts%rhocut,w%nc%opts%dimcut/)
+    w%nc%fitplot = .true.
 
     ! the masks, the fields and the objects
     call nci_refresh(w,isys,w%anchor_view())
@@ -1348,9 +1341,12 @@ contains
     end if
 
     ! the density cutoff (CUTPLOT) only sets the color scale of the
-    ! VMD script here: the masked grid is that of the window
+    ! VMD script here: the masked grid is that of the window; the
+    ! dat file has the cutoffs the result was calculated with
     o = w%nc%opts
     o%rhoplot = nci_colorscale(w)
+    o%rhocut = w%nc%datcut(1)
+    o%dimcut = w%nc%datcut(2)
     call nci_chk_write(root // ".chk_nci",o,sys(isys),w%nc%res,errmsg)
     if (len_trim(errmsg) == 0) &
        call nci_write_files_(root,o,sys(isys),w%nc%res,w%nc%drv%inter,sys(isys)%f(id)%grid%f,&
@@ -1497,19 +1493,24 @@ contains
   end subroutine nci_objects
 
   !> Sample the points of the result of the NCI plot window w under
-  !> the dat-file cutoffs (nci_in_dat) into the scatter of its derived
-  !> data: at most nscmax of them, evenly spaced over the grid.
+  !> the dat-file cutoffs of the result (nci_in_dat, datcut) into the
+  !> scatter of its derived data: at most nscmax of them, evenly
+  !> spaced over the grid.
   subroutine nci_scatter(w)
-    use nci, only: nci_in_dat
+    use nci, only: nci_in_dat, nci_options
     type(window), intent(inout), target :: w
 
     integer, parameter :: nscmax = 20000
 
+    type(nci_options) :: o
     integer :: i, j, k, stride, n(3)
     logical, allocatable :: msk(:,:,:)
 
     if (.not.associated(w%nc%res) .or. .not.associated(w%nc%drv)) return
-    associate(r => w%nc%res, o => w%nc%opts, d => w%nc%drv)
+    o = w%nc%opts
+    o%rhocut = w%nc%datcut(1)
+    o%dimcut = w%nc%datcut(2)
+    associate(r => w%nc%res, d => w%nc%drv)
       if (allocated(d%scx)) deallocate(d%scx)
       if (allocated(d%scy)) deallocate(d%scy)
       if (.not.allocated(d%inter)) return

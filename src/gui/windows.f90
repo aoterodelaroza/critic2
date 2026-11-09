@@ -937,6 +937,8 @@ module windows
      real*8 :: region_par(2) = 0d0
      integer :: region_shift(3) = 0
      integer :: gen = 0 ! generation of the grids, increased by every calculation
+     logical :: fitplot = .false. ! fit the axes of the scatter plot to the points (a new result)
+     real*8 :: datcut(2) = 0d0 ! density and RDG cutoffs of the dat file (CUTOFFS) the result was calculated with
      ! blocking job (run_nci): the system, and whether it writes the
      ! files (root from w%okfile) or calculates only the promolecular
      ! grids of the region (options in prekey) instead of the NCI plot

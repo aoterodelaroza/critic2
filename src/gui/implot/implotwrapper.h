@@ -40,6 +40,7 @@ extern "C" const int const_ImPlotScale_Log10;
 extern "C" const int const_ImPlotScale_SymLog;
 extern "C" const int const_ImPlotDragToolFlags_None;
 extern "C" const int const_ImPlotDragToolFlags_NoInputs;
+extern "C" const int const_ImPlotDragToolFlags_NoFit;
 extern "C" const int const_ImPlotColormap_Viridis;
 extern "C" const int const_ImPlotColormap_Plasma;
 extern "C" const int const_ImPlotColormap_Hot;

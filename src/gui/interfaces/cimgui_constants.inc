@@ -1000,6 +1000,7 @@
   integer(c_int), bind(C,name="const_ImPlotScale_SymLog") :: ImPlotScale_SymLog
   integer(c_int), bind(C,name="const_ImPlotDragToolFlags_None") :: ImPlotDragToolFlags_None
   integer(c_int), bind(C,name="const_ImPlotDragToolFlags_NoInputs") :: ImPlotDragToolFlags_NoInputs
+  integer(c_int), bind(C,name="const_ImPlotDragToolFlags_NoFit") :: ImPlotDragToolFlags_NoFit
   integer(c_int), bind(C,name="const_ImPlotColormap_Viridis") :: ImPlotColormap_Viridis
   integer(c_int), bind(C,name="const_ImPlotColormap_Plasma") :: ImPlotColormap_Plasma
   integer(c_int), bind(C,name="const_ImPlotColormap_Hot") :: ImPlotColormap_Hot

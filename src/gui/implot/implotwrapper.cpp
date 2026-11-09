@@ -43,6 +43,7 @@ const int const_ImPlotScale_SymLog = ImPlotScale_SymLog;
 // enum ImPlotDragToolFlags_
 const int const_ImPlotDragToolFlags_None = ImPlotDragToolFlags_None;
 const int const_ImPlotDragToolFlags_NoInputs = ImPlotDragToolFlags_NoInputs;
+const int const_ImPlotDragToolFlags_NoFit = ImPlotDragToolFlags_NoFit;
 // enum ImPlotColormap_ (the continuous ones)
 const int const_ImPlotColormap_Viridis = ImPlotColormap_Viridis;
 const int const_ImPlotColormap_Plasma = ImPlotColormap_Plasma;
