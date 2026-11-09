@@ -907,7 +907,7 @@ module windows
      ! result) and the fields they were loaded as
      type(nci_result), pointer :: res => null()
      type(nci_derived), pointer :: drv => null() ! the scatter and the domains (null = none)
-     integer :: dragline = 0 ! line held in the scatter plot: 1-2 range, 3 isovalue (0 = none)
+     integer :: dragline = 0 ! line held in the scatter plot: 1-2 range, 3 isovalue, 4-5 color scale (0 = none)
      type(field_ref) :: fsref ! the reduced density gradient, masked by the cutoffs (nci_rdg_masked)
      type(field_ref) :: frref ! the density times the sign of the second Hessian eigenvalue
      real*8 :: timelast = 0d0 ! geometry-change time of the system when it was calculated

@@ -58,14 +58,15 @@ contains
     ! colors of the lines of the scatter plot and of the labels of their values
     real(c_float), parameter :: rgb_range(3) = (/0.3_c_float,0.6_c_float,1._c_float/)
     real(c_float), parameter :: rgb_isoval(3) = (/0.3_c_float,0.8_c_float,0.4_c_float/)
+    real(c_float), parameter :: rgb_cscale(3) = (/0.95_c_float,0.45_c_float,0.85_c_float/)
     ! limits of the isovalue and of the sign(lambda2)*rho range
     real*8, parameter :: dimplot_min = 0.001d0, dimplot_max = 10d0
     real*8, parameter :: srhorange_max = 10d0
 
-    logical :: doquit, goodsys, syschanged, ismol, isgrid, okbox, okfield, okcalc, ch, navail, capped
+    logical :: doquit, goodsys, syschanged, ismol, isgrid, okbox, okfield, okcalc, ch, navail, capped, ok
     logical :: maskchanged, objchanged, lcommit
     integer :: isys, iview, istat, irow, ifield, nn(3), ihover, nmolsel
-    real*8 :: xc(3), box(3,0:3)
+    real*8 :: xc(3), box(3,0:3), cscale(2)
     real(c_float) :: xbutton
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -240,7 +241,10 @@ contains
     end if
     if (iw_button("Reset##ncireset",danger=.true.,disabled=.not.goodsys)) then
        call reset_form()
-       if (associated(w%nc%res)) call nci_refresh(w,isys,iview)
+       if (associated(w%nc%res)) then
+          call nci_refresh(w,isys,iview)
+          ok = nci_cscale(w,cscale,reset=.true.)
+       end if
     end if
     call iw_tooltip("Reset all the settings of the window to their defaults (the result of the&
        & last calculation is kept)",ttshown,whendisabled=.true.)
@@ -632,6 +636,22 @@ contains
            & eigenvalue of its Hessian) outside this range are left out of the isosurface&
            & (SRHORANGE). An upper bound of zero keeps only the attractive interactions.",ttshown)
 
+        ! the color scale of the isosurface, with the plot (its values
+        ! are those of the isosurface object and its color bar)
+        if (associated(w%nc%res) .and. associated(w%nc%drv)) then
+           if (nci_cscale(w,cscale)) then
+              call iw_text("Color scale (a.u.)",alignframe=.true.,rgb=rgb_cscale)
+              ch = iw_dragfloat_real8("##ncicscale",x2=cscale,speed=0.001d0,decimal=4,&
+                 min=-srhorange_max,max=srhorange_max,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+              if (ch) then
+                 if (cscale(2) < cscale(1)) cscale(2) = cscale(1)
+                 ok = nci_cscale(w,cscale,set=.true.)
+              end if
+              call iw_tooltip("Values of sign(λ2)ρ at the two ends of the color scale of the&
+                 & isosurface (blue to red) and its color bar",ttshown)
+           end if
+        end if
+
         if (w%nc%sec(nci_sec_plot)%more) then
            ch = iw_checkbox("Voids only##ncidovoid",o%dovoid,labelleft=.true.)
            maskchanged = maskchanged .or. ch
@@ -652,9 +672,11 @@ contains
 
     !> The s vs. signed density plot of the result (top of the Plot
     !> section): the points under the dat-file cutoffs, with draggable
-    !> lines for the sign(lambda2)*rho range (two) and the isovalue
-    !> (one, horizontal). Letting go of a line masks the result again
-    !> (range) or redoes the objects (isovalue).
+    !> lines for the sign(lambda2)*rho range (two), the isovalue (one,
+    !> horizontal) and the ends of the color scale of the isosurface
+    !> (two). Letting go of a line masks the result again (range) or
+    !> redoes the objects (isovalue); the color scale changes as its
+    !> lines move.
     subroutine draw_scatter()
       integer :: i, held
       real(c_double) :: xdrag
@@ -699,17 +721,35 @@ contains
               end if
            end if
 
-           ! the sign(lambda2)*rho range and the isovalue, inside the
-           ! span of the points; not counted in a fit (double click),
-           ! which is to the points
+           ! the sign(lambda2)*rho range, the isovalue and the color
+           ! scale, inside the span of the points; not counted in a fit
+           ! (double click), which is to the points. The range lines
+           ! are submitted first, so they take the click where they
+           ! sit on the color scale lines (the default), and drawn
+           ! wider, so both show there.
            col = ImVec4(rgb_range(1),rgb_range(2),rgb_range(3),1._c_float)
            do i = 1, 2
               xdrag = real(o%srhorange(i),c_double)
-              if (logical(ipDragLineX(int(i-1,c_int),xdrag,col,2._c_float,ImPlotDragToolFlags_NoFit))) then
+              if (logical(ipDragLineX(int(i-1,c_int),xdrag,col,5._c_float,ImPlotDragToolFlags_NoFit))) then
                  held = i
                  o%srhorange(i) = max(min(real(xdrag,8),w%nc%datcut(1)),-w%nc%datcut(1))
               end if
            end do
+
+           ! the color scale
+           if (nci_cscale(w,cscale)) then
+              col = ImVec4(rgb_cscale(1),rgb_cscale(2),rgb_cscale(3),1._c_float)
+              do i = 1, 2
+                 xdrag = real(cscale(i),c_double)
+                 if (logical(ipDragLineX(int(i+2,c_int),xdrag,col,2._c_float,ImPlotDragToolFlags_NoFit))) then
+                    held = i + 3
+                    cscale(i) = max(min(real(xdrag,8),w%nc%datcut(1)),-w%nc%datcut(1))
+                    if (i == 1) cscale(2) = max(cscale(2),cscale(1))
+                    if (i == 2) cscale(1) = min(cscale(1),cscale(2))
+                    ok = nci_cscale(w,cscale,set=.true.)
+                 end if
+              end do
+           end if
 
            ! the isovalue
            col = ImVec4(rgb_isoval(1),rgb_isoval(2),rgb_isoval(3),1._c_float)
@@ -723,13 +763,15 @@ contains
         end if
         call iw_tooltip("Reduced density gradient against the signed density at the grid&
            & points under the default cutoffs of the dat file of NCIPLOT. Drag the lines to&
-           & change the isovalue (green) and the sign(λ2)ρ range (blue) of the isosurface; the&
-           & mouse wheel zooms, a drag pans, a right-drag zooms into a box and a double&
-           & click fits the points",ttshown)
-        ! the values land when their line is let go
+           & change the isovalue (green), the sign(λ2)ρ range (blue) and the color scale&
+           & (pink) of the isosurface (where a pink line is under a blue one, move the blue&
+           & one or use the field); the mouse wheel zooms, a drag pans, a right-drag zooms&
+           & into a box and a double click fits the points",ttshown)
+        ! the values land when their line is let go (the color scale
+        ! has been set while it moved)
         if (w%nc%dragline == 3 .and. held == 0) then
            objchanged = .true.
-        elseif (w%nc%dragline /= 0 .and. held == 0) then
+        elseif ((w%nc%dragline == 1 .or. w%nc%dragline == 2) .and. held == 0) then
            maskchanged = .true.
         end if
         w%nc%dragline = held
@@ -1316,6 +1358,8 @@ contains
     integer, intent(in) :: isys
 
     type(nci_options) :: o
+    real*8 :: cs(2)
+    logical :: ok
     integer :: id
     character(len=:), allocatable :: root, errmsg
 
@@ -1339,7 +1383,8 @@ contains
     ! VMD script here: the masked grid is that of the window; the
     ! dat file has the cutoffs the result was calculated with
     o = w%nc%opts
-    o%rhoplot = nci_colorscale(w)
+    ok = nci_cscale(w,cs)
+    o%rhoplot = maxval(abs(cs))
     o%rhocut = w%nc%datcut(1)
     o%dimcut = w%nc%datcut(2)
     call nci_chk_write(root // ".chk_nci",o,sys(isys),w%nc%res,errmsg)
@@ -1431,7 +1476,8 @@ contains
     integer, intent(in) :: iview
 
     integer :: irep, icb
-    real*8 :: c
+    real*8 :: cs(2)
+    logical :: ok
 
     if (.not.w%nc%fsref%ok(sys(isys)) .or. .not.w%nc%frref%ok(sys(isys))) return
     if (iview < 1 .or. iview > nwin) return
@@ -1455,8 +1501,8 @@ contains
         r%iso%slot(1)%isoval = w%nc%opts%dimplot
         r%iso%slot(1)%shown = .true.
         if (r%iso%slot(1)%imap_mode /= iso_map_field .or. .not.r%iso%slot(1)%mapref%same(w%nc%frref)) then
-           c = max(w%nc%opts%rhoplot,maxval(abs(w%nc%opts%srhorange)))
-           call r%iso%slot(1)%set_map_field(isys,w%nc%frref%id,icmap=iw_cmap_jet,maprange=(/-c,c/))
+           ok = nci_cscale(w,cs)
+           call r%iso%slot(1)%set_map_field(isys,w%nc%frref%id,icmap=iw_cmap_jet,maprange=cs)
         end if
         r%shown = .true.
         ! the domains of the grid points, for the highlight
@@ -1603,31 +1649,54 @@ contains
 
   end subroutine nci_load_field
 
-  !> The half-width of the color scale of the signed density for the
-  !> NCI plot window w: that of the isosurface object,
-  !> if it is colored by the signed density field of the window; the
-  !> default density cutoff of the field, or the largest bound of the
-  !> sign(lambda2)*rho range if it is wider, otherwise.
-  function nci_colorscale(w) result(c)
+  !> The color scale of the signed density of the isosurface object
+  !> of the NCI plot window w, if it is colored by the signed density
+  !> field of the window (returns .true.): the values cs at its two
+  !> ends are read or, if set, written (as a fixed range, which the
+  !> color bar of the isosurface follows); with reset, the default is
+  !> written. If there is no such object, cs is the default: minus to
+  !> plus the default density cutoff of the field, or the widest bound
+  !> of the sign(lambda2)*rho range.
+  function nci_cscale(w,cs,set,reset) result(ok)
     use representations, only: iso_map_field
     type(window), intent(inout), target :: w
-    real*8 :: c
+    real*8, intent(inout) :: cs(2)
+    logical, intent(in), optional :: set, reset
+    logical :: ok
 
-    integer :: iview
+    integer :: iview, irep
+    logical :: set_, reset_
 
-    c = max(w%nc%opts%rhoplot,maxval(abs(w%nc%opts%srhorange)))
+    ok = .false.
+    set_ = .false.
+    if (present(set)) set_ = set
+    reset_ = .false.
+    if (present(reset)) reset_ = reset
+    if (.not.set_) then
+       cs(2) = max(w%nc%opts%rhoplot,maxval(abs(w%nc%opts%srhorange)))
+       cs(1) = -cs(2)
+    end if
     iview = w%anchor_view()
     if (iview < 1 .or. iview > nwin) return
     if (win(iview)%type /= wintype_view .or. .not.associated(win(iview)%sc)) return
     associate(sc => win(iview)%sc)
-      if (.not.w%nc%isoref%ok(sc)) return
-      associate(r => sc%rep(w%nc%isoref%id))
+      irep = w%nc%isoref%get(sc)
+      if (irep <= 0) return
+      associate(r => sc%rep(irep))
         if (r%iso%niso < 1) return
         if (r%iso%slot(1)%imap_mode /= iso_map_field .or. .not.r%iso%slot(1)%mapref%same(w%nc%frref)) return
-        c = maxval(abs(r%iso%slot(1)%maprange))
+        if (set_ .or. reset_) then
+           r%iso%slot(1)%maprange = cs
+           r%iso%slot(1)%maprange_auto = .false.
+           sc%forcebuildlists = .true.
+           call sc%undo_note("Edit " // trim(r%name))
+        else
+           cs = r%iso%slot(1)%maprange
+        end if
+        ok = .true.
       end associate
     end associate
 
-  end function nci_colorscale
+  end function nci_cscale
 
 end submodule nci
