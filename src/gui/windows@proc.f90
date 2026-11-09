@@ -1581,7 +1581,7 @@ contains
     character(len=:), allocatable :: str4
     integer(c_int) :: dflags
     real(c_float) :: panewidth, hneed
-    type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szwant, monpos, monsiz
+    type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szgrow, szwant, monpos, monsiz
     logical :: ownmon
     type(ImGuiWindow), pointer :: wptr
 
@@ -1967,15 +1967,24 @@ contains
           ! opening) or changes with a tab or a section, and can be made
           ! smaller afterwards.
           if (.not.w%isdocked) then
-             ! a window in its own OS window (detached) is limited by
-             ! the work area of its monitor, not by the main window
+             ! the largest size the window grows to by itself: the main
+             ! window. A window in its own OS window (detached) can be
+             ! resized up to the work area of its monitor, but grows
+             ! only as much as an attached window: the height it grows
+             ! to is also the least it can be resized to (grow-to-fit),
+             ! and a monitor-tall minimum would make it impossible to
+             ! shrink a window whose content is taller than that.
+             szgrow%x = huge(1._c_float)
+             szgrow%y = huge(1._c_float)
+             call clamp_to_display(szgrow)
+             szmax = szgrow
              ownmon = (own_window_monitor_workarea(w%ptr,monpos,monsiz) /= 0)
-             szmax%x = huge(1._c_float)
-             szmax%y = huge(1._c_float)
              if (ownmon) then
+                szmax%x = huge(1._c_float)
+                szmax%y = huge(1._c_float)
                 call clamp_to_display(szmax,monsiz)
-             else
-                call clamp_to_display(szmax)
+                szgrow%x = min(szgrow%x,szmax%x)
+                szgrow%y = min(szgrow%y,szmax%y)
              end if
              szmin%x = min(25._c_float * fontsize%x,szmax%x)
              szmin%y = min(6._c_float * fontsize%y,szmax%y)
@@ -1994,9 +2003,9 @@ contains
                 ! room for the content it does not show moves it every
                 ! frame
                 if (.not.wptr%Collapsed .and. (w%growtofit .or. w%fitting)) then
-                   ! the height that shows the content, at most the display
+                   ! the height that shows the content, at most szgrow
                    hneed = szmin%y
-                   if (w%needheight > 0._c_float) hneed = max(hneed,min(w%needheight,szmax%y))
+                   if (w%needheight > 0._c_float) hneed = max(hneed,min(w%needheight,szgrow%y))
                    ! a detached window is not raised (raise_to_fit): grow
                    ! it only to the bottom of its monitor
                    if (ownmon) hneed = max(min(hneed,monpos%y + monsiz%y - wptr%Pos%y),szmin%y)
@@ -2026,7 +2035,7 @@ contains
              ! known). Applied once and cleared, so the user can resize
              ! the window afterwards and keep the size.
              if (w%needwidth > 0._c_float .and. c_associated(w%ptr)) then
-                szwant%x = min(max(w%needwidth,szmin%x),szmax%x)
+                szwant%x = min(max(w%needwidth,szmin%x),szgrow%x)
                 ! nor to the right of it, for a detached window
                 if (ownmon) then
                    call c_f_pointer(w%ptr,wptr)
