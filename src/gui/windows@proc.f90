@@ -1581,7 +1581,8 @@ contains
     character(len=:), allocatable :: str4
     integer(c_int) :: dflags
     real(c_float) :: panewidth, hneed
-    type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szwant
+    type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szwant, monpos, monsiz
+    logical :: ownmon
     type(ImGuiWindow), pointer :: wptr
 
     if (.not.w%isinit) return
@@ -1967,12 +1968,12 @@ contains
           ! smaller afterwards.
           if (.not.w%isdocked) then
              ! a window in its own OS window (detached) is limited by
-             ! its monitor, not by the main window
+             ! the work area of its monitor, not by the main window
+             ownmon = (own_window_monitor_workarea(w%ptr,monpos,monsiz) /= 0)
              szmax%x = huge(1._c_float)
              szmax%y = huge(1._c_float)
-             if (own_window_monitor_size(w%ptr,szmax) /= 0) then
-                szmax%x = szmax%x - 2._c_float * fontsize%x
-                szmax%y = szmax%y - 2._c_float * fontsize%y
+             if (ownmon) then
+                call clamp_to_display(szmax,monsiz)
              else
                 call clamp_to_display(szmax)
              end if
@@ -1996,6 +1997,9 @@ contains
                    ! the height that shows the content, at most the display
                    hneed = szmin%y
                    if (w%needheight > 0._c_float) hneed = max(hneed,min(w%needheight,szmax%y))
+                   ! a detached window is not raised (raise_to_fit): grow
+                   ! it only to the bottom of its monitor
+                   if (ownmon) hneed = max(min(hneed,monpos%y + monsiz%y - wptr%Pos%y),szmin%y)
                    if (w%growtofit) then
                       szmin%y = hneed
                    else
@@ -2021,8 +2025,14 @@ contains
              ! passed to init_window is fixed before the content is
              ! known). Applied once and cleared, so the user can resize
              ! the window afterwards and keep the size.
-             if (w%needwidth > 0._c_float .and. c_associated(w%ptr)) &
+             if (w%needwidth > 0._c_float .and. c_associated(w%ptr)) then
                 szwant%x = min(max(w%needwidth,szmin%x),szmax%x)
+                ! nor to the right of it, for a detached window
+                if (ownmon) then
+                   call c_f_pointer(w%ptr,wptr)
+                   szwant%x = max(min(szwant%x,monpos%x + monsiz%x - wptr%Pos%x),szmin%x)
+                end if
+             end if
              if (szwant%x > 0._c_float .or. szwant%y > 0._c_float) then
                 call c_f_pointer(w%ptr,wptr)
                 if (szwant%x < 0._c_float) szwant%x = wptr%SizeFull%x
@@ -2252,20 +2262,23 @@ contains
     end subroutine raise_to_fit
 
     !> Clamp an initial window size to what fits in the application
-    !> window, leaving room for the title bar and the drop shadow. A
+    !> window (or in dsiz, the work area of the monitor of a detached
+    !> window), leaving room for the title bar and the drop shadow. A
     !> window sized in characters overflows the display when the user
     !> raises the font scale, and whatever sits on its right (the side
     !> pane of a file dialog, say) is then cut off.
-    subroutine clamp_to_display(siz)
+    subroutine clamp_to_display(siz,dsiz)
       use gui_main, only: io
       type(ImVec2), intent(inout) :: siz
+      type(ImVec2), intent(in), optional :: dsiz
 
       real(c_float), parameter :: margin = 2._c_float
+      type(ImVec2) :: ds
 
-      if (io%DisplaySize%x > 0._c_float) &
-         siz%x = min(siz%x,io%DisplaySize%x - margin * fontsize%x)
-      if (io%DisplaySize%y > 0._c_float) &
-         siz%y = min(siz%y,io%DisplaySize%y - margin * fontsize%y)
+      ds = io%DisplaySize
+      if (present(dsiz)) ds = dsiz
+      if (ds%x > 0._c_float) siz%x = min(siz%x,ds%x - margin * fontsize%x)
+      if (ds%y > 0._c_float) siz%y = min(siz%y,ds%y - margin * fontsize%y)
 
     end subroutine clamp_to_display
 

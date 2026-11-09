@@ -2362,14 +2362,15 @@ extern "C" void own_add_text_rotated(ImDrawList* dl, ImFont* font, float size, f
 }
 
 // The work area (the monitor minus task bars) of the monitor a window
-// in its own OS window (a detached window) is on, in siz. Returns 0
-// and leaves siz alone if the window is in the main window or the
-// monitor is not known.
-extern "C" int own_window_monitor_size(ImGuiWindow* win, ImVec2* siz){
+// in its own OS window (a detached window) is on, in pos and siz.
+// Returns 0 and leaves pos and siz alone if the window is in the main
+// window or the monitor is not known.
+extern "C" int own_window_monitor_workarea(ImGuiWindow* win, ImVec2* pos, ImVec2* siz){
   if (!win || !win->ViewportOwned || !win->Viewport) return 0;
   if (GetPlatformIO().Monitors.Size == 0) return 0;
   const ImGuiPlatformMonitor* mon = GetViewportPlatformMonitor(win->Viewport);
   if (!mon || mon->WorkSize.x <= 0.f || mon->WorkSize.y <= 0.f) return 0;
+  *pos = mon->WorkPos;
   *siz = mon->WorkSize;
   return 1;
 }
