@@ -57,11 +57,10 @@ contains
     integer, parameter :: itable_domains = 1 ! the domain table, for table_write_*
     ! colors of the lines of the scatter plot and of the labels of their values
     real(c_float), parameter :: rgb_range(3) = (/0.3_c_float,0.6_c_float,1._c_float/)
-    real(c_float), parameter :: rgb_rhoplot(3) = (/1._c_float,0.6_c_float,0.2_c_float/)
     real(c_float), parameter :: rgb_isoval(3) = (/0.3_c_float,0.8_c_float,0.4_c_float/)
-    ! limits of the isovalue and of the density cutoff
+    ! limits of the isovalue and of the sign(lambda2)*rho range
     real*8, parameter :: dimplot_min = 0.001d0, dimplot_max = 10d0
-    real*8, parameter :: rhoplot_min = 0.0001d0, rhoplot_max = 10d0
+    real*8, parameter :: srhorange_max = 10d0
     ! lower limit of the plot cutoffs (zero would leave the plot axes
     ! without width)
     real*8, parameter :: plotcut_min = 0.001d0
@@ -270,8 +269,11 @@ contains
 
     !> Use field id of the system as the density: the defaults of
     !> NCIPLOT that depend on it (nci_options_set_field), the signed
-    !> density range following the new density cutoff, and the native
-    !> grid of a grid field on the whole cell (the CLI default).
+    !> density range following the new default density cutoff, and the
+    !> native grid of a grid field on the whole cell (the CLI default).
+    !> The window has no density cutoff (the range does its job): the
+    !> one in the options is the default of the field, which gives the
+    !> default range and the initial color scale of the isosurface.
     subroutine set_field(id)
       integer, intent(in) :: id
 
@@ -283,26 +285,18 @@ contains
       call w%nc%fref%set(sys(isys),id0)
       rhoprev = w%nc%opts%rhoplot
       call nci_options_set_field(w%nc%opts,sys(isys),id0)
-      call srhorange_follow(rhoprev)
+      ! a bound of the range at or beyond the default of the previous
+      ! field (the default range, or none at all) moves to that of the
+      ! new one, unless that would invert a range the user set beyond it
+      associate(o => w%nc%opts)
+        if (o%srhorange(1) <= -rhoprev .and. -o%rhoplot <= o%srhorange(2)) o%srhorange(1) = -o%rhoplot
+        if (o%srhorange(2) >= rhoprev .and. o%rhoplot >= o%srhorange(1)) o%srhorange(2) = o%rhoplot
+      end associate
       if (iso_isgridfield(isys,id0) .and. w%nc%iregion == iso_region_cell) then
          if (.not.sys(isys)%f(id0)%grid%partial) w%nc%ilevel = 0
       end if
 
     end subroutine set_field
-
-    !> Keep the signed density range inside the density cutoff after
-    !> the cutoff changed from rhoprev: a bound that was at the old
-    !> cutoff (no restriction) follows it to the new one.
-    subroutine srhorange_follow(rhoprev)
-      real*8, intent(in) :: rhoprev
-
-      associate(o => w%nc%opts)
-        if (o%srhorange(1) <= -rhoprev) o%srhorange(1) = -o%rhoplot
-        if (o%srhorange(2) >= rhoprev) o%srhorange(2) = o%rhoplot
-        o%srhorange = min(max(o%srhorange,-o%rhoplot),o%rhoplot)
-      end associate
-
-    end subroutine srhorange_follow
 
     !> Set every setting of the form to its default for system isys:
     !> the default cutoffs, grid and output options, and those of
@@ -617,12 +611,13 @@ contains
     end subroutine select_all_fragments
 
     !> The Plot section: the s vs. signed density plot of the result,
-    !> the cutoffs of the isosurface plot (RDG isovalue, density
-    !> cutoff, signed density range, only negative) and, More, those of
-    !> the s vs. rho plot and the void criterion, with the void
-    !> integrals of the result.
+    !> the cutoffs of the isosurface plot (RDG isovalue, sign(lambda2)*rho
+    !> range) and, More, those of the s vs. rho plot and the void
+    !> criterion, with the void integrals of the result. The density
+    !> cutoff (CUTPLOT) and ONLYNEG of the CLI are ranges too, so the
+    !> range does their job; the color scale belongs to the isosurface
+    !> object.
     subroutine draw_plot()
-      real*8 :: rhoprev
 
       call iw_separatortext("Plot",w%nc%sec(nci_sec_plot),hasmore=.true.)
       if (.not.w%nc%sec(nci_sec_plot)%open) return
@@ -634,29 +629,15 @@ contains
            max=dimplot_max,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,committed=lcommit)
         objchanged = objchanged .or. lcommit
         call iw_tooltip("Value of the reduced density gradient (s) of the isosurface (DIMPLOT)",ttshown)
-        call iw_text("Density cutoff (a.u.)",alignframe=.true.,gap=.true.,rgb=rgb_rhoplot)
-        rhoprev = o%rhoplot
-        ch = iw_dragfloat_real8("##ncirhoplot",x1=o%rhoplot,speed=0.001d0,decimal=4,min=rhoplot_min,&
-           max=rhoplot_max,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,committed=lcommit)
-        call iw_tooltip("Points with density above this value are left out of the isosurface,&
-           & and the color scale of the signed density spans minus to plus this value (CUTPLOT)",&
-           ttshown)
-        if (ch) call srhorange_follow(rhoprev)
-        maskchanged = maskchanged .or. lcommit
-
-        call iw_text("Signed density range (a.u.)",alignframe=.true.,rgb=rgb_range)
+        call iw_text("sign(λ2)ρ range (a.u.)",alignframe=.true.,gap=.true.,rgb=rgb_range)
         ch = iw_dragfloat_real8("##ncisrhorange",x2=o%srhorange,speed=0.001d0,decimal=4,&
-           min=-o%rhoplot,max=o%rhoplot,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,&
+           min=-srhorange_max,max=srhorange_max,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,&
            notlive=.true.,committed=lcommit)
         if (o%srhorange(2) < o%srhorange(1)) o%srhorange(2) = o%srhorange(1)
         maskchanged = maskchanged .or. lcommit
         call iw_tooltip("Points with signed density (the density times the sign of the second&
            & eigenvalue of its Hessian) outside this range are left out of the isosurface&
-           & (SRHORANGE)",ttshown)
-        ch = iw_checkbox("Only negative##ncionlyneg",o%onlyneg,gap=.true.,labelleft=.true.)
-        maskchanged = maskchanged .or. ch
-        call iw_tooltip("Keep only the points where the second eigenvalue of the Hessian is&
-           & negative (ONLYNEG)",ttshown)
+           & (SRHORANGE). An upper bound of zero keeps only the attractive interactions.",ttshown)
 
         if (w%nc%sec(nci_sec_plot)%more) then
            call iw_text("Plot cutoffs: density",alignframe=.true.)
@@ -697,14 +678,12 @@ contains
 
     !> The s vs. signed density plot of the result (top of the Plot
     !> section): the points under the dat-file cutoffs, with draggable
-    !> lines for the signed density range (two), the density cutoff
-    !> (two, at minus and plus the cutoff, that move together) and
-    !> the isovalue (one, horizontal). Letting go of a line masks the
-    !> result again (range, cutoff) or redoes the objects (isovalue).
+    !> lines for the sign(lambda2)*rho range (two) and the isovalue
+    !> (one, horizontal). Letting go of a line masks the result again
+    !> (range) or redoes the objects (isovalue).
     subroutine draw_scatter()
       integer :: i, held
       real(c_double) :: xdrag
-      real*8 :: x
       character(kind=c_char,len=:), allocatable, target :: str1, str2
       type(ImVec2) :: szplot
       type(ImVec4) :: col
@@ -740,52 +719,21 @@ contains
               end if
            end if
 
-           ! a held line moves the values from where they were when it
-           ! was grabbed, so a range bound the cutoff swept over comes
-           ! back when the cutoff does
-           if (w%nc%dragline == 0) then
-              w%nc%drag0(1) = o%rhoplot
-              w%nc%drag0(2:3) = o%srhorange
-           end if
-
-           ! the signed density range, inside the cutoff. These lines
-           ! sit on the cutoff lines when they do not restrict anything
-           ! (the default): they are submitted first, so they take the
-           ! click, and pushing one past the cutoff takes the cutoff
-           ! with it. Drawn wider, so they show around the cutoff.
+           ! the sign(lambda2)*rho range, inside the axis
            col = ImVec4(rgb_range(1),rgb_range(2),rgb_range(3),1._c_float)
            do i = 1, 2
               xdrag = real(o%srhorange(i),c_double)
-              if (logical(ipDragLineX(int(i-1,c_int),xdrag,col,5._c_float,ImPlotDragToolFlags_None))) then
+              if (logical(ipDragLineX(int(i-1,c_int),xdrag,col,2._c_float,ImPlotDragToolFlags_None))) then
                  held = i
-                 x = max(min(real(xdrag,8),o%rhocut),-o%rhocut)
-                 o%rhoplot = w%nc%drag0(1)
-                 o%srhorange = w%nc%drag0(2:3)
-                 if (x * (2*i-3) > o%rhoplot) then
-                    o%rhoplot = min(abs(x),rhoplot_max)
-                    call srhorange_follow(w%nc%drag0(1))
-                 end if
-                 o%srhorange(i) = min(max(x,-o%rhoplot),o%rhoplot)
-              end if
-           end do
-
-           ! the density cutoff: dragging one line moves both
-           col = ImVec4(rgb_rhoplot(1),rgb_rhoplot(2),rgb_rhoplot(3),1._c_float)
-           do i = 1, 2
-              xdrag = real(o%rhoplot * (2*i-3),c_double)
-              if (logical(ipDragLineX(int(i+1,c_int),xdrag,col,2._c_float,ImPlotDragToolFlags_None))) then
-                 held = i + 2
-                 o%rhoplot = max(min(abs(real(xdrag,8)),o%rhocut,rhoplot_max),rhoplot_min)
-                 o%srhorange = w%nc%drag0(2:3)
-                 call srhorange_follow(w%nc%drag0(1))
+                 o%srhorange(i) = max(min(real(xdrag,8),o%rhocut),-o%rhocut)
               end if
            end do
 
            ! the isovalue
            col = ImVec4(rgb_isoval(1),rgb_isoval(2),rgb_isoval(3),1._c_float)
            xdrag = real(o%dimplot,c_double)
-           if (logical(ipDragLineY(4_c_int,xdrag,col,2._c_float,ImPlotDragToolFlags_None))) then
-              held = 5
+           if (logical(ipDragLineY(2_c_int,xdrag,col,2._c_float,ImPlotDragToolFlags_None))) then
+              held = 3
               o%dimplot = max(min(real(xdrag,8),o%dimcut,dimplot_max),dimplot_min)
            end if
            if (o%srhorange(2) < o%srhorange(1)) o%srhorange(2) = o%srhorange(1)
@@ -793,10 +741,9 @@ contains
         end if
         call iw_tooltip("Reduced density gradient against the signed density at the grid&
            & points under the plot cutoffs (the dat file of NCIPLOT). Drag the lines to change&
-           & the isovalue (green), the density cutoff (orange) and the signed density range&
-           & (blue) of the isosurface",ttshown)
+           & the isovalue (green) and the sign(λ2)ρ range (blue) of the isosurface",ttshown)
         ! the values land when their line is let go
-        if (w%nc%dragline == 5 .and. held == 0) then
+        if (w%nc%dragline == 3 .and. held == 0) then
            objchanged = .true.
         elseif (w%nc%dragline /= 0 .and. held == 0) then
            maskchanged = .true.
@@ -1374,12 +1321,13 @@ contains
   !> names the files next to it by their base name).
   subroutine nci_write_files(w,isys)
     use systems, only: sys
-    use nci, only: nci_chk_write, nci_write_files_ => nci_write_files
+    use nci, only: nci_chk_write, nci_write_files_ => nci_write_files, nci_options
     use utils, only: file_name_root, file_name_base
     use tools_io, only: uout
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
+    type(nci_options) :: o
     integer :: id
     character(len=:), allocatable :: root, errmsg
 
@@ -1399,9 +1347,13 @@ contains
        return
     end if
 
-    call nci_chk_write(root // ".chk_nci",w%nc%opts,sys(isys),w%nc%res,errmsg)
+    ! the density cutoff (CUTPLOT) only sets the color scale of the
+    ! VMD script here: the masked grid is that of the window
+    o = w%nc%opts
+    o%rhoplot = nci_colorscale(w)
+    call nci_chk_write(root // ".chk_nci",o,sys(isys),w%nc%res,errmsg)
     if (len_trim(errmsg) == 0) &
-       call nci_write_files_(root,w%nc%opts,sys(isys),w%nc%res,w%nc%drv%inter,sys(isys)%f(id)%grid%f,&
+       call nci_write_files_(root,o,sys(isys),w%nc%res,w%nc%drv%inter,sys(isys)%f(id)%grid%f,&
        w%nc%molmotif,errmsg,refroot=file_name_base(root))
     w%errmsg = errmsg
     if (len_trim(errmsg) > 0) return
@@ -1422,12 +1374,13 @@ contains
   !> they were.
   subroutine nci_refresh(w,isys,iview)
     use systems, only: sys, replace_grid_field
-    use nci, only: nci_masks
+    use nci, only: nci_masks, nci_options
     use tools_io, only: string
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
     integer, intent(in) :: iview
 
+    type(nci_options) :: o
     logical :: ok
     real*8, allocatable :: splot(:,:,:)
     character(len=:), allocatable :: errmsg
@@ -1438,7 +1391,10 @@ contains
     ! the masks (the void integrals, the scatter and the domains of a
     ! failed pass are not shown)
     w%nc%voidok = .false.
-    call nci_masks(w%nc%opts,w%nc%res,inter=w%nc%drv%inter,splot=splot,voidq=w%nc%voidq,&
+    ! (no density cutoff in the window: the range is the cutoff)
+    o = w%nc%opts
+    o%rhoplot = huge(1d0)
+    call nci_masks(o,w%nc%res,inter=w%nc%drv%inter,splot=splot,voidq=w%nc%voidq,&
        voidqp=w%nc%voidqp,voidv=w%nc%voidv,errmsg=errmsg)
     if (len_trim(errmsg) > 0) then
        w%errmsg = errmsg
@@ -1470,20 +1426,24 @@ contains
   !> isys in the scene of view iview (nothing if it is not an open
   !> view of real space with a scene): an isosurface of the masked RDG
   !> field at the RDG isovalue, colored by the signed density field
-  !> over minus to plus the density cutoff on the blue-green-red scale
-  !> (blue = attractive, red = repulsive: the NCI convention), and
-  !> its color bar.
+  !> on the blue-green-red scale (blue = attractive, red = repulsive:
+  !> the NCI convention), and its color bar. The color scale is set
+  !> when the isosurface starts being colored by that field, to the
+  !> default density cutoff of the field (or the widest bound of the
+  !> range); after that it belongs to the object, and changes made to
+  !> it in the object editor stay.
   subroutine nci_objects(w,isys,iview)
     use systems, only: sys
     use scenes, only: space_real
     use representations, only: reptype_isosurface, repflavor_isosurface, reptype_colorbar,&
-       repflavor_colorbar
+       repflavor_colorbar, iso_map_field
     use utils, only: iw_cmap_jet
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
     integer, intent(in) :: iview
 
     integer :: irep, icb
+    real*8 :: c
 
     if (.not.w%nc%fsref%ok(sys(isys)) .or. .not.w%nc%frref%ok(sys(isys))) return
     if (iview < 1 .or. iview > nwin) return
@@ -1506,8 +1466,10 @@ contains
         if (r%iso%niso < 1) call r%iso%add_iso(isoval=w%nc%opts%dimplot)
         r%iso%slot(1)%isoval = w%nc%opts%dimplot
         r%iso%slot(1)%shown = .true.
-        call r%iso%slot(1)%set_map_field(isys,w%nc%frref%id,icmap=iw_cmap_jet,&
-           maprange=(/-w%nc%opts%rhoplot,w%nc%opts%rhoplot/))
+        if (r%iso%slot(1)%imap_mode /= iso_map_field .or. .not.r%iso%slot(1)%mapref%same(w%nc%frref)) then
+           c = max(w%nc%opts%rhoplot,maxval(abs(w%nc%opts%srhorange)))
+           call r%iso%slot(1)%set_map_field(isys,w%nc%frref%id,icmap=iw_cmap_jet,maprange=(/-c,c/))
+        end if
         r%shown = .true.
         ! the domains of the grid points, for the highlight
         if (associated(w%nc%drv)) then
@@ -1647,5 +1609,32 @@ contains
     call ref%set(sys(isys),load_grid_field(isys,name,g,sys(isys)%c%c2x(w%nc%res%x0),x2cl))
 
   end subroutine nci_load_field
+
+  !> The half-width of the color scale of the signed density for the
+  !> NCI plot window w: that of the isosurface object,
+  !> if it is colored by the signed density field of the window; the
+  !> default density cutoff of the field, or the largest bound of the
+  !> sign(lambda2)*rho range if it is wider, otherwise.
+  function nci_colorscale(w) result(c)
+    use representations, only: iso_map_field
+    type(window), intent(inout), target :: w
+    real*8 :: c
+
+    integer :: iview
+
+    c = max(w%nc%opts%rhoplot,maxval(abs(w%nc%opts%srhorange)))
+    iview = w%anchor_view()
+    if (iview < 1 .or. iview > nwin) return
+    if (win(iview)%type /= wintype_view .or. .not.associated(win(iview)%sc)) return
+    associate(sc => win(iview)%sc)
+      if (.not.w%nc%isoref%ok(sc)) return
+      associate(r => sc%rep(w%nc%isoref%id))
+        if (r%iso%niso < 1) return
+        if (r%iso%slot(1)%imap_mode /= iso_map_field .or. .not.r%iso%slot(1)%mapref%same(w%nc%frref)) return
+        c = maxval(abs(r%iso%slot(1)%maprange))
+      end associate
+    end associate
+
+  end function nci_colorscale
 
 end submodule nci

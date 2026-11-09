@@ -908,8 +908,7 @@ module windows
      ! of the last masking (nci_masks)
      type(nci_result), pointer :: res => null()
      type(nci_derived), pointer :: drv => null() ! the scatter and the domains (null = none)
-     integer :: dragline = 0 ! line held in the scatter plot: 1-2 range, 3-4 cutoff, 5 isovalue (0 = none)
-     real*8 :: drag0(3) = 0d0 ! density cutoff and signed density range when the line was grabbed
+     integer :: dragline = 0 ! line held in the scatter plot: 1-2 range, 3 isovalue (0 = none)
      type(field_ref) :: fsref ! the reduced density gradient, masked by the cutoffs (nci_rdg_masked)
      type(field_ref) :: frref ! the density times the sign of the second Hessian eigenvalue
      logical :: voidok = .false. ! the void integrals are those of the result with the current cutoffs
