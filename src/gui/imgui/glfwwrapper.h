@@ -39,5 +39,6 @@ extern "C" const int const_GLFW_PRESS;
 
 // functions //
 extern "C" int glfw_platform_is_wayland();
+extern "C" int glfw_any_window_key(int key, int sticky);
 
 #endif

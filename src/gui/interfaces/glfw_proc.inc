@@ -141,3 +141,9 @@ function glfw_platform_is_wayland() bind(c,name="glfw_platform_is_wayland")
   import c_int
   integer(c_int) :: glfw_platform_is_wayland
 end function glfw_platform_is_wayland
+! int glfw_any_window_key(int key, int sticky) (glfwwrapper.cpp)
+function glfw_any_window_key(key,sticky) bind(c,name="glfw_any_window_key")
+  import c_int
+  integer(c_int), value :: key, sticky
+  integer(c_int) :: glfw_any_window_key
+end function glfw_any_window_key

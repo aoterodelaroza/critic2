@@ -19,6 +19,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "glfwwrapper.h"
+#include "imgui.h"
 
 #include <GLFW/glfw3.h>
 
@@ -46,5 +47,22 @@ int glfw_platform_is_wayland(){
 #else
   return 0;
 #endif
+}
+
+// Nonzero if key is pressed in any OS window of the GUI: the main
+// window and, with detachable windows, every window of an imgui
+// viewport (the keyboard follows the focused one). If sticky,
+// GLFW_STICKY_KEYS is set first on each of them, so a press between
+// two queries is not lost (the main window has it already).
+int glfw_any_window_key(int key, int sticky){
+  ImGuiPlatformIO& pio = ImGui::GetPlatformIO();
+  int pressed = 0;
+  for (int i = 0; i < pio.Viewports.Size; i++){
+    GLFWwindow* w = (GLFWwindow*) pio.Viewports[i]->PlatformHandle;
+    if (!w) continue;
+    if (sticky) glfwSetInputMode(w, GLFW_STICKY_KEYS, GLFW_TRUE);
+    if (glfwGetKey(w, key) == GLFW_PRESS) pressed = 1;
+  }
+  return pressed;
 }
 

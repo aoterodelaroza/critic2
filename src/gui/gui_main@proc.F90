@@ -393,7 +393,7 @@ contains
        ! able to cancel it) is not a key bind event now (GLFW_STICKY_KEYS
        ! keeps it as pressed until queried)
        if (jobran) then
-          if (glfwGetKey(rootwin,GLFW_KEY_ESCAPE) == GLFW_PRESS) &
+          if (glfw_any_window_key(GLFW_KEY_ESCAPE,0) /= 0) &
              esc_swallow = max(esc_swallow,esc_swallow_frames)
           jobran = .false.
        end if
@@ -696,7 +696,7 @@ contains
   !> the other calculations that check abort_requested call
   !> cancel_hook periodically. Close with end_cancellable.
   module subroutine begin_cancellable()
-    use interfaces_glfw, only: glfwGetKey, glfwSwapInterval, GLFW_KEY_ESCAPE
+    use interfaces_glfw, only: glfw_any_window_key, glfwSwapInterval, GLFW_KEY_ESCAPE
     use global, only: abort_requested, abort_hook, progress_start
     use systems, only: are_threads_running, kill_initialization_thread
 
@@ -711,7 +711,8 @@ contains
 
     ! clear the sticky-key state of an earlier Esc (GLFW_STICKY_KEYS),
     ! and the progress of an earlier job
-    idum = glfwGetKey(rootwin,GLFW_KEY_ESCAPE)
+    ! (in every OS window: the keyboard is in the focused one)
+    idum = glfw_any_window_key(GLFW_KEY_ESCAPE,1)
     abort_requested = .false.
     call progress_start(0,"")
     abort_hook => cancel_hook
@@ -761,7 +762,8 @@ contains
     use interfaces_cimgui, only: own_progress_bar_drawdata, ImGui_ImplOpenGL3_RenderDrawData,&
        igGetDrawData, igGetMainViewport, ImGuiViewport
     use interfaces_glfw, only: glfwPollEvents, glfwGetKey, glfwWindowShouldClose,&
-       glfwGetFramebufferSize, glfwSwapBuffers, glfwMakeContextCurrent, GLFW_KEY_ESCAPE, GLFW_PRESS
+       glfwGetFramebufferSize, glfwSwapBuffers, glfwMakeContextCurrent, glfw_any_window_key,&
+       GLFW_KEY_ESCAPE
     use global, only: abort_requested, progress_done, progress_total, progress_what
     use tools_io, only: string
 
@@ -773,7 +775,7 @@ contains
     type(ImGuiViewport), pointer :: vp
 
     call glfwPollEvents()
-    if (glfwGetKey(rootwin,GLFW_KEY_ESCAPE) == GLFW_PRESS .or. glfwWindowShouldClose(rootwin) /= 0) then
+    if (glfw_any_window_key(GLFW_KEY_ESCAPE,0) /= 0 .or. glfwWindowShouldClose(rootwin) /= 0) then
        !$omp atomic write
        abort_requested = .true.
     end if
