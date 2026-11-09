@@ -128,7 +128,7 @@ module nci
        type(nci_result), intent(in) :: res
        logical(1), allocatable, intent(out), optional :: inter(:,:,:)
        real*8, allocatable, intent(out) :: splot(:,:,:)
-       real*8, intent(out) :: voidq, voidqp, voidv
+       real*8, intent(out), optional :: voidq, voidqp, voidv
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine nci_masks
      pure module function nci_in_dat(opts,res,inter,i,j,k) result(ok)

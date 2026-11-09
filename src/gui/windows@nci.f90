@@ -362,7 +362,6 @@ contains
       w%nc%frref = field_ref()
       w%nc%isoref = rep_ref()
       w%nc%cbref = rep_ref()
-      w%nc%voidok = .false.
       w%nc%timelast = sysc(isys)%timelastchange_geometry
       w%errmsg = ""
 
@@ -606,11 +605,11 @@ contains
 
     !> The Plot section: the s vs. signed density plot of the result,
     !> the cutoffs of the isosurface plot (RDG isovalue, sign(lambda2)*rho
-    !> range) and, More, the void criterion, with the void integrals of
-    !> the result. The density cutoff (CUTPLOT) and ONLYNEG of the CLI
-    !> are ranges too, so the range does their job; the color scale
-    !> belongs to the isosurface object. The dat-file cutoffs (CUTOFFS)
-    !> stay at their defaults: the plot zooms instead.
+    !> range) and, More, the void criterion. The density cutoff
+    !> (CUTPLOT) and ONLYNEG of the CLI are ranges too, so the range
+    !> does their job; the color scale belongs to the isosurface
+    !> object. The dat-file cutoffs (CUTOFFS) stay at their defaults:
+    !> the plot zooms instead.
     subroutine draw_plot()
 
       call iw_separatortext("Plot",w%nc%sec(nci_sec_plot),hasmore=.true.)
@@ -645,10 +644,6 @@ contains
                  committed=lcommit)
               maskchanged = maskchanged .or. lcommit
               call iw_tooltip("Promolecular density below which a point belongs to a void",ttshown)
-              if (associated(w%nc%res) .and. w%nc%voidok) &
-                 call iw_text("Void charge (a.u.): " // string(w%nc%voidq,'f',decimal=6) //&
-                    ", promolecular charge (a.u.): " // string(w%nc%voidqp,'f',decimal=6) //&
-                    ", volume (bohr^3): " // string(w%nc%voidv,'f',decimal=6),wrap=.true.)
            end if
         end if
       end associate
@@ -1384,21 +1379,18 @@ contains
     if (.not.associated(w%nc%res)) return
     if (.not.associated(w%nc%drv)) allocate(w%nc%drv)
 
-    ! the masks (the void integrals, the scatter and the domains of a
-    ! failed pass are not shown)
-    w%nc%voidok = .false.
+    ! the masks (the scatter and the domains of a failed pass are not
+    ! shown)
     ! (no density cutoff in the window: the range is the cutoff)
     o = w%nc%opts
     o%rhoplot = huge(1d0)
-    call nci_masks(o,w%nc%res,inter=w%nc%drv%inter,splot=splot,voidq=w%nc%voidq,&
-       voidqp=w%nc%voidqp,voidv=w%nc%voidv,errmsg=errmsg)
+    call nci_masks(o,w%nc%res,inter=w%nc%drv%inter,splot=splot,errmsg=errmsg)
     if (len_trim(errmsg) > 0) then
        w%errmsg = errmsg
        w%nc%drv = nci_derived()
        return
     end if
     w%errmsg = ""
-    w%nc%voidok = .true.
 
     ! the scatter and the domains
     call nci_scatter(w)

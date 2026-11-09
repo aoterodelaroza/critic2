@@ -771,9 +771,9 @@ contains
   !> splot is the reduced density gradient with the value
   !> nci_rdg_masked at the points removed from the isosurface plot (by
   !> those criteria, the density cutoff, the signed density range, or
-  !> the only-negative option). With a void cutoff, voidq, voidqp, and
-  !> voidv are the density and promolecular density integrated over
-  !> the void and the void volume (a.u.); zero otherwise. errmsg is
+  !> the only-negative option). If present, voidq, voidqp, and voidv
+  !> are the density and promolecular density integrated over the
+  !> void and the void volume (a.u.; zero without a void cutoff). errmsg is
   !> non-empty if the criteria need grids res does not have.
   module subroutine nci_masks(opts,res,inter,splot,voidq,voidqp,voidv,errmsg)
     use tools_math, only: det3
@@ -781,18 +781,21 @@ contains
     type(nci_result), intent(in) :: res
     logical(1), allocatable, intent(out), optional :: inter(:,:,:)
     real*8, allocatable, intent(out) :: splot(:,:,:)
-    real*8, intent(out) :: voidq, voidqp, voidv
+    real*8, intent(out), optional :: voidq, voidqp, voidv
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: n(3), i, j, k, nfrag
-    real*8 :: sumf, dv
+    real*8 :: sumf, dv, sq, sqp, sv
     logical :: lint, dointer
 
     ! checks
     errmsg = ""
-    voidq = 0d0
-    voidqp = 0d0
-    voidv = 0d0
+    sq = 0d0
+    sqp = 0d0
+    sv = 0d0
+    if (present(voidq)) voidq = 0d0
+    if (present(voidqp)) voidqp = 0d0
+    if (present(voidv)) voidv = 0d0
     n = res%n
     nfrag = opts%nfrag
     if (opts%dovoid .and. .not.allocated(res%rhoat)) then
@@ -824,9 +827,9 @@ contains
              end if
              if (opts%dovoid) then
                 if (res%rhoat(i,j,k) < opts%rho_void) then
-                   voidq = voidq + abs(res%srho(i,j,k))
-                   voidqp = voidqp + res%rhoat(i,j,k)
-                   voidv = voidv + 1
+                   sq = sq + abs(res%srho(i,j,k))
+                   sqp = sqp + res%rhoat(i,j,k)
+                   sv = sv + 1
                 else
                    lint = .false.
                 end if
@@ -847,9 +850,9 @@ contains
 
     ! the volume element of the grid
     dv = abs(det3(res%xmat))
-    voidq = voidq * dv
-    voidqp = voidqp * dv
-    voidv = voidv * dv
+    if (present(voidq)) voidq = sq * dv
+    if (present(voidqp)) voidqp = sqp * dv
+    if (present(voidv)) voidv = sv * dv
 
   end subroutine nci_masks
 
