@@ -3058,3 +3058,10 @@ subroutine own_add_text_rotated(dl,font,size,cx,cy,angle,col,text) bind(c,name="
   integer(c_int), value :: col
   type(c_ptr), intent(in), value :: text
 end subroutine own_add_text_rotated
+! int own_window_monitor_size(ImGuiWindow* win, ImVec2* siz);
+function own_window_monitor_size(win,siz) bind(c,name="own_window_monitor_size")
+  import c_ptr, c_int, ImVec2
+  type(c_ptr), value :: win
+  type(ImVec2) :: siz
+  integer(c_int) :: own_window_monitor_size
+end function own_window_monitor_size

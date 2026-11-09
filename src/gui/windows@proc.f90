@@ -1966,9 +1966,16 @@ contains
           ! opening) or changes with a tab or a section, and can be made
           ! smaller afterwards.
           if (.not.w%isdocked) then
+             ! a window in its own OS window (detached) is limited by
+             ! its monitor, not by the main window
              szmax%x = huge(1._c_float)
              szmax%y = huge(1._c_float)
-             call clamp_to_display(szmax)
+             if (own_window_monitor_size(w%ptr,szmax) /= 0) then
+                szmax%x = szmax%x - 2._c_float * fontsize%x
+                szmax%y = szmax%y - 2._c_float * fontsize%y
+             else
+                call clamp_to_display(szmax)
+             end if
              szmin%x = min(25._c_float * fontsize%x,szmax%x)
              szmin%y = min(6._c_float * fontsize%y,szmax%y)
              ! the size to set this frame, if any (a negative axis is
