@@ -1983,8 +1983,7 @@ contains
                 szmax%x = huge(1._c_float)
                 szmax%y = huge(1._c_float)
                 call clamp_to_display(szmax,monsiz)
-                szgrow%x = min(szgrow%x,szmax%x)
-                szgrow%y = min(szgrow%y,szmax%y)
+                call clamp_to_display(szgrow,monsiz)
              end if
              szmin%x = min(25._c_float * fontsize%x,szmax%x)
              szmin%y = min(6._c_float * fontsize%y,szmax%y)
