@@ -138,7 +138,7 @@ module nci
        integer, intent(in) :: i, j, k
        logical :: ok
      end function nci_in_dat
-     module subroutine nci_domains(opts,res,splot,ndom,lbl,npts,vol,rmin,rmax,errmsg)
+     module subroutine nci_domains(opts,res,splot,ndom,lbl,npts,vol,rmin,rmax,errmsg,q)
        type(nci_options), intent(in) :: opts
        type(nci_result), intent(in) :: res
        real*8, intent(in) :: splot(:,:,:)
@@ -146,6 +146,7 @@ module nci
        integer, allocatable, intent(out) :: lbl(:,:,:)
        integer, allocatable, intent(out) :: npts(:)
        real*8, allocatable, intent(out) :: vol(:), rmin(:), rmax(:)
+       real*8, allocatable, intent(out), optional :: q(:)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine nci_domains
      module subroutine nci_write_cubes(oname,opts,s,res,splot,errmsg)

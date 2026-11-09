@@ -45,7 +45,7 @@ contains
   !> (run_nci) and loads the grids as two new fields of the system.
   module subroutine draw_nci(w)
     use systems, only: sys, sysc, sys_init, ok_system, field_cost, atlisttype_ncel_bohr
-    use representations, only: iso_region_cell, iso_region_bbox, iso_region_to_box, iso_region_seed,&
+    use representations, only: iso_region_cell, iso_region_bbox, iso_region_to_box, iso_region_seed, iso_rgb_hl,&
        iso_region_point_from_cart, iso_isgridfield, iso_region_parallel
     use nci, only: nci_options, nci_options_set_field, nci_frag_region
     use types, only: field_evaluation_avail
@@ -200,6 +200,8 @@ contains
           end if
           call nci_highlight(w,isys,iview,ihover)
        end if
+       ! (for the scatter plot of the next frame, drawn above the table)
+       w%nc%hoverdom = ihover
 
        ! the region between the fragments
        call draw_region()
@@ -685,6 +687,7 @@ contains
       integer :: i, held, icmap, nb
       real(c_double) :: xdrag
       real(c_float) :: lut(3,nscbin)
+      real(c_double), allocatable, target :: hx(:), hy(:)
       character(kind=c_char,len=:), allocatable, target :: str1, str2
       type(ImVec2) :: szplot
       type(ImVec4) :: col
@@ -739,6 +742,20 @@ contains
                     call ipPlotScatter(c_loc(str1),c_loc(d%scx(d%scbin(i-1)+1)),c_loc(d%scy(d%scbin(i-1)+1)),&
                        int(nb,c_int),0_c_int,0_c_int)
                  end do
+
+                 ! the points of the domain under the mouse in the
+                 ! domain table, on top, in the highlight color of the
+                 ! isosurface
+                 if (w%nc%hoverdom > 0 .and. allocated(d%scl)) then
+                    hx = pack(d%scx,d%scl == w%nc%hoverdom)
+                    hy = pack(d%scy,d%scl == w%nc%hoverdom)
+                    if (size(hx) > 0) then
+                       str1 = "##ncipointshl" // c_null_char
+                       col = ImVec4(iso_rgb_hl(1),iso_rgb_hl(2),iso_rgb_hl(3),1._c_float)
+                       call ipSetNextMarkerStyle(ImPlotMarker_Square,2.5_c_float,col,0._c_float,col)
+                       call ipPlotScatter(c_loc(str1),c_loc(hx),c_loc(hy),int(size(hx),c_int),0_c_int,0_c_int)
+                    end if
+                 end if
               end if
            end if
 
@@ -822,7 +839,7 @@ contains
            call iw_text("No points of the grid are under the RDG isovalue",disabled=.true.,wrap=.true.)
            return
         end if
-        call iw_text("Volume (Å³): " // string(d%voltot * bohrtoa**3,'f',decimal=3),wrap=.true.)
+        call iw_text("Total volume (Å³): " // string(d%voltot * bohrtoa**3,'f',decimal=3),wrap=.true.)
 
         flags = ImGuiTableFlags_None
         flags = ior(flags,ImGuiTableFlags_Resizable)
@@ -834,10 +851,11 @@ contains
         nrow = min(8,d%ndom)
         sz0%x = 0
         sz0%y = iw_calcheight(nrow+1,0,.false.)
-        if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
+        if (igBeginTable(c_loc(str1),6,flags,sz0,0._c_float)) then
            icol = -1
            call iw_table_column("Id",icol=icol)
            call iw_table_column("Volume (Å³)",icol=icol)
+           call iw_table_column("Electrons",icol=icol)
            call iw_table_column("Points",icol=icol)
            call iw_table_column("Min sign(λ2)ρ",icol=icol)
            call iw_table_column("Max sign(λ2)ρ",icol=icol,flags=ImGuiTableColumnFlags_WidthStretch)
@@ -855,9 +873,10 @@ contains
                     if (iw_highlight_selectable("##ncidomain_" // string(i))) ihover = i
                  end if
                  if (igTableSetColumnIndex(1)) call iw_cell_right(string(d%dom_vol(i) * bohrtoa**3,'f',decimal=3))
-                 if (igTableSetColumnIndex(2)) call iw_cell_right(string(d%dom_npts(i)))
-                 if (igTableSetColumnIndex(3)) call iw_cell_right(string(d%dom_rmin(i),'f',decimal=5))
-                 if (igTableSetColumnIndex(4)) call iw_cell_right(string(d%dom_rmax(i),'f',decimal=5))
+                 if (igTableSetColumnIndex(2)) call iw_cell_right(string(d%dom_q(i),'f',decimal=5))
+                 if (igTableSetColumnIndex(3)) call iw_cell_right(string(d%dom_npts(i)))
+                 if (igTableSetColumnIndex(4)) call iw_cell_right(string(d%dom_rmin(i),'f',decimal=5))
+                 if (igTableSetColumnIndex(5)) call iw_cell_right(string(d%dom_rmax(i),'f',decimal=5))
               end do
            end do
            call ImGuiListClipper_End(clipper)
@@ -866,8 +885,9 @@ contains
            call igEndTable()
         end if
         call iw_tooltip("Connected regions of the grid where the masked reduced density gradient is&
-           & below the isovalue, by decreasing volume, with the range of the signed density in&
-           & each. The region under the mouse is highlighted in the view",ttshown)
+           & below the isovalue, by decreasing volume, with the electron density integrated over&
+           & each (electrons) and the range of the signed density in each. The region under the&
+           & mouse is highlighted in the view and in the plot",ttshown)
       end associate
 
     end subroutine draw_domains
@@ -1563,7 +1583,7 @@ contains
     integer, parameter :: nscmax = 20000
 
     type(nci_options) :: o
-    integer :: i, j, k, stride, n(3)
+    integer :: i, j, k, m, nsc, stride, n(3)
     logical, allocatable :: msk(:,:,:)
 
     if (.not.associated(w%nc%res) .or. .not.associated(w%nc%drv)) return
@@ -1573,6 +1593,8 @@ contains
     associate(r => w%nc%res, d => w%nc%drv)
       if (allocated(d%scx)) deallocate(d%scx)
       if (allocated(d%scy)) deallocate(d%scy)
+      if (allocated(d%scidx)) deallocate(d%scidx)
+      if (allocated(d%scl)) deallocate(d%scl)
       if (allocated(d%scbin)) deallocate(d%scbin)
       if (.not.allocated(d%inter)) return
       n = r%n
@@ -1584,11 +1606,26 @@ contains
             end do
          end do
       end do
+      ! every stride-th point under the cutoffs, with its index in the
+      ! flattened grid
       stride = max((count(msk) + nscmax - 1) / nscmax,1)
-      d%scx = real(pack(r%srho,msk),c_double)
-      d%scy = real(pack(r%rdg,msk),c_double)
-      d%scx = d%scx(1::stride)
-      d%scy = d%scy(1::stride)
+      nsc = (count(msk) + stride - 1) / stride
+      allocate(d%scx(nsc),d%scy(nsc),d%scidx(nsc))
+      m = 0
+      nsc = 0
+      do k = 1, n(3)
+         do j = 1, n(2)
+            do i = 1, n(1)
+               if (.not.msk(i,j,k)) cycle
+               m = m + 1
+               if (mod(m-1,stride) /= 0) cycle
+               nsc = nsc + 1
+               d%scx(nsc) = real(r%srho(i,j,k),c_double)
+               d%scy(nsc) = real(r%rdg(i,j,k),c_double)
+               d%scidx(nsc) = i + n(1) * (j - 1 + n(2) * (k - 1))
+            end do
+         end do
+      end do
     end associate
 
   end subroutine nci_scatter
@@ -1605,6 +1642,7 @@ contains
     integer :: i, n
     integer, allocatable :: ib(:), pos(:)
     real(c_double), allocatable :: tx(:), ty(:)
+    integer, allocatable :: tidx(:), tl(:)
     real*8 :: lo, hi
 
     if (.not.allocated(d%scx)) return
@@ -1634,12 +1672,17 @@ contains
        d%scbin(i) = d%scbin(i) + d%scbin(i-1)
     end do
     pos = d%scbin(-1:nscbin-1)
+    ! (the grid indices and domains of the points go with them)
     tx = d%scx
     ty = d%scy
+    tidx = d%scidx
+    if (allocated(d%scl)) tl = d%scl
     do i = 1, n
        pos(ib(i)) = pos(ib(i)) + 1
        d%scx(pos(ib(i))) = tx(i)
        d%scy(pos(ib(i))) = ty(i)
+       d%scidx(pos(ib(i))) = tidx(i)
+       if (allocated(d%scl)) d%scl(pos(ib(i))) = tl(i)
     end do
     d%scb_cs = cs
     d%scb_rng = rng
@@ -1655,16 +1698,29 @@ contains
     real*8, intent(in) :: f(:,:,:)
 
     character(len=:), allocatable :: errmsg
+    integer :: i, l, n(3)
 
     if (.not.associated(w%nc%res) .or. .not.associated(w%nc%drv)) return
     associate(d => w%nc%drv)
-      call nci_domains(w%nc%opts,w%nc%res,f,d%ndom,d%lbl,d%dom_npts,d%dom_vol,d%dom_rmin,d%dom_rmax,errmsg)
+      call nci_domains(w%nc%opts,w%nc%res,f,d%ndom,d%lbl,d%dom_npts,d%dom_vol,d%dom_rmin,d%dom_rmax,&
+         errmsg,q=d%dom_q)
       if (len_trim(errmsg) > 0) then
          w%errmsg = errmsg
          d%ndom = 0
       end if
       d%voltot = 0d0
       if (allocated(d%dom_vol)) d%voltot = sum(d%dom_vol)
+
+      ! the domain of each scatter point, for its highlight in the plot
+      if (allocated(d%scl)) deallocate(d%scl)
+      if (allocated(d%scidx) .and. allocated(d%lbl) .and. d%ndom > 0) then
+         allocate(d%scl(size(d%scidx)))
+         n = shape(d%lbl)
+         do i = 1, size(d%scidx)
+            l = d%scidx(i) - 1
+            d%scl(i) = d%lbl(mod(l,n(1))+1,mod(l/n(1),n(2))+1,l/(n(1)*n(2))+1)
+         end do
+      end if
     end associate
 
   end subroutine nci_find_domains

@@ -877,9 +877,10 @@ contains
   !> (grid_domains; wrapping around on a periodic grid). On output,
   !> ndom domains numbered by decreasing size, lbl the domain of each
   !> grid point (0 = none), and for each domain its number of points
-  !> npts, its volume vol (bohr^3) and the range rmin..rmax of the
-  !> signed density in it. errmsg is non-empty in case of error.
-  module subroutine nci_domains(opts,res,splot,ndom,lbl,npts,vol,rmin,rmax,errmsg)
+  !> npts, its volume vol (bohr^3), the range rmin..rmax of the
+  !> signed density in it and, if present, the density integrated
+  !> over it q (electrons). errmsg is non-empty in case of error.
+  module subroutine nci_domains(opts,res,splot,ndom,lbl,npts,vol,rmin,rmax,errmsg,q)
     use grid3mod, only: grid_domains
     use tools_math, only: det3
     type(nci_options), intent(in) :: opts
@@ -890,8 +891,10 @@ contains
     integer, allocatable, intent(out) :: npts(:)
     real*8, allocatable, intent(out) :: vol(:), rmin(:), rmax(:)
     character(len=:), allocatable, intent(out) :: errmsg
+    real*8, allocatable, intent(out), optional :: q(:)
 
     integer :: i, j, k, id, n(3)
+    real*8 :: dv
 
     n = res%n
     errmsg = ""
@@ -903,10 +906,15 @@ contains
     call grid_domains(splot,opts%dimplot,opts%periodic,ndom,lbl,npts,errmsg)
     if (len_trim(errmsg) > 0) return
 
+    dv = abs(det3(res%xmat))
     allocate(vol(ndom),rmin(ndom),rmax(ndom))
-    vol = real(npts,8) * abs(det3(res%xmat))
+    vol = real(npts,8) * dv
     rmin = huge(1d0)
     rmax = -huge(1d0)
+    if (present(q)) then
+       allocate(q(ndom))
+       q = 0d0
+    end if
     do k = 1, n(3)
        do j = 1, n(2)
           do i = 1, n(1)
@@ -914,9 +922,11 @@ contains
              if (id == 0) cycle
              rmin(id) = min(rmin(id),res%srho(i,j,k))
              rmax(id) = max(rmax(id),res%srho(i,j,k))
+             if (present(q)) q(id) = q(id) + abs(res%srho(i,j,k))
           end do
        end do
     end do
+    if (present(q)) q = q * dv
 
   end subroutine nci_domains
 

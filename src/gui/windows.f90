@@ -864,6 +864,8 @@ module windows
   type nci_derived
      logical(1), allocatable :: inter(:,:,:)
      real(c_double), allocatable :: scx(:), scy(:) ! signed density and s of each scatter point
+     integer, allocatable :: scidx(:) ! index of the grid point of each scatter point (in the flattened grid)
+     integer, allocatable :: scl(:) ! domain of each scatter point (0 = none)
      ! the scatter points, sorted in place into color bins: bin i is
      ! scx/scy(scbin(i-1)+1:scbin(i)), bin 0 the points outside the
      ! sign(lambda2)*rho range scb_rng, bins 1..nscbin the others over
@@ -876,6 +878,7 @@ module windows
      integer, allocatable :: dom_npts(:) ! grid points of each domain
      real*8, allocatable :: dom_vol(:) ! volume of each domain (bohr^3)
      real*8, allocatable :: dom_rmin(:), dom_rmax(:) ! range of the signed density in each domain
+     real*8, allocatable :: dom_q(:) ! density integrated over each domain (electrons)
      real*8 :: voltot = 0d0 ! volume of all the domains (bohr^3)
   end type nci_derived
 
@@ -941,6 +944,7 @@ module windows
      real*8 :: region_par(2) = 0d0
      integer :: region_shift(3) = 0
      integer :: gen = 0 ! generation of the grids, increased by every calculation
+     integer :: hoverdom = 0 ! domain under the mouse in the domain table in the last frame (0 = none)
      logical :: fitplot = .false. ! fit the axes of the scatter plot to the points (a new result)
      real*8 :: datcut(2) = 0d0 ! density and RDG cutoffs of the dat file (CUTOFFS) the result was calculated with
      ! blocking job (run_nci): the system, and whether it writes the
