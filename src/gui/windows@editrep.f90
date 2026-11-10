@@ -2116,6 +2116,12 @@ contains
              call iw_tooltip("Title of the color bar",ttshown)
              changed = changed .or. ch
           end if
+          call iw_text("Title offset",alignframe=.true.)
+          ch = iw_dragfloat_real8("##colorbartitleoff",x2=w%rep%colorbar%titleoff,speed=0.02d0,&
+             min=-50d0,max=50d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Displacement of the title from its place, centered over the strip: to the &
+             &right and up, in units of the height of the text",ttshown)
+          changed = changed .or. ch
        end if
     end if
 

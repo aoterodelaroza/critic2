@@ -32,6 +32,8 @@ submodule (windows) nci
   ! tighter than iso_bbox_buffer_def because the NCI regions are
   ! short-range and the grid points far from the atoms are wasted
   real*8, parameter :: nci_bbox_buffer = 2d0
+  ! text size of the color bar of the NCI isosurface
+  real*8, parameter :: nci_cbar_textscale = 0.6d0
 
   ! color bins of the points of the s vs. sign(lambda2)*rho plot
   integer, parameter :: nscbin = 64
@@ -1638,6 +1640,7 @@ contains
          call sc%add_representation(reptype_colorbar,repflavor_colorbar,id=icb)
          if (icb <= 0) return
          sc%rep(icb)%name = "NCI color bar"
+         sc%rep(icb)%colorbar%scale = nci_cbar_textscale
          call w%nc%cbref%set(sc,icb)
          call sc%undo_note("Add " // trim(sc%rep(icb)%name))
       end if

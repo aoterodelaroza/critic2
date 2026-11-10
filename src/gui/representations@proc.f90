@@ -4135,6 +4135,7 @@ contains
       dcb%length = real(r%colorbar%length,c_float)
       dcb%thick = real(r%colorbar%thick,c_float)
       dcb%h = real(legend_textheight * r%colorbar%scale,c_float)
+      dcb%titleoff = real(r%colorbar%titleoff,c_float) * dcb%h
       dcb%textrgb = r%colorbar%textrgb
       dcb%border = r%colorbar%border
       dcb%borderrgb = r%colorbar%borderrgb

@@ -165,6 +165,7 @@ module shapes
      real(c_float), allocatable :: tickpos(:) ! position of each tick along the strip (0 = low end, 1 = high)
      character(len=colorbar_label_len), allocatable :: ticklabel(:) ! text of each tick
      character(len=:), allocatable :: title ! title (empty = no title)
+     real(c_float) :: titleoff(2) = 0._c_float ! displacement of the title (right and up, NDC)
   end type dl_colorbar
   public :: dl_colorbar
 

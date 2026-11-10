@@ -1644,7 +1644,7 @@ contains
       use shapes, only: flat_vert_nf
       use representations, only: legcorner_topleft, legcorner_bottomleft, legcorner_bottomright,&
          scalepos_custom, colorbar_ncol, colorbar_nticks_max
-      real(c_float) :: projover(4,4), vis(2), h, mrg, gap, tl, bw, siz, lstrip, th, wx, wy
+      real(c_float) :: projover(4,4), vis(2), h, mrg, gap, tl, bw, siz, lstrip, th, wx, wy, ovt
       real(c_float) :: xs, ys, xe, ye, xw(2), wlab, wtitle, htitle, hlab, x0, y0, xt, yt, ndc(3), bc(4)
       real(c_float), allocatable, target :: vert(:,:)
       real(c_float), allocatable :: flat(:,:), wk(:)
@@ -1701,6 +1701,9 @@ contains
            if (iv(nt+2) > iv(nt+1)) htitle = h + gap
            hlab = 0._c_float
            if (wlab > 0._c_float) hlab = h
+           ! the title is centered over the strip: what it overhangs each
+           ! side of it, for a title no wider than the view
+           ovt = 0.5_c_float * (min(wtitle,2._c_float * (vis(1) - mrg)) - wx)
 
            ! (xs,ys) = the lower left corner of the strip
            if (cb%corner == scalepos_custom) then
@@ -1710,10 +1713,9 @@ contains
            elseif (cb%vertical) then
               ! the tick values overhang the ends of the strip by half a line
               if (cb%corner == legcorner_topleft .or. cb%corner == legcorner_bottomleft) then
-                 xs = -vis(1) + mrg + bw
+                 xs = -vis(1) + mrg + max(bw,ovt)
               else
-                 xs = vis(1) - mrg - (th + bw + tl + gap + wlab)
-                 xs = min(xs,vis(1) - mrg - wtitle)
+                 xs = vis(1) - mrg - max(th + bw + tl + gap + wlab,th + ovt)
               end if
               if (cb%corner == legcorner_bottomleft .or. cb%corner == legcorner_bottomright) then
                  ys = -vis(2) + mrg + 0.5_c_float * hlab + bw
@@ -1723,9 +1725,9 @@ contains
            else
               ! the first and last tick values overhang the ends by half their width
               if (cb%corner == legcorner_topleft .or. cb%corner == legcorner_bottomleft) then
-                 xs = -vis(1) + mrg + bw + max(0.5_c_float * wk(1) - bw,0._c_float)
+                 xs = -vis(1) + mrg + max(bw,0.5_c_float * wk(1),ovt)
               else
-                 xs = vis(1) - mrg - bw - lstrip - max(0.5_c_float * wk(nt) - bw,0._c_float)
+                 xs = vis(1) - mrg - lstrip - max(bw,0.5_c_float * wk(nt),ovt)
               end if
               if (cb%corner == legcorner_bottomleft .or. cb%corner == legcorner_bottomright) then
                  ys = -vis(2) + mrg + bw
@@ -1782,17 +1784,15 @@ contains
               call draw_text_anchored(iv(k+1)-iv(k),vert(:,iv(k):iv(k+1)-1),ndc,cb%textrgb,projover)
            end do
 
-           ! the title, over the strip (and over the top tick value if vertical)
+           ! the title, centered over the strip (and over the top tick
+           ! value if vertical) and kept inside the view (a custom
+           ! position, or a title wider than the view), then displaced
            if (htitle > 0._c_float) then
-              if (cb%vertical) then
-                 x0 = xs - bw
-                 y0 = ys + lstrip + bw + 0.5_c_float * hlab + gap + h
-              else
-                 x0 = xs + 0.5_c_float * (lstrip - wtitle)
-                 y0 = ys + th + bw + gap + h
-              end if
+              x0 = xs + 0.5_c_float * (wx - wtitle)
+              y0 = ye + bw + gap + h
+              if (cb%vertical) y0 = y0 + 0.5_c_float * hlab
               x0 = max(min(x0,vis(1) - mrg - wtitle),-vis(1) + mrg)
-              ndc = (/x0, y0, 0._c_float/)
+              ndc = (/x0 + cb%titleoff(1), y0 + cb%titleoff(2), 0._c_float/)
               call draw_text_anchored(iv(nt+2)-iv(nt+1),vert(:,iv(nt+1):iv(nt+2)-1),ndc,cb%textrgb,projover)
            end if
          end associate

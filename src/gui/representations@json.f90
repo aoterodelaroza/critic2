@@ -553,6 +553,7 @@ contains
          call io%x(q,'showtitle',r%colorbar%showtitle)
          call io%x(q,'customtitle',r%colorbar%customtitle)
          call io%x(q,'title',r%colorbar%title)
+         call io%x(q,'titleoff',r%colorbar%titleoff)
 
       case (reptype_slice)
          call io%obj(p,'planemap',q,found)

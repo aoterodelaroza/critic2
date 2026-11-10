@@ -856,6 +856,8 @@ module representations
      logical :: showtitle = .true. ! draw the title
      logical :: customtitle = .false. ! the title is title (else the field or the expression)
      character(len=colorbar_text_len) :: title = "" ! custom title
+     real*8 :: titleoff(2) = 0d0 ! displacement of the title from its place, centered over the strip
+                                 ! (right and up, in text heights)
   end type rep_colorbar
   public :: rep_colorbar
 
