@@ -1061,12 +1061,15 @@ contains
           & an arithmetic expression, or a wavefunction on a grid, and write them to a cube,&
           & XSF, or VASP file",ttshown)
 
+       ! the specialized plots
+       call igSeparator()
+
        ! non-covalent interaction plots (NCIPLOT)
        if (iw_menuitem("NCI Plot...")) &
           idum = stack_create_window(wintype_nci,.true.,idparent=idparent,orraise=-1)
-       call iw_tooltip("Calculate the reduced density gradient and the signed density of a&
-          & field of this system on a grid, for a plot of the non-covalent interactions&
-          & (NCI plot)",ttshown)
+       call iw_tooltip("Make a non-covalent interactions plot (NCI plot): calculate the reduced&
+          & density gradient and the signed density of a field on a grid and plot the&
+          & isosurfaces of the former colored by the latter",ttshown)
 
        ! molecular orbitals: enabled only if the reference field of the
        ! system can calculate them

@@ -282,8 +282,7 @@ contains
           ok = nci_cscale(w,cscale,reset=.true.)
        end if
     end if
-    call iw_tooltip("Reset all the settings of the window to their defaults (the result of the&
-       & last calculation is kept)",ttshown,whendisabled=.true.)
+    call iw_tooltip("Reset all the settings of the window to their defaults",ttshown,whendisabled=.true.)
     if (iw_button("Calculate##ncicalc",danger=.true.,disabled=.not.okcalc,sameline=.true.)) &
        call request_job()
     call iw_tooltip("Calculate the reduced density gradient and the signed density on the grid,&
@@ -436,9 +435,7 @@ contains
          call set_field(id)
          w%errmsg = ""
       end if
-      call iw_tooltip("Field whose density the NCI plot is calculated from. Field 0 is the&
-         & promolecular density (the sum of the in-vacuo atomic densities), as in NCIPLOT&
-         & without a wavefunction",ttshown)
+      call iw_tooltip("Field whose density the NCI plot is calculated from",ttshown)
 
       if (w%nc%sec(nci_sec_density)%more .and. isgridf) then
          call iw_text("Derivatives",alignframe=.true.)
@@ -447,8 +444,7 @@ contains
             c_null_char,ic,sameline=.true.,changed=ch)
          if (ch) w%nc%opts%fourierint = (ic == 1)
          call iw_tooltip("How the gradient and the Hessian of a grid field are calculated: by&
-            & differentiating the interpolant (INTERPOLATION in NCIPLOT) or by Fourier transform&
-            & of the grid (the default for grids without core densities)",ttshown)
+            & differentiating the interpolant or by Fourier transform of the grid",ttshown)
       end if
 
       ! derivatives of a grid field from its interpolant: unreliable
@@ -470,8 +466,7 @@ contains
       measure = iw_button("Estimate Cost##nciestimate",disabled=.not.(okbox .and. okfield) .or.&
          w%nc%opts%fourierint)
       call iw_tooltip("Measure the cost of the density and its derivatives, to estimate the time the&
-         & grid takes (the measurement is kept with the field and shared by all windows; not for&
-         & derivatives by Fourier transform)",ttshown,whendisabled=.true.)
+         & grid takes",ttshown,whendisabled=.true.)
       if (.not.okfield .or. w%nc%opts%fourierint) return
       if (measure) w%errmsg = ""
       call request%field_nder2()
@@ -618,19 +613,18 @@ contains
             min=0d0,max=1d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
             committed=lcommit)
          maskchanged = maskchanged .or. lcommit
-         call iw_tooltip("A point is between fragments if no single fragment contributes more&
-            & than this fraction of the promolecular density of all the fragments (RHOPARAM)",ttshown)
+         call iw_tooltip("A point is represented if no single fragment contributes more&
+            & than this fraction of the promolecular density of all the fragments",ttshown)
          call iw_text("Share",alignframe=.true.,gap=.true.)
          ch = iw_dragfloat_real8("##ncirhoparam2",x1=w%nc%opts%rhoparam2,speed=0.005d0,decimal=3,&
             min=0d0,max=1d0,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,&
             committed=lcommit)
          maskchanged = maskchanged .or. lcommit
-         call iw_tooltip("and the fragments together contribute at least this fraction of the&
-            & promolecular density of the whole system (RHOPARAM2)",ttshown)
+         call iw_tooltip("A point is represented if the fragments together contribute at least&
+            & this fraction of the promolecular density of the whole system",ttshown)
          ch = iw_checkbox("Show region##ncishowregion",w%nc%showregion,labelleft=.true.)
          call iw_tooltip("Show the region between the fragments, where the NCI plot is drawn, as a&
-            & translucent surface in the view (calculates the promolecular densities of the&
-            & fragments on the grid, which Calculate then reuses)",ttshown)
+            & translucent surface in the view",ttshown)
       end if
 
     end subroutine draw_fragments
@@ -663,16 +657,15 @@ contains
         ch = iw_dragfloat_real8("##ncidimplot",x1=o%dimplot,speed=0.005d0,decimal=3,min=dimplot_min,&
            max=dimplot_max,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,notlive=.true.,committed=lcommit)
         objchanged = objchanged .or. lcommit
-        call iw_tooltip("Value of the reduced density gradient (s) of the isosurface (DIMPLOT)",ttshown)
+        call iw_tooltip("Value of the reduced density gradient (s) of the isosurface",ttshown)
         call iw_text("sign(λ2)ρ range (a.u.)",alignframe=.true.,gap=.true.,rgb=rgb_range)
         ch = iw_dragfloat_real8("##ncisrhorange",x2=o%srhorange,speed=0.001d0,decimal=4,&
            min=-srhorange_max,max=srhorange_max,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.,&
            notlive=.true.,committed=lcommit)
         if (o%srhorange(2) < o%srhorange(1)) o%srhorange(2) = o%srhorange(1)
         maskchanged = maskchanged .or. lcommit
-        call iw_tooltip("Points with signed density (the density times the sign of the second&
-           & eigenvalue of its Hessian) outside this range are left out of the isosurface&
-           & (SRHORANGE). An upper bound of zero keeps only the attractive interactions.",ttshown)
+        call iw_tooltip("Points with signed density outside this range are left out of the&
+           & isosurface",ttshown)
 
         ! the color scale of the isosurface, with the plot (its values
         ! are those of the isosurface object and its color bar)
@@ -694,7 +687,7 @@ contains
            ch = iw_checkbox("Voids only##ncidovoid",o%dovoid,labelleft=.true.)
            maskchanged = maskchanged .or. ch
            call iw_tooltip("Plot only the regions where the promolecular density is below a&
-              & value (VOID)",ttshown)
+              & value",ttshown)
            if (o%dovoid) then
               call iw_text("Void density (a.u.)",alignframe=.true.,gap=.true.)
               ch = iw_dragfloat_real8("##ncirhovoid",x1=o%rho_void,speed=0.0005d0,decimal=4,&
@@ -859,12 +852,8 @@ contains
         call igGetItemRectSize(szplot)
         w%smap%szmap = (/szplot%x,szplot%y/)
         call iw_tooltip("Reduced density gradient against the signed density at the grid&
-           & points under the default cutoffs of the dat file of NCIPLOT, colored as the&
-           & isosurface (gray outside the sign(λ2)ρ range). Drag the lines to&
-           & change the isovalue (green), the sign(λ2)ρ range (blue) and the color scale&
-           & (pink) of the isosurface (where a pink line is under a blue one, move the blue&
-           & one or use the field); the mouse wheel zooms, a drag pans, a right-drag zooms&
-           & into a box and a double click fits the points",ttshown)
+           & points. Drag the lines to change the isovalue (green), the sign(λ2)ρ range&
+           & (blue) and the color scale (pink) of the isosurface",ttshown)
         ! the values land when their line is let go (the color scale
         ! has been set while it moved)
         if (w%nc%dragline == 3 .and. held == 0) then
@@ -944,9 +933,7 @@ contains
            call igEndTable()
         end if
         call iw_tooltip("Connected regions of the grid where the masked reduced density gradient is&
-           & below the isovalue, by decreasing volume, with the electron density integrated over&
-           & each (electrons) and the range of the signed density in each. The region under the&
-           & mouse is highlighted in the view and in the plot",ttshown)
+           & below the isovalue",ttshown)
       end associate
 
     end subroutine draw_domains
@@ -967,21 +954,16 @@ contains
 
       ch = iw_checkbox("Complete molecules##ncimolmotif",w%nc%molmotif,labelleft=.true.)
       call iw_tooltip("Complete the molecules that cross the boundary of the cell or the region&
-         & in the xyz file written next to the cube files (MOLMOTIF)",ttshown)
+         & in the xyz file written next to the cube files",ttshown)
       if (iw_button("Write Files...##nciwrite",sameline=.true.,disabled=.not.okwrite)) &
          idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savencifiles,idparent=w%id,orraise=-1)
-      call iw_tooltip("Write the files of the NCIPLOT keyword for the last calculation: the cube files&
-         & of the signed density and the masked RDG (and the promolecular density, with fragments or voids),&
-         & the s vs. density data, the VMD script with its xyz file, and the checkpoint, named&
-         & from the file chosen without its extension (existing files with those names are&
-         & replaced)",ttshown,whendisabled=.true.)
+      call iw_tooltip("Write the files of the NCIPLOT keyword: the cube files of the signed&
+         & density and the masked RDG",ttshown,whendisabled=.true.)
 
       ! the image of the plot, as last drawn in the Plot section
       if (iw_button("Save Plot...##ncisaveplot",sameline=.true.,disabled=.not.(okwrite .and. all(w%smap%szmap > 0._c_float)))) &
          idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savemapfile,idparent=w%id,orraise=-1)
-      call iw_tooltip("Save the s vs. sign(λ2)ρ plot to a PNG image file for a publication: the&
-         & points with their colors, black on white, with the axes of the plot in this window&
-         & (zoom the plot to choose them) and without its lines",ttshown,whendisabled=.true.)
+      call iw_tooltip("Save the s vs. sign(λ2)ρ plot to a PNG image file",ttshown,whendisabled=.true.)
 
     end subroutine draw_output
 
