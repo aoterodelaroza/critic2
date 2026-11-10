@@ -2703,7 +2703,7 @@ contains
 
           xtemp = (grpx(:,iorig) + sy%c%molx0) * dunit0(iunit)
 
-          write (uout,'(4(A,"  "),"(",A,","A,") ",3(A,"  "))') &
+          write (uout,'(4(A,"  "),"(",A,",",A,") ",3(A,"  "))') &
              string(iorig,length=5,justify=ioj_left), &
              (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
              string(nindex,length=3,justify=ioj_right),&
@@ -2799,7 +2799,7 @@ contains
 
           xtemp = (grpx(:,iorig) + sy%c%molx0) * dunit0(iunit)
 
-          write (uout,'(4(A,"  "),"(",A,","A,") ",3(A,"  "))') &
+          write (uout,'(4(A,"  "),"(",A,",",A,") ",3(A,"  "))') &
              string(iorig,length=5,justify=ioj_left), &
              (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
              string(res%r,length=3,justify=ioj_right),&

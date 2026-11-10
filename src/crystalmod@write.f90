@@ -3364,7 +3364,7 @@ contains
           segid = get_segid_field(cp(cpcel(ixzassign(i))%idx)%ipath(1),cp(cpcel(ixzassign(i))%idx)%ipath(2))
 
           ! xz (bond path)
-          write (lu,'("HETATM",A," ",A," UNL Z",A,A,"   ",3(F8.3),2(F6.2),"      "A4,A2,"  ")') &
+          write (lu,'("HETATM",A," ",A," UNL Z",A,A,"   ",3(F8.3),2(F6.2),"      ",A4,A2,"  ")') &
              string(i,5,ioj_right), string(c%at(i)%name,4,ioj_left), string(cpcel(ixzassign(i))%idx,4,ioj_right),&
              let, x, 1d0, 1d0, segid, string(c%spc(c%atcel(i)%is)%name,2,ioj_left)
        end if

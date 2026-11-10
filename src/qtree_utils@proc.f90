@@ -79,7 +79,7 @@ contains
        write (luo,'("   ",A)') "#"
     end do
     write (luo,'("  ",A)') "endsymmatrix"
-    write (luo,'("  ",A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
+    write (luo,'("  ",A,6(F10.6," "))') "cell", sy%c%aa, sy%c%bb
     write (luo,'("  ",A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
     clip0 = (/-0.5d0,-0.5d0,-0.5d0/) + ws_origin
     clip1 = (/0.5d0,0.5d0,0.5d0/) + ws_origin
@@ -265,7 +265,7 @@ contains
        write (ludif,'("   ",A)') "#"
     end do
     write (ludif,'("  ",A)') "endsymmatrix"
-    write (ludif,'("  ",A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
+    write (ludif,'("  ",A,6(F10.6," "))') "cell", sy%c%aa, sy%c%bb
     write (ludif,'("  ",A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
     clip0 = (/-0.5d0,-0.5d0,-0.5d0/) + ws_origin
     clip1 = (/0.5d0,0.5d0,0.5d0/) + ws_origin
@@ -352,7 +352,7 @@ contains
 
     do i = 1, num
        call keast_order_num(i,order)
-       write (uout,'(" Rule ",I2"   order = ",I2," prec = ",I2)') i, order, kprec(i)
+       write (uout,'(" Rule ",I2,"   order = ",I2," prec = ",I2)') i, order, kprec(i)
     end do
     write (uout,*)
 

@@ -3023,13 +3023,13 @@ contains
        lword = lower(word)
        if (equal(lword,'disteps')) then
           ok = eval_next(disteps,line0,lp)
-          write (uout,'("# Cutoff distance for pairs = ("F12.6") (",A,") ")')  disteps, iunitname0(iunit)
+          write (uout,'("# Cutoff distance for pairs = (",F12.6,") (",A,") ")')  disteps, iunitname0(iunit)
           sort = .true.
           if (.not.ok) &
              call ferror('trick_force_constants','error reading disteps',faterr,line0,syntax=.true.)
        elseif (equal(lword,'fc2eps')) then
           ok = eval_next(fc2eps,line0,lp)
-          write (uout,'("# Cutoff for FC2 values = ("E12.6") ")')  fc2eps
+          write (uout,'("# Cutoff for FC2 values = (",E12.6,") ")')  fc2eps
           if (.not.ok) &
              call ferror('trick_force_constants','error reading fc2eps',faterr,line0,syntax=.true.)
        elseif (equal(lword,'qe')) then
