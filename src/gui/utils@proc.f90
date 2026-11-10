@@ -388,12 +388,14 @@ contains
 
     ! process options
     str_ = trim(str) // c_null_char
+    ! (a bound or a speed beyond the single precision of the widget
+    ! is the largest it has: the range of a field can be that wide)
     speed_ = 1._c_float
-    if (present(speed)) speed_ = real(speed,c_float)
+    if (present(speed)) speed_ = real(fltcap(speed),c_float)
     min_ = -FLT_MAX
-    if (present(min)) min_ = real(min,c_float)
+    if (present(min)) min_ = real(fltcap(min),c_float)
     max_ = FLT_MAX
-    if (present(max)) max_ = real(max,c_float)
+    if (present(max)) max_ = real(fltcap(max),c_float)
     scale_ = 1._c_float
     if (present(scale)) scale_ = scale
     decimal_ = 3
@@ -457,19 +459,19 @@ contains
     ! draw the float
     call igPushItemWidth(width)
     if (present(x1)) then
-       x1_ = real(x1 * scale_,c_float)
+       x1_ = real(fltcap(x1 * scale_),c_float)
        iw_dragfloat_real8 = igDragFloat(c_loc(str_),x1_,speed_,min_,max_,c_loc(sformat_),flags_)
        if (iw_dragfloat_real8) x1 = x1_ / scale_
     elseif (present(x2)) then
-       x2_ = real(x2 * scale_,c_float)
+       x2_ = real(fltcap(x2 * scale_),c_float)
        iw_dragfloat_real8 = igDragFloat2(c_loc(str_),x2_,speed_,min_,max_,c_loc(sformat_),flags_)
        if (iw_dragfloat_real8) x2 = x2_ / scale_
     elseif (present(x3)) then
-       x3_ = real(x3 * scale_,c_float)
+       x3_ = real(fltcap(x3 * scale_),c_float)
        iw_dragfloat_real8 = igDragFloat3(c_loc(str_),x3_,speed_,min_,max_,c_loc(sformat_),flags_)
        if (iw_dragfloat_real8) x3 = x3_ / scale_
     elseif (present(x4)) then
-       x4_ = real(x4 * scale_,c_float)
+       x4_ = real(fltcap(x4 * scale_),c_float)
        iw_dragfloat_real8 = igDragFloat4(c_loc(str_),x4_,speed_,min_,max_,c_loc(sformat_),flags_)
        if (iw_dragfloat_real8) x4 = x4_ / scale_
     else
@@ -3587,6 +3589,18 @@ contains
     if (commit) input_editid = 0_c_int
 
   end subroutine input_edit_update
+
+  !> The value x brought inside the range of the single precision
+  !> reals of the widgets, so its conversion does not overflow.
+  elemental function fltcap(x) result(y)
+    real*8, intent(in) :: x
+    real*8 :: y
+
+    real*8, parameter :: fmax = real(huge(1._c_float),8)
+
+    y = max(min(x,fmax),-fmax)
+
+  end function fltcap
 
   !> Width of a drag-float widget holding n numbers with decimal decimals.
   !> Reserve room for the integer part of the field's range (taken from the
