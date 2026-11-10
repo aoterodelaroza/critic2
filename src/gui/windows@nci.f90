@@ -83,6 +83,7 @@ contains
     ! initialize the state on the first pass
     if (w%firstpass) then
        w%nc = nci_state()
+       w%smap = slicemap_state()
        w%errmsg = ""
     end if
 
@@ -215,6 +216,7 @@ contains
              w%errmsg = "There is no result to write"
           end if
        end if
+       if (w%nc%pngset) call export_plot()
 
        ! the region in the anchor view, for as long as the window is open
        ! (not the cell of a crystal, which the cell shows)
@@ -228,6 +230,7 @@ contains
        end if
     end if
     w%okfile_set = .false.
+    w%nc%pngset = .false.
 
     ! bottom row: reset, calculate, close; on the left, whether the
     ! result is still that of the form
@@ -350,6 +353,8 @@ contains
       call set_field(sys(isys)%iref)
       call clear_fragments()
       w%okfile = okfile_default(isys,"nci","dat")
+      w%nc%pngfile = okfile_default(isys,"nci","png")
+      w%nc%pngfile = w%nc%pngfile(1:len(w%nc%pngfile)-4) // "_plot.png"
 
     end subroutine reset_system
 
@@ -624,7 +629,7 @@ contains
 
       call iw_separatortext("Plot",w%nc%sec(nci_sec_plot),hasmore=.true.)
       if (.not.w%nc%sec(nci_sec_plot)%open) return
-      call draw_scatter()
+      call draw_scatter(.false.)
 
       associate(o => w%nc%opts)
         call iw_text("Isovalue (s)",alignframe=.true.,rgb=rgb_isoval)
@@ -682,10 +687,15 @@ contains
     !> horizontal) and the ends of the color scale of the isosurface
     !> (two). Letting go of a line masks the result again (range) or
     !> redoes the objects (isovalue); the color scale changes as its
-    !> lines move.
-    subroutine draw_scatter()
+    !> lines move. With forprint, the plot is drawn for the image
+    !> (export_plot): the points only, at the size and with the axes
+    !> of the plot in the window, and nothing changes.
+    subroutine draw_scatter(forprint)
+      logical, intent(in) :: forprint
+
       integer :: i, held, icmap, nb
-      real(c_double) :: xdrag
+      integer(c_int) :: flags
+      real(c_double) :: xdrag, xmin, xmax, ymin, ymax
       real(c_float) :: lut(3,nscbin)
       real(c_double), allocatable, target :: hx(:), hy(:)
       character(kind=c_char,len=:), allocatable, target :: str1, str2
@@ -694,28 +704,39 @@ contains
 
       ! a line let go while the plot is not drawn lands nowhere
       if (.not.associated(w%nc%res) .or. .not.associated(w%nc%drv)) then
-         w%nc%dragline = 0
+         if (.not.forprint) w%nc%dragline = 0
          return
       end if
 
       associate(o => w%nc%opts, d => w%nc%drv)
         str1 = "##nciscatter" // c_null_char
-        szplot%x = -1._c_float
-        szplot%y = iw_calcheight(1,10,.false.)
+        flags = ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend)
+        if (forprint) then
+           flags = ior(flags,ImPlotFlags_NoInputs)
+           szplot = ImVec2(w%smap%szmap(1),w%smap%szmap(2))
+        else
+           szplot%x = -1._c_float
+           szplot%y = iw_calcheight(1,10,.false.)
+        end if
         held = 0
-        if (ipBeginPlot(c_loc(str1),szplot,ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend))) then
+        if (ipBeginPlot(c_loc(str1),szplot,flags)) then
            str1 = "sign(λ2)ρ (a.u.)" // c_null_char
            str2 = "s" // c_null_char
            call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
            ! the axes span the points (the cutoffs of the dat file of
            ! the result) when a result arrives; the user can zoom and
            ! pan them afterwards
+           ! (the image takes the axes of the plot in the window, unless
+           ! it has not been drawn since the result arrived)
            if (w%nc%fitplot) then
               xdrag = real(w%nc%datcut(1),c_double)
               call ipSetupAxisLimits(ImAxis_X1,-xdrag,xdrag,ImPlotCond_Always)
               xdrag = real(w%nc%datcut(2),c_double)
               call ipSetupAxisLimits(ImAxis_Y1,0._c_double,xdrag,ImPlotCond_Always)
-              w%nc%fitplot = .false.
+              if (.not.forprint) w%nc%fitplot = .false.
+           elseif (forprint) then
+              call ipSetupAxisLimits(ImAxis_X1,w%smap%lims(1),w%smap%lims(2),ImPlotCond_Always)
+              call ipSetupAxisLimits(ImAxis_Y1,w%smap%lims(3),w%smap%lims(4),ImPlotCond_Always)
            end if
 
            ! the points, colored by their signed density as the
@@ -746,7 +767,7 @@ contains
                  ! the points of the domain under the mouse in the
                  ! domain table, on top, in the highlight color of the
                  ! isosurface
-                 if (w%nc%hoverdom > 0 .and. allocated(d%scl)) then
+                 if (w%nc%hoverdom > 0 .and. allocated(d%scl) .and. .not.forprint) then
                     hx = pack(d%scx,d%scl == w%nc%hoverdom)
                     hy = pack(d%scy,d%scl == w%nc%hoverdom)
                     if (size(hx) > 0) then
@@ -758,6 +779,14 @@ contains
                  end if
               end if
            end if
+
+           ! the image has the points only
+           if (forprint) then
+              call ipEndPlot()
+              return
+           end if
+           call ipGetPlotCurrentLimits(xmin,xmax,ymin,ymax)
+           w%smap%lims = (/xmin,xmax,ymin,ymax/)
 
            ! the sign(lambda2)*rho range, the isovalue and the color
            ! scale, inside the span of the points; not counted in a fit
@@ -799,6 +828,9 @@ contains
            if (o%srhorange(2) < o%srhorange(1)) o%srhorange(2) = o%srhorange(1)
            call ipEndPlot()
         end if
+        if (forprint) return
+        call igGetItemRectSize(szplot)
+        w%smap%szmap = (/szplot%x,szplot%y/)
         call iw_tooltip("Reduced density gradient against the signed density at the grid&
            & points under the default cutoffs of the dat file of NCIPLOT, colored as the&
            & isosurface (gray outside the sign(λ2)ρ range). Drag the lines to&
@@ -917,7 +949,55 @@ contains
          & from the file chosen without its extension (existing files with those names are&
          & replaced)",ttshown,whendisabled=.true.)
 
+      ! the image of the plot, as last drawn in the Plot section
+      if (iw_button("Save Plot...##ncisaveplot",sameline=.true.,disabled=.not.(okwrite .and. all(w%smap%szmap > 0._c_float)))) &
+         idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savemapfile,idparent=w%id,orraise=-1)
+      call iw_tooltip("Save the s vs. sign(λ2)ρ plot to a PNG image file for a publication: the&
+         & points with their colors, black on white, with the axes of the plot in this window&
+         & (zoom the plot to choose them) and without its lines",ttshown,whendisabled=.true.)
+
     end subroutine draw_output
+
+    !> Save the scatter plot to the PNG file w%nc%pngfile, for a
+    !> publication: drawn again in a separate ImGui context, black on
+    !> white, at its size and with its axes in the window, and rendered
+    !> into a framebuffer w%smap%imgscale times larger (see export_map
+    !> in the plane submodule).
+    subroutine export_plot()
+      use gui_main, only: shader_version, font_ranges
+      use tools_io, only: uout
+      type(c_ptr) :: pc, dd
+      character(kind=c_char,len=:), allocatable, target :: str
+      integer(c_int) :: npix(2)
+      real(c_float) :: wsz(2), xs
+      integer :: i
+
+      w%okmsg = ""
+      if (.not.associated(w%nc%res) .or. .not.associated(w%nc%drv) .or. any(w%smap%szmap <= 0._c_float)) then
+         w%errmsg = "There is no plot to save"
+         return
+      end if
+
+      ! the plot in the print context (two frames: the plot lays
+      ! itself out in the first)
+      call plane_image_size(w%smap%szmap,w%smap%imgscale,wsz,xs,npix)
+      str = shader_version
+      pc = ipPrintContextCreate(igGetFontSize(),xs,print_bakemax,font_dejavu_base85_ptr,c_loc(font_ranges),c_loc(str))
+      do i = 1, 2
+         call ipPrintFrameBegin(pc,wsz(1),wsz(2))
+         call draw_scatter(.true.)
+         dd = ipPrintFrameEnd()
+      end do
+      call print_image_write(dd,npix,w%nc%pngfile,w%errmsg)
+      call ipPrintContextDestroy(pc)
+      if (len(w%errmsg) == 0) then
+         write (uout,'("* NCI plot image (",A,"x",A," pixels) written to: ",A/)') string(npix(1)), string(npix(2)),&
+            trim(w%nc%pngfile)
+         w%okmsg = "Plot image written to: " // trim(w%nc%pngfile)
+         call okfile_save_dir(w%nc%pngfile)
+      end if
+
+    end subroutine export_plot
 
     !> Request the blocking job that writes the output files
     !> (run_nci), named from the file chosen in the dialog.

@@ -946,6 +946,12 @@ module windows
      integer :: gen = 0 ! generation of the grids, increased by every calculation
      integer :: hoverdom = 0 ! domain under the mouse in the domain table in the last frame (0 = none)
      logical :: fitplot = .false. ! fit the axes of the scatter plot to the points (a new result)
+     ! the image of the scatter plot (Save Plot): its file, and whether
+     ! the dialog has just set it. The size and the axis limits of
+     ! the plot in the window, and the scale of the image, are in the
+     ! smap of the window (szmap, lims, imgscale)
+     character(kind=c_char,len=:), allocatable :: pngfile
+     logical :: pngset = .false.
      real*8 :: datcut(2) = 0d0 ! density and RDG cutoffs of the dat file (CUTOFFS) the result was calculated with
      ! blocking job (run_nci): the system, and whether it writes the
      ! files (root from w%okfile) or calculates only the promolecular
@@ -1323,8 +1329,8 @@ module windows
      integer(c_int) :: purpose ! the purpose of the dialog
      logical :: molcubic = .false. ! whether to read the cell as cubic in a molecule
      real(c_float) :: rborder = real(rborder_def,c_float) ! border for the cell in a molecule
-     real(c_float) :: imgscale = 4._c_float ! scale of the exported image (plane map)
-     real(c_float) :: szmap(2) = 0._c_float ! size of the map in its window (plane map)
+     real(c_float) :: imgscale = 4._c_float ! scale of the exported image (plane map, NCI plot)
+     real(c_float) :: szmap(2) = 0._c_float ! size of the plot in its window (plane map, NCI plot)
   end type dialog_userdata
 
   ! Wrapper class to handle ImGui windows
@@ -1643,7 +1649,7 @@ module windows
      ! point properties window
      type(point_state) :: pt ! the form, pick, and the report at the point
      type(line_state) :: ln ! the endpoints, curves, pick, and values of the line profile
-     type(slicemap_state) :: smap ! the plot of the map of a plane map object (editrep window)
+     type(slicemap_state) :: smap ! the plot of the map of a plane map object (editrep window); szmap, lims, imgscale: also the plot of the NCI plot window
      type(cube_state) :: cu ! the quantity, region, and grid of the cube window
      type(nci_state) :: nc ! the form, fragments, and results of the NCI plot window
      ! water cluster demonstration parameters
@@ -1905,6 +1911,8 @@ module windows
   integer, parameter, public :: wpurp_dialog_savemapfile = 17
   integer, parameter, public :: wpurp_dialog_savegridfile = 18
   integer, parameter, public :: wpurp_dialog_savencifiles = 19
+  ! largest size of the font atlas glyphs of an image for print (pixels; ipPrintContextCreate)
+  real(c_float), parameter :: print_bakemax = 128._c_float
 
   ! dialog token: the EAM potential file chosen with the Browse button of
   ! draw_ff_eam_potential (any window that draws the picker may receive it)
@@ -2788,6 +2796,12 @@ module windows
        real(c_float), intent(out) :: wsz(2), xs
        integer(c_int), intent(out) :: npix(2)
      end subroutine plane_image_size
+     module subroutine print_image_write(dd,npix,file,errmsg)
+       type(c_ptr), intent(in) :: dd
+       integer(c_int), intent(in) :: npix(2)
+       character(len=*), intent(in) :: file
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine print_image_write
      module function draw_editrep_slice(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

@@ -349,8 +349,8 @@ contains
              if (ok.and.type == wintype_dialog.and.present(purpose)) ok = (win(i)%purpose == purpose)
              ! the grid file dialog belongs to its cube window
              if (ok.and.type == wintype_dialog.and.present(purpose).and.present(idparent)) then
-                if (purpose == wpurp_dialog_savegridfile .or. purpose == wpurp_dialog_savencifiles) &
-                   ok = (win(i)%parent() == idparent)
+                if (purpose == wpurp_dialog_savegridfile .or. purpose == wpurp_dialog_savencifiles .or.&
+                   purpose == wpurp_dialog_savemapfile) ok = (win(i)%parent() == idparent)
              end if
              if (ok.and.type == wintype_editrep.and.present(isys).and.present(irep).and.present(idparent)) then
                 ok = (win(i)%isys == isys .and. win(i)%parent() == idparent)
@@ -1744,16 +1744,23 @@ contains
              call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_savemapfile) then
-             ! a plane map, as shown in its window, as a PNG image;
-             ! the pane has its scale
+             ! a plot (a plane map or the plot of the NCI plot window),
+             ! as shown in its window, as a PNG image; the pane has
+             ! its scale
              w%name = "Export to Image##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
              str1 = "PNG (*.png) {.png}" // c_null_char
              idp = w%parent()
              if (idp > 0) then
                 w%dialog_data%imgscale = win(idp)%smap%imgscale
                 w%dialog_data%szmap = win(idp)%smap%szmap
+                ! (the plot of the NCI plot window has its own file)
+                if (win(idp)%type == wintype_nci .and. allocated(win(idp)%nc%pngfile)) str4 = win(idp)%nc%pngfile
              end if
-             call dialog_initial_file(idp,"map_plane.png",str2,str3)
+             if (allocated(str4)) then
+                call dialog_initial_file(idp,"nci_plot.png",str2,str3,ref=str4)
+             else
+                call dialog_initial_file(idp,"map_plane.png",str2,str3)
+             end if
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),&
                 ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))

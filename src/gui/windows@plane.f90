@@ -880,17 +880,12 @@ contains
     !> context, black on white, and rendered into a framebuffer
     !> w%smap%imgscale times larger than the window.
     subroutine export_map()
-      use interfaces_opengl3
-      use interfaces_stb
       use gui_main, only: shader_version, font_ranges
       use tools_io, only: uout
-      real(c_float), parameter :: bakemax = 128._c_float ! largest size of the font atlas glyphs (pixels)
 
       type(c_ptr) :: pc, dd
       character(kind=c_char,len=:), allocatable, target :: str
-      character(kind=c_char), allocatable, target :: pix(:)
-      integer(c_int), target :: fbo, rbo
-      integer(c_int) :: wid, hei, idum, npix(2)
+      integer(c_int) :: npix(2)
       real(c_float) :: wsz(2), xs
       real*8 :: xdum(3)
       logical :: ldum
@@ -899,52 +894,19 @@ contains
       ! the map in the print context, at its size in the window (two
       ! frames: the plot lays itself out in the first)
       call plane_image_size(w%smap%szmap,w%smap%imgscale,wsz,xs,npix)
-      wid = npix(1)
-      hei = npix(2)
       str = shader_version
-      pc = ipPrintContextCreate(igGetFontSize(),xs,bakemax,font_dejavu_base85_ptr,c_loc(font_ranges),c_loc(str))
+      pc = ipPrintContextCreate(igGetFontSize(),xs,print_bakemax,font_dejavu_base85_ptr,c_loc(font_ranges),c_loc(str))
       do i = 1, 2
          call ipPrintFrameBegin(pc,wsz(1),wsz(2))
          call draw_map(ImVec2(w%smap%szmap(1),w%smap%szmap(2)),.false.,ldum,xdum,.true.)
          dd = ipPrintFrameEnd()
       end do
 
-      ! render it to a framebuffer and read it back
-      call glGenFramebuffers(1_c_int,c_loc(fbo))
-      call glGenRenderbuffers(1_c_int,c_loc(rbo))
-      call glBindRenderbuffer(GL_RENDERBUFFER,rbo)
-      call glRenderbufferStorage(GL_RENDERBUFFER,GL_RGBA8,wid,hei)
-      call glBindRenderbuffer(GL_RENDERBUFFER,0_c_int)
-      call glBindFramebuffer(GL_FRAMEBUFFER,fbo)
-      call glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_RENDERBUFFER,rbo)
-      if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) then
-         call glViewport(0_c_int,0_c_int,wid,hei)
-         call glClearColor(1._c_float,1._c_float,1._c_float,1._c_float)
-         call glClear(GL_COLOR_BUFFER_BIT)
-         call ImGui_ImplOpenGL3_RenderDrawData(dd)
-         allocate(pix(4*wid*hei))
-         call glReadPixels(0_c_int,0_c_int,wid,hei,GL_RGBA,GL_UNSIGNED_BYTE,c_loc(pix))
-      end if
-      call glBindFramebuffer(GL_FRAMEBUFFER,0_c_int)
-      call glDeleteFramebuffers(1_c_int,c_loc(fbo))
-      call glDeleteRenderbuffers(1_c_int,c_loc(rbo))
+      ! render it to a framebuffer and write the file
+      call print_image_write(dd,npix,w%okfile,w%errmsg)
       call ipPrintContextDestroy(pc)
-
-      ! write the file (the rows of the framebuffer go bottom to top)
-      if (.not.allocated(pix)) then
-         w%errmsg = "Could not create the framebuffer for the image (too large?)"
-         return
-      end if
-      pix(4::4) = char(255,c_char)
-      str = trim(w%okfile) // c_null_char
-      call stbi_flip_vertically_on_write(1_c_int)
-      idum = stbi_write_png(c_loc(str),wid,hei,4_c_int,c_loc(pix),4_c_int*wid)
-      call stbi_flip_vertically_on_write(0_c_int)
-      if (idum == 0) then
-         w%errmsg = "Error writing the image file: " // trim(w%okfile)
-      else
-         w%errmsg = ""
-         write (uout,'("* Plane map image (",A,"x",A," pixels) written to: ",A/)') string(wid), string(hei),&
+      if (len(w%errmsg) == 0) then
+         write (uout,'("* Plane map image (",A,"x",A," pixels) written to: ",A/)') string(npix(1)), string(npix(2)),&
             trim(w%okfile)
          call okfile_save_dir(w%okfile)
       end if
@@ -1595,6 +1557,60 @@ contains
     npix = nint(xs * wsz)
 
   end subroutine plane_image_size
+
+  !> Render the draw data dd of a frame of a print context (the
+  !> current one) to an image of npix pixels on white and write it to
+  !> the PNG file. errmsg is empty on success.
+  module subroutine print_image_write(dd,npix,file,errmsg)
+    use interfaces_opengl3
+    use interfaces_stb
+    type(c_ptr), intent(in) :: dd
+    integer(c_int), intent(in) :: npix(2)
+    character(len=*), intent(in) :: file
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    character(kind=c_char,len=:), allocatable, target :: str
+    character(kind=c_char), allocatable, target :: pix(:)
+    integer(c_int), target :: fbo, rbo
+    integer(c_int) :: idum
+
+    ! render it to a framebuffer and read it back
+    call glGenFramebuffers(1_c_int,c_loc(fbo))
+    call glGenRenderbuffers(1_c_int,c_loc(rbo))
+    call glBindRenderbuffer(GL_RENDERBUFFER,rbo)
+    call glRenderbufferStorage(GL_RENDERBUFFER,GL_RGBA8,npix(1),npix(2))
+    call glBindRenderbuffer(GL_RENDERBUFFER,0_c_int)
+    call glBindFramebuffer(GL_FRAMEBUFFER,fbo)
+    call glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_RENDERBUFFER,rbo)
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) then
+       call glViewport(0_c_int,0_c_int,npix(1),npix(2))
+       call glClearColor(1._c_float,1._c_float,1._c_float,1._c_float)
+       call glClear(GL_COLOR_BUFFER_BIT)
+       call ImGui_ImplOpenGL3_RenderDrawData(dd)
+       allocate(pix(4*npix(1)*npix(2)))
+       call glReadPixels(0_c_int,0_c_int,npix(1),npix(2),GL_RGBA,GL_UNSIGNED_BYTE,c_loc(pix))
+    end if
+    call glBindFramebuffer(GL_FRAMEBUFFER,0_c_int)
+    call glDeleteFramebuffers(1_c_int,c_loc(fbo))
+    call glDeleteRenderbuffers(1_c_int,c_loc(rbo))
+
+    ! write the file (the rows of the framebuffer go bottom to top)
+    if (.not.allocated(pix)) then
+       errmsg = "Could not create the framebuffer for the image (too large?)"
+       return
+    end if
+    pix(4::4) = char(255,c_char)
+    str = trim(file) // c_null_char
+    call stbi_flip_vertically_on_write(1_c_int)
+    idum = stbi_write_png(c_loc(str),npix(1),npix(2),4_c_int,c_loc(pix),4_c_int*npix(1))
+    call stbi_flip_vertically_on_write(0_c_int)
+    if (idum == 0) then
+       errmsg = "Error writing the image file: " // trim(file)
+    else
+       errmsg = ""
+    end if
+
+  end subroutine print_image_write
 
   !> The checkbox of the relief of a plane map in the view (rl, of a
   !> rep_slice), after the previous pair in the line if gap. id makes

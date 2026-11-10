@@ -224,11 +224,16 @@ contains
                 if (win(idp)%tw%dialog == 0) &
                    win(idp)%errmsg = "The table changed before it could be written: it was not written"
                 win(idp)%tw%dialog = 0
+             elseif (w%purpose == wpurp_dialog_savemapfile .and. win(idp)%type == wintype_nci) then
+                ! the image of the scatter plot of the NCI plot window
+                ! (its okfile is the root of the files it writes)
+                win(idp)%nc%pngset = .true.
+                win(idp)%nc%pngfile = trim(name)
              else
                 win(idp)%okfile_set = .true.
                 win(idp)%okfile = trim(name)
-                if (w%purpose == wpurp_dialog_savemapfile) win(idp)%smap%imgscale = w%dialog_data%imgscale
              end if
+             if (w%purpose == wpurp_dialog_savemapfile) win(idp)%smap%imgscale = w%dialog_data%imgscale
 
              ! the filter carries the image format (save image file only)
              if (w%purpose == wpurp_dialog_saveimagefile) then
