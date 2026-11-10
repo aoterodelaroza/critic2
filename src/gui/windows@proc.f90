@@ -1160,6 +1160,7 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: isysd, iv
+    logical :: park
     character(len=:), allocatable :: errmsg
 
     ! window-specific destruction
@@ -1171,6 +1172,9 @@ contains
        elseif (w%type == wintype_view) then
           ! delete the texture and deallocate the scene if not the main view
           call w%delete_texture_view()
+          ! the state of a closed NCI plot window of this view, if any
+          call w%end_nci()
+          w%nc = nci_state()
           if (.not.w%ismain) then
              if (associated(w%sc)) deallocate(w%sc)
              if (associated(w%scother)) then
@@ -1241,8 +1245,37 @@ contains
           ! does not linger (remove_system stops and frees the run)
           if (w%demo_owns_system(sys_init)) call remove_system(w%isys)
        elseif (w%type == wintype_nci) then
-          ! the heap results, and the labels on the isosurface object
-          call w%end_nci()
+          ! a window with a result leaves its state with its view, for
+          ! the next NCI plot window of that view to continue with the
+          ! plot; otherwise, drop the heap results and the labels on
+          ! the isosurface object
+          iv = w%anchor_view()
+          park = (iv > 0) .and. associated(w%nc%res)
+          if (park) park = win(iv)%isopen .and. w%nc%sys%is(win(iv)%isys,sys_init)
+          if (park) then
+             ! (no domain stays highlighted on the isosurface, and the
+             ! field of the region between the fragments is made again)
+             if (associated(win(iv)%sc)) then
+                if (w%nc%isoref%ok(win(iv)%sc)) then
+                   if (win(iv)%sc%rep(w%nc%isoref%id)%iso%ihighlight /= 0) then
+                      win(iv)%sc%rep(w%nc%isoref%id)%iso%ihighlight = 0
+                      win(iv)%sc%forcebuildlists = .true.
+                   end if
+                end if
+             end if
+             if (allocated(w%nc%region_g)) deallocate(w%nc%region_g)
+             call win(iv)%end_nci()
+             win(iv)%nc = w%nc
+             win(iv)%nc%parked = .true.
+             win(iv)%nc%picking = .false.
+             win(iv)%nc%dragline = 0
+             win(iv)%nc%hoverdom = 0
+             win(iv)%nc%jsys = 0
+             ! (the heap results now belong to the view)
+             w%nc = nci_state()
+          else
+             call w%end_nci()
+          end if
        elseif (w%type == wintype_builder) then
           ! release the forced builder mode on the parent view, if still active
           iv = w%anchor_view()

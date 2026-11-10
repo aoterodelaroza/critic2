@@ -884,6 +884,11 @@ module windows
 
   type nci_state
      type(sys_ref) :: sys ! system the form is set up for
+     ! the state of a closed NCI plot window that had a result is left
+     ! in the nc of its view (parked; window_end), and the next NCI
+     ! plot window of that view takes it over (draw_nci), so it keeps
+     ! working on the plot the view shows
+     logical :: parked = .false.
      type(iw_section) :: sec(nci_nsec) ! the sections: open, showing more
      ! the density, the derivatives, and the cutoffs; the grid and the
      ! fragments are filled by request_job

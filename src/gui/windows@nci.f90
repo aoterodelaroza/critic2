@@ -70,7 +70,7 @@ contains
     real*8, parameter :: srhorange_max = 10d0
 
     logical :: doquit, goodsys, syschanged, ismol, isgrid, okbox, okfield, okcalc, ch, navail, capped, ok
-    logical :: maskchanged, objchanged, lcommit
+    logical :: maskchanged, objchanged, lcommit, adopt
     integer :: isys, iview, istat, irow, ifield, nn(3), ihover, nmolsel
     real*8 :: xc(3), box(3,0:3), cscale(2)
     real(c_float) :: xbutton
@@ -87,6 +87,31 @@ contains
        w%nc = nci_state()
        w%smap = slicemap_state()
        w%errmsg = ""
+       ! continue with the NCI plot of the last NCI plot window of
+       ! this view, if it left one for this system (window_end): its
+       ! form, results and objects. They are checked against the
+       ! system below like those of a window that stayed open (the
+       ! anchor reports a change on its first call, which is not one
+       ! here). The plot of another system the view showed stays with
+       ! the view, unless that system is gone
+       if (iview > 0) then
+          if (win(iview)%nc%parked) then
+             adopt = goodsys
+             if (adopt) adopt = win(iview)%nc%sys%is(isys)
+             if (adopt) then
+                w%nc = win(iview)%nc
+                win(iview)%nc = nci_state()
+                w%nc%parked = .false.
+                syschanged = .false.
+                w%nc%fitplot = .true.
+                w%okmsg = ""
+                w%okfile = okfile_default(isys,"nci","dat")
+             elseif (.not.win(iview)%nc%sys%ok(sys_init)) then
+                call win(iview)%end_nci()
+                win(iview)%nc = nci_state()
+             end if
+          end if
+       end if
     end if
 
     ! a new system: the reference field, on the cell (crystals) or
