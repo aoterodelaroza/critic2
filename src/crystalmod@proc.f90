@@ -820,6 +820,17 @@ contains
     use tools, only: qcksort
     class(crystal), intent(inout) :: c
 
+    ! a gap replaces the largest one so far only if it is longer by
+    ! more than this (bohr). The coordinates span two periods, so a
+    ! slab that straddles the cell face has its vacuum twice in the
+    ! list, with the same length up to roundoff: the first copy is
+    ! always chosen. Otherwise, the vacuum limits jump by a lattice
+    ! vector when the structure is rebuilt. For the same reason, an
+    ! atom this close below the upper cell face is taken to be on the
+    ! lower one: an atom on the face is at zero or just under one
+    ! depending on the roundoff.
+    real*8, parameter :: eps = 1d-6
+
     integer :: i, j
     real*8 :: dx
     real*8, allocatable :: xcoord(:)
@@ -830,6 +841,7 @@ contains
     do i = 1, 3
        do j = 1, c%ncel
           xcoord(j) = (c%atcel(j)%x(i) - floor(c%atcel(j)%x(i))) * c%aa(i)
+          if (xcoord(j) > c%aa(i) - eps) xcoord(j) = 0d0
           xcoord(c%ncel+j) = xcoord(j) + c%aa(i)
           iord(j) = j
           iord(c%ncel+j) = c%ncel + j
@@ -838,7 +850,7 @@ contains
        c%vaclength(i) = 0d0
        do j = 2, 2*c%ncel
           dx = xcoord(iord(j))-xcoord(iord(j-1))
-          if (dx > c%vaclength(i)) then
+          if (dx > c%vaclength(i) + eps) then
              c%vaclength(i) = dx
              c%vactop(i) = xcoord(iord(j)) / c%aa(i)
              c%vacbot(i) = xcoord(iord(j-1)) / c%aa(i)
