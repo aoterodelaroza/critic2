@@ -274,6 +274,12 @@ function glGetError() bind(c,name="glGetError_")
   import c_int
   integer(c_int) :: glGetError
 end function glGetError
+! void glGetIntegerv(GLenum pname, GLint *data);
+subroutine glGetIntegerv(pname,data) bind(c,name="glGetIntegerv_")
+  import c_int, c_ptr
+  integer(c_int), value :: pname
+  type(c_ptr), value :: data
+end subroutine glGetIntegerv
 ! void glGetProgramInfoLog(GLuint program, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
 subroutine glGetProgramInfoLog(prog,maxLength,length,infoLog) bind(c,name="glGetProgramInfoLog_")
   import c_int, c_ptr

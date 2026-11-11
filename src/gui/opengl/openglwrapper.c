@@ -147,6 +147,9 @@ void glGenFramebuffers_(GLsizei n,GLuint *ids){
 GLenum glGetError_( void){
   return glGetError();
 }
+void glGetIntegerv_(GLenum pname, GLint *data){
+  glGetIntegerv(pname,data);
+}
 void glGetProgramInfoLog_(GLuint program, GLsizei maxLength, GLsizei *length, GLchar *infoLog){
   glGetProgramInfoLog(program,maxLength,length,infoLog);
 }

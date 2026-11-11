@@ -4732,7 +4732,8 @@ contains
     integer :: width, height, origin(2)
     integer(c_signed_char), allocatable, target :: data(:)
     character(kind=c_char,len=:), allocatable, target :: str
-    integer(c_int) :: idum
+    integer(c_int) :: idum, nsamp
+    integer(c_int), target :: maxsamp
 
     ! reset the error message
     errmsg = ""
@@ -4748,6 +4749,16 @@ contains
        return
     end if
 
+    ! the driver may support fewer samples than requested (software
+    ! rendering: 4), and asking for more fails
+    nsamp = max(nsample,1_c_int)
+    maxsamp = 0
+    call glGetIntegerv(GL_MAX_SAMPLES,c_loc(maxsamp))
+    if (maxsamp > 0) nsamp = min(nsamp,maxsamp)
+    maxsamp = 0
+    call glGetIntegerv(GL_MAX_COLOR_TEXTURE_SAMPLES,c_loc(maxsamp))
+    if (maxsamp > 0) nsamp = min(nsamp,maxsamp)
+
     ! generate textures and buffers
     call glGenTextures(1, c_loc(msFBOtex))
     call glGenRenderbuffers(1, c_loc(msFBOdepth))
@@ -4758,7 +4769,7 @@ contains
 
     ! textures
     call glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msFBOtex)
-    call glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsample, GL_RGBA8, npixel, npixel,&
+    call glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsamp, GL_RGBA8, npixel, npixel,&
        int(GL_TRUE,c_signed_char))
     call glBindTexture(GL_TEXTURE_2D, 0)
     call glBindTexture(GL_TEXTURE_2D, endFBOtex)
@@ -4769,7 +4780,7 @@ contains
 
     ! render buffer
     call glBindRenderbuffer(GL_RENDERBUFFER, msFBOdepth)
-    call glRenderbufferStorageMultisample(GL_RENDERBUFFER, nsample, GL_DEPTH_COMPONENT24, npixel, npixel)
+    call glRenderbufferStorageMultisample(GL_RENDERBUFFER, nsamp, GL_DEPTH_COMPONENT24, npixel, npixel)
     call glBindRenderbuffer(GL_RENDERBUFFER, 0)
     call glBindRenderbuffer(GL_RENDERBUFFER, endFBOdepth)
     call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, npixel, npixel)
