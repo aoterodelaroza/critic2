@@ -98,7 +98,12 @@
 #else
 #define GLFW_HAS_NEW_CURSORS          (0)
 #endif
-#ifdef GLFW_MOUSE_PASSTHROUGH         // Let's be nice to people who pulled GLFW between 2019-04-16 (3.4 define) and 2020-07-17 (passthrough)
+// critic2: on Windows, GLFW_MOUSE_PASSTHROUGH makes the window layered
+// (WS_EX_LAYERED) while it is dragged. Without desktop composition
+// (Windows 7 basic theme), the windows below are not clipped against it
+// again when the style is removed, and the main window paints over the
+// detached one. Use the WM_NCHITTEST hook below instead, as with GLFW 3.3.
+#if defined(GLFW_MOUSE_PASSTHROUGH) && !defined(_WIN32) // Let's be nice to people who pulled GLFW between 2019-04-16 (3.4 define) and 2020-07-17 (passthrough)
 #define GLFW_HAS_MOUSE_PASSTHROUGH    (GLFW_VERSION_MAJOR * 1000 + GLFW_VERSION_MINOR * 100 >= 3400) // 3.4+ GLFW_MOUSE_PASSTHROUGH
 #else
 #define GLFW_HAS_MOUSE_PASSTHROUGH    (0)
@@ -972,11 +977,15 @@ static LRESULT CALLBACK WndProcNoInputs(HWND hWnd, UINT msg, WPARAM wParam, LPAR
         // The ImGuiViewportFlags_NoInputs flag is set while dragging a viewport, as want to detect the window behind the one we are dragging.
         // If you cannot easily access those viewport flags from your windowing/event code: you may manually synchronize its state e.g. in
         // your main loop after calling UpdatePlatformWindows(). Iterate all viewports/platform windows and pass the flag to your windowing system.
+        // critic2: the property is removed before the window is destroyed
         ImGuiViewport* viewport = (ImGuiViewport*)::GetPropA(hWnd, "IMGUI_VIEWPORT");
-        if (viewport->Flags & ImGuiViewportFlags_NoInputs)
+        if (viewport && (viewport->Flags & ImGuiViewportFlags_NoInputs))
             return HTTRANSPARENT;
     }
-    return ::CallWindowProc(g_GlfwWndProc, hWnd, msg, wParam, lParam);
+    // critic2: W variants here and in ImGui_ImplGlfw_ShowWindow. GLFW windows
+    // are Unicode; subclassing them through the ANSI calls converts typed
+    // characters to the system code page and loses the ones outside it.
+    return ::CallWindowProcW(g_GlfwWndProc, hWnd, msg, wParam, lParam);
 }
 #endif
 
@@ -995,12 +1004,20 @@ static void ImGui_ImplGlfw_ShowWindow(ImGuiViewport* viewport)
         ::SetWindowLong(hwnd, GWL_EXSTYLE, ex_style);
     }
 
+    // critic2: make the viewport window owned by its parent viewport's
+    // window, as the Win32 backend does, so Windows keeps it above the main
+    // window (GLFW creates independent top-level windows)
+    if (viewport->ParentViewportId != 0)
+        if (ImGuiViewport* parent = ImGui::FindViewportByID(viewport->ParentViewportId))
+            if (parent->PlatformHandleRaw != NULL && parent->PlatformHandleRaw != (void*)hwnd)
+                ::SetWindowLongPtr(hwnd, GWLP_HWNDPARENT, (LONG_PTR)parent->PlatformHandleRaw);
+
     // GLFW hack: install hook for WM_NCHITTEST message handler
 #if !GLFW_HAS_MOUSE_PASSTHROUGH && GLFW_HAS_WINDOW_HOVERED && defined(_WIN32)
     ::SetPropA(hwnd, "IMGUI_VIEWPORT", viewport);
     if (g_GlfwWndProc == NULL)
-        g_GlfwWndProc = (WNDPROC)::GetWindowLongPtr(hwnd, GWLP_WNDPROC);
-    ::SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)WndProcNoInputs);
+        g_GlfwWndProc = (WNDPROC)::GetWindowLongPtrW(hwnd, GWLP_WNDPROC);
+    ::SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (LONG_PTR)WndProcNoInputs);
 #endif
 
 #if !GLFW_HAS_FOCUS_ON_SHOW
