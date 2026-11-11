@@ -1,0 +1,31 @@
+title: Vibrations
+keyword: VIBRATIONS
+
+Display an animation of the atomic vibrations of a system (normal modes of a molecule or
+phonons of a crystal) from the output of a vibrational or phonon calculation. Load the
+data, choose a q-point and a mode, and the atoms in the view move along it. Displacement
+arrows and a nudged copy of the structure can also be generated.
+
+# Options
+- Data: "Load" opens a file dialog for the vibration data (Quantum ESPRESSO matdyn.x
+  modes, eig and ph.x dyn files; phonopy ascii, yaml and hdf5; CRYSTAL and Gaussian
+  outputs, Gaussian fchk; CASTEP phonon files). The format is detected automatically or
+  chosen in the dialog. "Clear" removes the data; the name of the loaded file is shown.
+- Q-points (crystals): the table of q-points in the file, in fractional, 1/bohr or 1/Å
+  units. Click one to list its frequencies.
+- Frequencies: the modes at the selected q-point, in 1/cm or THz. Click one to animate it.
+- Suggested periodicity: the number of unit cells that makes the selected q-point
+  commensurate; "Set" applies it to the view.
+- Animation: "None" stops the motion, "Automatic" animates the displacements with a
+  periodic phase, and "Manual/nudge structure" sets the displacement by hand.
+- Amplitude and Speed (automatic): size and speed of the atomic displacements.
+- Amplitude and Phase (manual): the displacement at a fixed phase along the mode.
+  "Create Nudged System" loads a new system with the displaced positions shown in the view.
+- Displacement arrows: draw an arrow on every atom along its displacement, with the
+  "Length (Å)" of the arrow of the atom that moves most, the shaft "Thickness (Å)", the
+  "Head size" relative to the shaft and the "Color".
+
+# Notes
+- The animation and the arrows are settings of the view window the Vibrations window is
+  attached to.
+- The vibration file should correspond to the loaded structure (same atoms, same order).

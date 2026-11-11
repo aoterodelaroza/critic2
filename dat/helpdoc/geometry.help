@@ -1,0 +1,34 @@
+title: View/Edit Geometry
+keyword: EDIT
+manual: structure/#c2-edit
+
+Inspect and edit the structure of a system: its species, atoms, unit cell, molecules,
+bonds and symmetry. Every change is applied to the system immediately. "Restore" returns
+the system to the geometry it had when it was first opened, and "Keep bonding" preserves
+the bond connectivity when the geometry changes.
+
+# Tabs
+- Species: one row per species. Click the atomic number to move the atoms to another
+  species or change the element; "New" adds a species.
+- Atoms: the atoms and their coordinates. "Types" groups the atoms by category and "Keep
+  symmetry" makes coordinate changes respect the space group. "Expression" evaluates an
+  expression at the atomic positions. "All", "None" and "Toggle" change the selection;
+  "Add", "Duplicate", "Remove", "Merge" and "Reorder" act on the selected atoms.
+- Cell (crystals only): the lattice parameters (a/b/c, α/β/γ, volume) are editable, with
+  "Keep symmetry" to keep the space group. "Cell transformations" goes to the conventional,
+  primitive, Niggli or Delaunay cell. "Supercells" builds a simple na/nb/nc repetition or
+  a full transformation whose lattice vectors can be typed or picked in the view. "Nice
+  supercells" lists, up to "Max. size", the supercells with the largest inscribed sphere;
+  click a row to apply one.
+- Molecules: the molecular fragments with their number of atoms, point group and center of
+  mass. Selected molecules can be removed or reordered.
+- Bonds: "Bond operations" create, remove or change the order of bonds by clicking in the
+  view. "System bonds" lists the bonds of every atom (single, double, triple, aromatic or
+  dashed) with a context menu per bond. "Bond calculation" sets the covalent radii, the
+  bond factor, the bond delta and the allowed pairs; "Apply" recomputes the connectivity.
+- Symmetry: for molecules, the point group and its operations, with "Refine" to move the
+  atoms onto their exact symmetry positions. For crystals, the space group, the detection
+  tolerance with "Recalculate", "Clear", "Refine" and "Whole Molecules", the operations and
+  centering vectors (select them to create a symmetry-elements object or delete them to
+  build a subgroup), and "Space group analysis", which scans the space group as a function
+  of the tolerance.

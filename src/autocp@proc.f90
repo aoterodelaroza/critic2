@@ -65,6 +65,7 @@ contains
   !> frame, bohr) after the pruning and the clipping, with no output
   !> and no search.
   module subroutine autocritic(line,success,clear,seeds)
+    use citations, only: cite_print, cite_smoothrho_2022
     use grid3mod, only: mode_smr
     use systemmod, only: sy
     use fieldmod, only: type_grid, cplist_backup
@@ -905,8 +906,7 @@ contains
 
       if (sy%f(sy%iref)%type == type_grid) then
          if (sy%f(sy%iref)%grid%mode == mode_smr) then
-            write (uout,'("  Using grids and smoothrho interpolation, please cite:")')
-            write (uout,'("    A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116 (doi:10.1063/5.0090232)")')
+            call cite_print((/cite_smoothrho_2022/),header="Using grids and smoothrho interpolation, please cite:")
          end if
       end if
 

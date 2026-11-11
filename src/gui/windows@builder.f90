@@ -261,6 +261,7 @@ contains
   !> Draw the builder window. The builder is tied to its parent view
   !> (w%idparent) and operates on the system shown in it.
   module subroutine draw_builder(w)
+    use utils, only: iw_bottomrow_ypos, iw_bottomrow_xpos
     use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry,&
        reread_system_from_file, atlisttype_ncel_frac
     use dynamics, only: md_relax
@@ -725,8 +726,11 @@ contains
     ! error message, if any
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
-    ! close button and binds
+    ! close button and binds (the framework puts the Help button on
+    ! this row, at its left end)
     call iw_setposx_fromend(5,1)
+    iw_bottomrow_ypos = igGetCursorPosY()
+    iw_bottomrow_xpos = igGetCursorPosX()
     if (iw_button("Close")) doquit = .true.
     call iw_tooltip("Close this window",ttshown)
     if (iw_close_event(w%focused())) doquit = .true.

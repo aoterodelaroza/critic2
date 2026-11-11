@@ -122,6 +122,7 @@ contains
   end subroutine molcalc_nelec
 
   subroutine molcalc_peach(savevar)
+    use citations, only: cite_print, cite_peach_2008
     use arithmetic, only: setvariable
     use systemmod, only: sy
     use meshmod, only: mesh
@@ -150,7 +151,7 @@ contains
     end if
 
     write (uout,'("+ Measure of overlap between orbitals in an excitation (PEACH). ")')
-    write (uout,'("  Please cite: Peach et al., J. Chem. Phys. 128 (2008) 044118. (10.1063/1.2831900)")')
+    call cite_print((/cite_peach_2008/))
     call m%report()
     allocate(imo1(10),imo2(10),kk(10))
     n = 0

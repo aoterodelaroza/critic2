@@ -1329,7 +1329,8 @@ contains
   !> then the previous results are gone and no field is loaded.
   module subroutine run_nci(w)
     use systems, only: sys, sysc, ok_system, sys_init, lastchange_cplist
-    use nci, only: nci_compute, nci_compute_promol
+    use nci, only: nci_compute, nci_compute_promol, nci_cites
+    use citations, only: cite_print
     use gui_main, only: begin_cancellable, end_cancellable
     use interfaces_glfw, only: glfwGetTime
     use utils, only: duration_string
@@ -1399,6 +1400,11 @@ contains
        deallocate(w%nc%res)
        return
     end if
+
+    ! the citations, as the NCIPLOT keyword writes them
+    write (uout,'("* NCI plot (NCI Plot window)")')
+    call cite_print(nci_cites)
+    write (uout,*)
     w%nc%timelast = sysc(isys)%timelastchange_geometry
     w%nc%gen = w%nc%gen + 1
     ! the dat-file cutoffs of this result (the defaults of its field),

@@ -19,6 +19,7 @@
 ! non-covalent interaction index plots
 module nci
   use fragmentmod, only: fragment
+  use citations, only: cite_nci_2010, cite_nci_2012
   implicit none
 
   private
@@ -33,6 +34,9 @@ module nci
   ! value of the reduced density gradient at the grid points removed
   ! from the isosurface plot by the cutoffs
   real*8, parameter, public :: nci_rdg_masked = 100d0
+
+  ! the citations of an NCI plot (NCIPLOT keyword and NCI Plot window)
+  integer, parameter, public :: nci_cites(2) = (/cite_nci_2010,cite_nci_2012/)
 
   !> Options of an NCI calculation: the density, the grid, the
   !> fragments, and the cutoffs. nci_options_init sets the defaults

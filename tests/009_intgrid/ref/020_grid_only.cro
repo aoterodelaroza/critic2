@@ -75,8 +75,8 @@
     4   f        2  $2    
 
 * Yu-Trinkle integration 
-  Please cite: 
-  Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111. (10.1063/1.3553716)
+  Please cite:
+    M. Yu and D. R. Trinkle, J. Chem. Phys. 134 (2011) 064111. (doi:10.1063/1.3553716)
 + Distance for atomic assignment (bohr): 1.0000E+40
 + Attractors in YT: 9
 + Attractors after reordering: 9
@@ -134,13 +134,10 @@
   Sum                            1.37066262E+02  8.38754443E+00  9.08958358E-01  8.38473565E+00 
 
 * Henkelman et al. integration 
-  Please cite: 
-    G. Henkelman, A. Arnaldsson, and H. Jonsson,
-       Comput. Mater. Sci. 36, 254-360 (2006). (10.1016/j.commatsci.2005.04.010)
-    E. Sanville, S. Kenny, R. Smith, and G. Henkelman,
-       J. Comput. Chem. 28, 899-908 (2007). (10.1002/jcc.20575)
-    W. Tang, E. Sanville, and G. Henkelman,
-       J. Phys.: Condens. Matter 21, 084204 (2009). (10.1088/0953-8984/21/8/084204)
+  Please cite:
+    G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36 (2006) 354-360. (doi:10.1016/j.commatsci.2005.04.010)
+    E. Sanville, S. D. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28 (2007) 899-908. (doi:10.1002/jcc.20575)
+    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21 (2009) 084204. (doi:10.1088/0953-8984/21/8/084204)
 + Distance for atomic assignment (bohr): 1.0000E+40
 + Attractors in BADER: 9
 + Attractors after reordering: 9

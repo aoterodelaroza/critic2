@@ -922,7 +922,9 @@ contains
 
   !> Print out the initial critic2 banner
   module subroutine initial_banner()
+    use citations, only: cite_print, cite_program
     use tools_io, only: uout
+    use param, only: critic2_url
 
     write (uout,'("                  _   _     _          ___     ")')
     write (uout,'("                 (_) | |   (_)        |__ \    ")')
@@ -935,10 +937,8 @@ contains
     write (uout,'("  (c) 1996-2019 A. Otero-de-la-Roza, A. Martin-Pendas, V. Lua~na")')
     write (uout,'("  Distributed under GNU GPL v.3 (see COPYING for details)")')
     write (uout,'("  Bugs, requests, and rants: aoterodelaroza@gmail.com ")')
-    write (uout,'("  Website: https://aoterodelaroza.github.io/critic2/")')
-    write (uout,'("  If you find this software useful, please cite:")')
-    write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 185 (2014) 1007-1018. (10.1016/j.cpc.2013.10.026)")')
-    write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157-166. (10.1016/j.cpc.2008.07.018)")')
+    write (uout,'("  Website: ",A)') critic2_url
+    call cite_print(cite_program,header="If you find this software useful, please cite:")
     write (uout,*)
 
   end subroutine initial_banner
@@ -946,9 +946,10 @@ contains
   !> Print out the help message
   module subroutine help_me()
     use tools_io, only: uout
+    use param, only: critic2_url
 
     write (uout,'("Critic2 requires a sequence of keywords to operate. Please read the manual")')
-    write (uout,'("distributed with the program (https://aoterodelaroza.github.io/critic2/).")')
+    write (uout,'("distributed with the program (",A,").")') critic2_url
     write (uout,'("The command-line syntax is:")')
     write (uout,'("")')
     write (uout,'("     critic2 [-q] [-h] [-r /path/to/critic2] [-l] [inputfile [outputfile]] ")')

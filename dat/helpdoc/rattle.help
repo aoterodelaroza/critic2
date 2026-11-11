@@ -1,0 +1,38 @@
+title: Rattle Structure
+
+Generate new systems from the current one by perturbing its geometry: either by moving
+every atom a fixed distance in a random direction, or by running a constant-temperature
+molecular dynamics with a force field and collecting snapshots from the trajectory. The
+new structures are added to the tree as a group of new systems, for instance to prepare
+distorted configurations or to check the stability of a structure.
+
+# Options
+- Method: "Random displacements" moves every atom by the same distance in a random
+  direction, different for each atom. "Molecular dynamics" runs an NVT simulation on the
+  system and extracts snapshots from it.
+- Structures (random displacements): the number of structures to generate.
+- Displacement (Å): the distance every atom is moved.
+- Force field and Potential (molecular dynamics): the method for energies and forces, and
+  the embedded-atom potential file when EAM is chosen. Only the methods that apply to the
+  system are listed.
+- Temperature (K): the temperature of the NVT dynamics.
+- Time step (fs): the integration time step; its value in atomic units is shown next to
+  it.
+- Equilibration: the number of steps run before the first snapshot is taken.
+- Snapshots: the number of snapshots collected.
+- Stride: the number of steps between consecutive snapshots. The total number of steps is
+  shown below.
+- Estimate Cost: run a few steps of the dynamics, discard them, and report how long the
+  whole run would take and the time per step.
+- Close after generating: close the window once the structures have been generated.
+- Generate starts the run; Stop ends the dynamics early and keeps the snapshots collected
+  so far.
+
+# Results
+During a dynamics run the window reports the equilibration step and the number of
+snapshots collected. The generated structures appear in the tree as a group of new
+systems and can be opened in the view like any other.
+
+# Notes
+- The dynamics settings are shared with the Dynamics window of the same system.
+- A run on a large system can take a while; use "Estimate Cost" first.

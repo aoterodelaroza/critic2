@@ -1,6 +1,6 @@
 * AMD: average minimum distances
 # Please cite:
-#   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529 (doi:10.46793/match.87-3.529W)
+#  D. Widdowson, M. M. Mosca, A. Pulido, A. I. Cooper, and V. Kurlin, MATCH Commun. Math. Comput. Chem. 87 (2022) 529-559. (doi:10.46793/match.87-3.529W)
 
 + AMD vector in bohr
 # nn = nearest neighbor ordinal (1 = first nn, 2 = second nn, etc.

@@ -1,0 +1,36 @@
+title: Calculate Grid
+keyword: CUBE
+manual: graphics/#c2-cube
+
+Calculates the values of a field of the system, one of its derivatives, an arithmetic
+expression of the fields or a wavefunction on a three-dimensional grid, and writes them to a
+cube, XSF or VASP file, or loads them as a new field of the system. Use it to export a
+field to another program or to turn an expensive field into a grid field.
+
+# Options
+
+- "Property": a quantity of a field (value, gradient components, gradient norm, Hessian
+  components or Laplacian) or an "Expression" of the fields.
+- "Wavefunction" (grid fields from a Quantum ESPRESSO pwc file): the field itself or one of
+  the wavefunctions in the file (a Bloch function, its periodic part, a Wannier function or a
+  maximally localized Wannier function), with its "Band", "k-point", "Spin", "Lattice
+  translation" and the "Part" written (absolute value, real or imaginary part). A
+  wavefunction is written on the nodes of its own grid.
+- "Region": the "Mode" of the region (the whole cell, a box, a parallelepiped, the native
+  grid of a grid field or, in molecules, the box bounding the atoms grown by a buffer), with
+  the coordinates of its points and a "Pick" button for each.
+- "Grid": "Given as" the number of "Points" along each side or the "Spacing (Å)" between
+  neighboring points. For the native grid (More): a "Shift" of the nodes and a "Supercell"
+  repeating the grid along the lattice vectors. "Estimate Cost" predicts the time the grid
+  takes. "Header only" (More) writes only the cell and the atoms.
+
+# Output
+
+"Write to File" writes the grid: a cube file for any region, or an XSF or VASP file for the
+whole cell. "Load as Field" loads it as a new field of the system instead (not with "Header
+only" or a supercell; in a crystal, only on the unit cell or the native grid).
+
+# Notes
+
+The region is shown as a box in the view while the window is open. Very large grids take
+long to calculate and write: check the cost estimate first.

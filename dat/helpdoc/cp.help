@@ -1,0 +1,41 @@
+title: Critical Points
+keyword: AUTO
+manual: cpsearch/#c2-auto
+cite: critic2_2014 critic2_2009
+
+Finds the critical points (CPs) of a scalar field, the points where its gradient vanishes,
+shows them in the view and lists their properties, as the AUTO keyword does. Choose the
+"Field" at the top; its CPs are what the three tabs search, inspect and export.
+
+# Search tab
+
+- "Single shot": "Pick" searches for one CP from a point clicked in the view (the middle of
+  a bond, or the clicked point) and adds it to the list.
+- Seeds: the points the search starts from. Each entry adds a set of seeds of one kind
+  (Wigner-Seitz subdivision, atom pairs, triplets, line, sphere, octahedron, point, mesh).
+  "Add Seeds" adds an entry, "Reset Seeds" restores the default seeding of AUTO, and
+  "Show seeds" draws the seeds in the view.
+- Run: "Discard the existing critical points" starts from the nuclei only instead of adding
+  to the list; "Do not write the checkpoint" skips saving the CPs to <field file>.chk_cps,
+  which the GUI reads when the field is loaded again. More shows the AUTO thresholds
+  (GRADEPS, CPEPS, NUCEPS, NUCEPSH, EPSDEGEN), DISCARD and CLIP. "Run" launches the search;
+  "Estimate Cost" times a sample of the seeds.
+
+# Results tab
+
+The table lists the symmetry-unique CPs or all the CPs in the cell ("List") with their type,
+coordinates, field value, derivatives, bond-path data and the point properties of the
+system (added in "Point properties of the system"). Click a header to sort,
+right-click it to choose columns. Hovering a row highlights the CP in the view; "All",
+"None", "Toggle" and "Delete Selected" manage the selection. The counts per type and the
+Morse sum are shown above it.
+
+# Export tab
+
+Writes the CPs to a file: JSON, a VMD script, or a structure file with the CPs as atoms.
+
+# Notes
+
+- After a run the CPs appear as the critical points object of the field in the view and the
+  output goes to the Output console. "Clear" deletes all CPs but the nuclei.
+- For grid fields with smoothrho interpolation an extra citation is printed in the output.

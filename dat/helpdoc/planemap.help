@@ -1,0 +1,35 @@
+title: Plane Map
+keyword: PLANE
+manual: graphics/#c2-plane
+
+Maps the values of a field of the system, one of its derivatives or an arithmetic expression
+on a plane, as colors and contour lines. Tools > Field Plots > Plane Map creates a plane-map
+object in the view and opens its editor, where the plane, the quantity and the appearance are
+set and the map is also drawn in two dimensions.
+
+# Options
+
+- "Name" and "Show": the name of the object and whether it is drawn.
+- "Update map": recalculate the map whenever anything changes. Uncheck it to make several
+  changes without waiting, then check it again.
+- "Plane": the three points that define it (the origin, the end of the first side and a point
+  on the second side), each with a "Pick" button to click it in the view. "Move" displaces
+  the whole plane along the axes, its "Normal" or "In plane", by "Step (Å)". More: "Region"
+  (rectangle or parallelogram), "Margin (Å)", "Extend" by one step on a side, and the
+  number of "Points" along each side, or "Automatic" from the size of the region.
+- "Property": a quantity of a field (value, gradient components, gradient norm, Hessian
+  components or Laplacian) or an expression of the fields.
+- "Colors": the "Colormap" and the "Scale" (linear, logarithm of the absolute value or
+  arctangent). More: a "Fixed range" of values.
+- "Contours": "Show" draws contour lines; "Levels" are linear, logarithmic, arctangent, Bader
+  or a "List" you type. More: a fixed range, the colors of the positive and negative lines,
+  and whether the "Values" of the levels are written on them.
+- "Style": "Opacity", "Line radius" of the contours in the view, and "Relief", which raises
+  each point from the plane by its value.
+
+# Results
+
+The "Map" section draws the map in the window, with "Labels" of the atoms and critical points
+near the plane (More: their text, color, size and distance). "Values on the plane" lists the
+grid points and their values. "Export to Image" saves the map as a PNG file. "Reset"
+restores the defaults.

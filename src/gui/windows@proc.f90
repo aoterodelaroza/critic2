@@ -1601,7 +1601,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth, iw_bottom_skip,&
        iw_capturing, iw_capture_abort, file_name_root, iw_bottomrow_begin, iw_bottomrow_end,&
-       iw_bottomrow_height
+       iw_bottomrow_height, iw_bottomrow_ypos, iw_bottomrow_xpos, iw_button, iw_tooltip
     use systems, only: sysc, ok_system, sys_init
     use tools_io, only: string, ferror, faterr
     use param, only: dirsep
@@ -1617,6 +1617,8 @@ contains
     type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szgrow, szwant, monpos, monsiz
     logical :: ownmon
     type(ImGuiWindow), pointer :: wptr
+
+    logical, save :: ttshown = .false. ! tooltip flag
 
     if (.not.w%isinit) return
     if (.not.w%isopen.and..not.w%permanent) then
@@ -1651,7 +1653,9 @@ contains
        elseif (w%type == wintype_console_output) then
           call init_window("Output")
        elseif (w%type == wintype_about) then
-          call init_window("About",52)
+          call init_window("About",72)
+       elseif (w%type == wintype_help) then
+          call init_window("Help",92,34)
        elseif (w%type == wintype_dialog) then
           w%dialog_data%dptr = w%dptr
           w%dialog_data%purpose = w%purpose
@@ -2102,6 +2106,7 @@ contains
              w%ptr = igGetCurrentWindow()
              w%heightslack = 0._c_float ! only a body that stretches to fill sets this
              iw_bottom_skip = 0._c_float ! set by iw_setpos_bottomright
+             iw_bottomrow_ypos = -1._c_float ! set by iw_setpos_bottomright
              ! the content of a window with a row of buttons at the
              ! bottom goes in a scrolling region above the row, which
              ! iw_setpos_bottomright ends (see iw_bottomrow_begin); not
@@ -2124,6 +2129,8 @@ contains
                 call w%draw_co()
              elseif (w%type == wintype_about) then
                 call w%draw_about()
+             elseif (w%type == wintype_help) then
+                call w%draw_help()
              elseif (w%type == wintype_new_struct) then
                 call w%draw_new_struct()
              elseif (w%type == wintype_new_struct_library) then
@@ -2185,6 +2192,20 @@ contains
              ! the region above the row of buttons, if the body left it
              ! open (it returned before the row)
              call iw_bottomrow_end()
+
+             ! the Help button of a window with a help topic, at the
+             ! left end of its row of buttons (the row is right-aligned);
+             ! not when the window is too narrow to fit it before the row
+             if (iw_bottomrow_ypos >= 0._c_float .and. &
+                g%Style%WindowPadding%x + iw_calcwidth(4,1) + g%Style%ItemSpacing%x <= iw_bottomrow_xpos) then
+                str4 = window_help_topic(w)
+                if (len(str4) > 0) then
+                   call igSetCursorPosX(g%Style%WindowPadding%x)
+                   call igSetCursorPosY(iw_bottomrow_ypos)
+                   if (iw_button("Help##windowhelp")) call help_open(str4)
+                   call iw_tooltip("Open the help for this window",ttshown)
+                end if
+             end if
 
              ! a table that started capturing its cells but was not
              ! written (its table_write_end not reached) stops it here

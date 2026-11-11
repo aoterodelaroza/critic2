@@ -4,11 +4,9 @@
   Mesh type      Franchini
   Mesh level     small
   Atomic grids   tv-13.7-3 (12 atoms, 324 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Volume (bohr^3) = 62340.53783029
 + Field integral = 41.99573526   
 
@@ -19,11 +17,9 @@
   Mesh type      Franchini
   Mesh level     small
   Atomic grids   tv-13.7-3 (12 atoms, 324 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($0^2) = 192.96025226  
 
    41.995735256494    

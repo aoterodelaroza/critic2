@@ -1,0 +1,37 @@
+title: Line Profile
+keyword: LINE
+manual: graphics/#c2-line
+
+Plots the values of one or more fields of the system, their derivatives or arithmetic
+expressions of the fields along a straight line between two points. Use it to inspect a bond
+profile or the decay of a density away from a nucleus. The endpoints, the segment and a
+cursor are drawn in the view while the window is open.
+
+# Options
+
+- "A" and "B": the two endpoints of the line, with their coordinates (fractional in a crystal,
+  Å in a molecule). "Pick" lets you click each endpoint in the view: an atom, a critical
+  point or a point in empty space. "Swap" exchanges the endpoints.
+- "Points" (More): the number of points on the line, including the endpoints.
+- "Curves": the quantities plotted. "Add Curve" adds a curve with the value of the reference
+  field, which can then be changed. For each curve, the checkbox shows it in the plot, the
+  color swatch sets its color and "Kind" chooses between a quantity of a field (value,
+  gradient components, gradient norm, Hessian components or Laplacian) and an arithmetic
+  expression of the fields (for instance "$1 - $2" or "$1:l"). The close icon removes a curve.
+- "Value axis": linear, logarithmic or symmetric log, which is logarithmic away from zero and
+  linear near it, for curves that change sign.
+
+# Results
+
+The "Plot" section draws the curves against the distance along the line. Drag the vertical
+line in the plot to move the cursor: its distance "d" and the value of every shown curve
+there are written under the plot, and the cursor is also drawn in the view.
+
+"Values along the line" is a table with the position of each point, its distance from A and
+the values of the curves. Right-click the header to choose which curves are listed, or to
+copy the table or write it to a file.
+
+# Notes
+
+The curves are recalculated whenever the endpoints, the number of points or the curves
+change. The window needs a system with atoms.

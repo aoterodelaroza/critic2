@@ -745,6 +745,9 @@ module param
 #endif
   character*1, parameter :: ampersand = "&" ! ifort doesn't like the "&&" string
 
+  ! the critic2 website: the manual is at critic2_url // "manual/"
+  character(len=*), parameter :: critic2_url = "https://aoterodelaroza.github.io/critic2/"
+
   ! the symbols list
   type(hash) :: vh ! variables hash
 

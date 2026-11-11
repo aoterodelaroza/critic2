@@ -1848,6 +1848,7 @@ contains
   !> isload is true, show load-time information. If isset is true,
   !> show flags for this field.
   module subroutine printinfo(f,isload,isset)
+    use citations, only: cite_print, cite_smoothrho_2022
     use grid3mod, only: mode_smr
     use wfn_private, only: molwfn, wfn_rhf, wfn_rohf, wfn_uhf, wfn_frac, &
        molden_type_orca, molden_type_psi4, molden_type_adf_sto, molden_type_generic, &
@@ -1930,7 +1931,7 @@ contains
           if (f%grid%mode == mode_smr) then
              write (uout,'("    smoothrho with ",A," stencil nodes and smoothing dmax factor = ",A)') &
                 string(f%grid%smr_nenv), string(f%grid%smr_fdmax,'f',decimal=4)
-             write (uout,'("    Please cite: A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116 (10.1063/5.0090232)")')
+             call cite_print((/cite_smoothrho_2022/),indent=4)
           end if
        end if
     elseif (f%type == type_wien) then

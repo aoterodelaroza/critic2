@@ -23,6 +23,7 @@ contains
 
   ! Driver for the Hirshfeld routines.
   module subroutine sigmahole_driver(s,line)
+    use citations, only: cite_line, cite_sigmahole_2016
     use systemmod, only: system
     use fieldmod, only: type_wfn
     use global, only: iunit, dunit0, iunitname0, eval_next, fileroot
@@ -442,7 +443,7 @@ contains
 
     ! write results
     write (uout,'("+ List of sigma-holes found (",A,"): ")') string(nmax)
-    write (uout,'("# See Kolar and Hobza, Chem. Rev. 116 (2016) 5155. doi:10.1021/acs.chemrev.5b00560 (Figure 7)")')
+    write (uout,'("# See Figure 7 of ",A)') cite_line(cite_sigmahole_2016)
     write (uout,'("# dist = distance between X and the sigma-hole (",A,")")') iunitname0(iunit)
     write (uout,'("# ls (linearity) = base-X-sigma_hole angle (degree)")')
     write (uout,'("# ms (magnitude) = value of the MEP at the sigma-hole (a.u.)")')

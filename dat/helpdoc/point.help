@@ -1,0 +1,37 @@
+title: Point Properties
+keyword: POINT
+manual: graphics/#c2-point
+
+Calculates the value, gradient, Hessian and other properties of a field of the system at a
+point, and reports them in a table. Use it to probe a density, an orbital or any other field
+at an atom, at a critical point or at an arbitrary position. The point is marked by a small
+sphere in the view while the window is open, and the report is recalculated whenever the
+point, the field or the list of properties changes.
+
+# Options
+
+- "Field": the field whose properties are calculated at the point.
+- "Point": the coordinates of the point, fractional in a crystal and in Å in a molecule.
+  "Pick" lets you click the point in the view: an atom, a critical point or a point in empty
+  space.
+- "Point properties of the system": what is calculated. The built-in properties of the field
+  (value, gradient, Hessian, ...) come first, then the point properties defined for the
+  system and, if the system has more than one field, the values of all the other fields. For
+  each one, "Show" decides whether it appears in the table, "Format" chooses fixed or
+  exponential notation and "Decimals" the number of decimal places. The delete icon removes a
+  point property from the system.
+- "New": adds a point property, as the POINTPROP keyword does. Choose an arithmetic expression
+  of the fields (give it a "Name" of at most 10 characters and the "Expression", for instance
+  "$1 - $2") or one of the named functions, calculated from the field of the window, then
+  press "Add".
+
+# Results
+
+The "Properties" section shows the table: the coordinates of the point (fractional in
+crystals, bohr and Å), followed by one row per property. Right-click the table header to
+copy the table or write it to a file. Error messages appear below the table.
+
+# Notes
+
+The point properties belong to the system: a property added here is also available in the
+Critical Points window, and vice versa.

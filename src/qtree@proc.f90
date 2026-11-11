@@ -226,6 +226,8 @@ contains
 
   !> Main routine for the QTREE integration.
   module subroutine qtree_integration(lvl, plvl)
+    use citations, only: cite_print, cite_line, cite_critic2_2009, cite_keast_1986, cite_cubpack_2003,&
+       cite_rodriguez_2009
     use systemmod, only: sy
     use integration, only: int_output_header, int_output_fields
     use qtree_tetrawork, only: paint_inside_spheres, tetrah_subdivide, integ_corner_sum
@@ -281,8 +283,8 @@ contains
 
     ! header
     write (uout,'("* QTREE integration ")')
-    write (uout,'("  Please cite: ")')
-    write (uout,'("    A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157. (10.1002/jcc.21620)"/)')
+    call cite_print((/cite_critic2_2009/))
+    write (uout,*)
     if (sy%c%ismolecule) then
        call ferror("qtree","QTREE only available for crystals",faterr)
     end if
@@ -379,7 +381,7 @@ contains
 
     if (any(integ_mode(minl+1:maxl) >= 1 .and. integ_mode(minl+1:maxl) <= 10)) then
        write (uout,'("+ Using the KEAST library ")')
-       write (uout,'("  P. Keast, Comput. Meth. Appl. Mech. 55 (1986) 339-348.")')
+       write (uout,'("  ",A)') cite_line(cite_keast_1986)
        call getkeast()
        do i = 1, 10
           call keast_order_num(i,korder(i))
@@ -387,7 +389,7 @@ contains
        end do
     else if (any(integ_mode(minl+1:maxl) == 12)) then
        write (uout,'("+ Using the CUBPACK library ")')
-       write (uout,'("  R. Cools and A. Haegemans, ACM Trans. Math. Softw. 29 (2003) 287-296.")')
+       write (uout,'("  ",A)') cite_line(cite_cubpack_2003)
        call cubpack_info(uout)
     end if
     write (uout,*)
@@ -408,7 +410,7 @@ contains
        write (uout,'("  Number of nodes: ",A)') string(INT_spherequad_nleb)
     end if
     if (any(sphfactor(1:nnuc) < -1d-12)) then
-       write (uout,'("  Using Rodriguez et al. strategy for beta-spehre radius (JCC 30(2009)1082).")')
+       write (uout,'("  Using the beta-sphere radius strategy of ",A)') cite_line(cite_rodriguez_2009)
     end if
     if (INT_radquad_type == INT_qags .or. &
         INT_radquad_type == INT_qags .or. &

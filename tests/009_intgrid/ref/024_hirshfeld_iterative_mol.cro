@@ -23,16 +23,13 @@
   Mesh type      Becke
   Mesh level     small
   Atomic grids   tv-13.7-3 (3 atoms, 74 shells)
-  Please cite: 
-    A. D. Becke, J. Chem. Phys. 88, 2547 (1988). (10.1063/1.454033)
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    A. D. Becke, J. Chem. Phys. 88 (1988) 2547-2553. (doi:10.1063/1.454033)
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Iterative Hirshfeld (Hirshfeld-I) reference populations
-  Please cite: 
-    P. Bultinck, C. Van Alsenoy, P. W. Ayers, and R. Carbo-Dorca,
-       J. Chem. Phys. 126, 144111 (2007). (10.1063/1.2715563)
+  Please cite:
+    P. Bultinck, C. Van Alsenoy, P. W. Ayers, and R. Carbo-Dorca, J. Chem. Phys. 126 (2007) 144111. (doi:10.1063/1.2715563)
   Reference densities interpolated between integer charge states
   Convergence: max|dN| < 1.00E-07 (maximum 200 iterations)
 #   it      max|dN|

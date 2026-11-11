@@ -24,7 +24,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   qtree_gpaths@proc.f90 qtree@proc.f90 qtree_tetrawork.f90
   qtree_tetrawork@proc.f90 qtree_utils.f90
   qtree_utils@proc.f90 quadpack.f90 rhoplot.f90
-  rhoplot@proc.f90 sigmahole.f90 sigmahole@proc.f90
+  rhoplot@proc.f90 sigmahole.f90 sigmahole@proc.f90 citations.f90 citations@proc.f90
   spglib.f90 spglib@proc.f90 stm.f90
   stm@proc.f90 struct_drivers.f90 struct_drivers@proc.F90
   surface.f90 surface@proc.f90 systemmod.f90

@@ -28,7 +28,7 @@
   Maximum B-X-sigma_hole angle (degrees): 90.00
   Solid angle per uv-point (sphere = 4*pi): 5.1927E-02
 + List of sigma-holes found (1): 
-# See Kolar and Hobza, Chem. Rev. 116 (2016) 5155. doi:10.1021/acs.chemrev.5b00560 (Figure 7)
+# See Figure 7 of M. H. Kolar and P. Hobza, Chem. Rev. 116 (2016) 5155-5187. (doi:10.1021/acs.chemrev.5b00560)
 # dist = distance between X and the sigma-hole (ang_)
 # ls (linearity) = base-X-sigma_hole angle (degree)
 # ms (magnitude) = value of the MEP at the sigma-hole (a.u.)

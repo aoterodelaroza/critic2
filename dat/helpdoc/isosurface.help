@@ -1,0 +1,32 @@
+title: Isosurface
+manual: graphics/#c2-cube
+
+Draws isosurfaces of a field of the system, one of its derivatives or an arithmetic
+expression of the fields, as an object of the view. Tools > Field Plots > Isosurface creates
+an isosurface object and opens its editor. The quantity is sampled on a grid over a region,
+and any number of isosurfaces are drawn from that grid, each with its own isovalue and a
+single color or a color map of another field.
+
+# Options
+
+- "Name" and "Show": the name of the object and whether it is drawn.
+- "Property": a quantity of a field (value, gradient components, gradient norm, Hessian
+  components or Laplacian) or an "Expression" of the fields, for instance "$1 - $2".
+- "Region": the "Mode" of the region the grid spans (the whole cell, a box, a
+  parallelepiped or, in molecules, the box bounding the atoms grown by a "Buffer (Å)"), with
+  its points and a "Pick" button for each. Only the whole cell gives a periodic grid.
+- "Grid": the "Level" of the grid, from coarse to very fine, the native grid of a grid field,
+  or "Custom" (points along each axis or points per Å). "Calculate Grid" samples the quantity:
+  the options above have no effect until it is pressed. "Estimate Cost" predicts the time.
+- "Isosurfaces": a histogram of the values on the grid, whose lines can be dragged to set
+  the isovalues, and a table with one row per isosurface: whether it is drawn, its "Mode" (a
+  single color, or a field or expression mapped on it), its "Color/map", its "Isovalue" and
+  what it "Encloses" (the fraction of the integral of |f| and of the volume). "Add" adds an
+  isosurface; the close icon removes one.
+- "Color map of isosurface": for a mapped isosurface, the "Colormap", "Opacity" and
+  "Range" of mapped values ("Auto range" or fixed). "Add Color Bar" adds a color bar object.
+
+# Notes
+
+The region is shown as a box in the view while the editor is open. "Reset" restores the
+defaults. The Calculate Grid window writes such grids to files.

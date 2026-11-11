@@ -967,6 +967,40 @@ module windows
   end type nci_state
   public :: nci_state
 
+  ! A block of a help topic: a paragraph, a section heading or a
+  ! bullet, parsed from the topic's file (windows@help.f90)
+  integer, parameter :: hb_para = 1
+  integer, parameter :: hb_heading = 2
+  integer, parameter :: hb_bullet = 3
+  type help_block
+     integer :: kind = 0 ! hb_para, hb_heading, hb_bullet
+     character(len=:), allocatable :: text
+  end type help_block
+  public :: help_block
+
+  ! A help topic: the header of its file (title, console keyword,
+  ! manual link, citations) and its body as blocks
+  type help_topic
+     logical :: found = .false. ! the file was read
+     character(len=:), allocatable :: file ! the file (for the message when it is missing)
+     character(len=:), allocatable :: title ! title: (the window title)
+     character(len=:), allocatable :: keyword ! keyword: (the console keyword, or empty)
+     character(len=:), allocatable :: manual ! manual: (page/#anchor of the manual, or empty)
+     integer, allocatable :: icite(:) ! cite: (citation ids, citations module)
+     type(help_block), allocatable :: block(:) ! the body
+  end type help_topic
+  public :: help_topic
+
+  ! The help window: the topics (loaded once, kept while the window
+  ! is closed) and the selected one
+  type help_state
+     integer :: itopic = 1 ! the selected topic (index in the topic list)
+     logical :: scrolltop = .false. ! scroll the body to the top on the next frame
+     type(help_topic), allocatable :: tp(:) ! the parsed topics
+     type(iw_section) :: sec_refs ! the References section
+  end type help_state
+  public :: help_state
+
   !> Per-window state of the k-point grid window (KPOINTS). The table of
   !> rklength ranges is not kept: it is cheap, and calculated every frame.
   type kpoints_state
@@ -1657,6 +1691,8 @@ module windows
      type(slicemap_state) :: smap ! the plot of the map of a plane map object (editrep window); szmap, lims, imgscale: also the plot of the NCI plot window
      type(cube_state) :: cu ! the quantity, region, and grid of the cube window
      type(nci_state) :: nc ! the form, fragments, and results of the NCI plot window
+     ! help window
+     type(help_state) :: hp ! the topics and the selected topic
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
@@ -1796,6 +1832,8 @@ module windows
      procedure :: draw_voids
      procedure :: block_voids
      procedure :: run_voids
+     ! help
+     procedure :: draw_help
      ! k-point grid
      procedure :: draw_kpoints
      ! critical points
@@ -1849,7 +1887,9 @@ module windows
   integer, public :: iwin_console_output
   integer, public :: iwin_view
   integer, public :: iwin_about
+  integer, public :: iwin_help = 0
   public :: windows_init
+  public :: help_open
   public :: view_target_window
   public :: vm_is_forcedpick
   public :: vm_is_owned
@@ -1894,6 +1934,7 @@ module windows
   integer, parameter, public :: wintype_cube = 33
   integer, parameter, public :: wintype_kpoints = 34
   integer, parameter, public :: wintype_nci = 35
+  integer, parameter, public :: wintype_help = 36
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -2697,6 +2738,17 @@ module windows
      module subroutine run_voids(w)
        class(window), intent(inout), target :: w
      end subroutine run_voids
+     !xx! help submodule !xx!
+     module subroutine draw_help(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_help
+     module subroutine help_open(key)
+       character(len=*), intent(in) :: key
+     end subroutine help_open
+     module function window_help_topic(w) result(key)
+       class(window), intent(in) :: w
+       character(len=:), allocatable :: key
+     end function window_help_topic
      !xx! kpoints submodule !xx!
      module subroutine draw_kpoints(w)
        class(window), intent(inout), target :: w

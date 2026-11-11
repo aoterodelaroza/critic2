@@ -366,10 +366,11 @@ contains
 
   !> Write information about the mesh to the standard output.
   module subroutine report(m)
+    use citations, only: cite_print, cite_becke_1988, cite_lebedev_1999, cite_horton_2017
     use tools_io, only: uout, string
     class(mesh), intent(inout) :: m
 
-    integer :: i, nfb
+    integer :: i, nfb, nid, ids(3)
     character(len=:), allocatable :: str
 
     write (uout,'("  Mesh size      ",A)') string(m%n)
@@ -409,18 +410,20 @@ contains
              string(nfb), str
        end if
     end if
-    write (uout,'("  Please cite: ")')
+    nid = 0
     if (m%type == mesh_type_becke) then
-       write (uout,'("    A. D. Becke, J. Chem. Phys. 88, 2547 (1988). (10.1063/1.454033)")')
+       nid = nid + 1
+       ids(nid) = cite_becke_1988
     end if
-    write (uout,'("    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).")')
+    nid = nid + 1
+    ids(nid) = cite_lebedev_1999
     if (m%nat > 0) then
        if (nfb < m%nat) then
-          write (uout,'("    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,")')
-          write (uout,'("       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,")')
-          write (uout,'("       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).")')
+          nid = nid + 1
+          ids(nid) = cite_horton_2017
        end if
     end if
+    call cite_print(ids(1:nid))
 
   end subroutine report
 

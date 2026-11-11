@@ -310,11 +310,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($fchk_rhf) = 10.00010053   
 
 * MOLCALC: calculations using meshes 
@@ -324,11 +322,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($wfn_rhf) = 10.00010057   
 
 * MOLCALC: calculations using meshes 
@@ -338,11 +334,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($wfx_rhf) = 10.00010053   
 
 * MOLCALC: calculations using meshes 
@@ -352,11 +346,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($fchk_uhf) = 10.00010246   
 
 * MOLCALC: calculations using meshes 
@@ -366,11 +358,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($wfn_uhf) = 10.00010256   
 
 * MOLCALC: calculations using meshes 
@@ -380,11 +370,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($wfx_uhf) = 10.00010246   
 
 * MOLCALC: calculations using meshes 
@@ -394,11 +382,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($fchk_rohf) = 10.00010248   
 
 * MOLCALC: calculations using meshes 
@@ -408,11 +394,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($wfn_rohf) = 10.00010257   
 
 * MOLCALC: calculations using meshes 
@@ -422,11 +406,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($wfx_rohf) = 10.00010248   
 
 * MOLCALC: calculations using meshes 
@@ -436,11 +418,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($fchk_mp2) = 10.00010053   
 
 * MOLCALC: calculations using meshes 
@@ -450,11 +430,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($wfn_mp2) = 10.00009677   
 
 * MOLCALC: calculations using meshes 
@@ -464,11 +442,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($wfx_mp2) = 10.00009641   
 
 * MOLCALC: calculations using meshes 
@@ -478,11 +454,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($fchk_ump2) = 10.00010246   
 
 * MOLCALC: calculations using meshes 
@@ -492,11 +466,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($wfn_ump2) = 10.00009788   
 
 * MOLCALC: calculations using meshes 
@@ -506,11 +478,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($wfx_ump2) = 10.00009842   
 
 + Field number 1
@@ -667,11 +637,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($rhf) = 10.00009348   
 
 * MOLCALC: calculations using meshes 
@@ -681,11 +649,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($rhfw) = 10.00009344   
 
 * MOLCALC: calculations using meshes 
@@ -695,11 +661,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($uhf) = 10.00009790   
 
 * MOLCALC: calculations using meshes 
@@ -709,11 +673,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($rohfw) = 10.00009788   
 
 * MOLCALC: calculations using meshes 
@@ -723,11 +685,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($mp2) = 10.00009348   
 
 * MOLCALC: calculations using meshes 
@@ -737,11 +697,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($mp2w) = 10.00009344   
 
 * MOLCALC: calculations using meshes 
@@ -751,11 +709,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($ump2) = 10.00009790   
 
 + Field number 1
@@ -1053,11 +1009,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($rhf) = 10.00009348   
 
 * MOLCALC: calculations using meshes 
@@ -1067,11 +1021,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($rhfw) = 10.00009344   
 
 * MOLCALC: calculations using meshes 
@@ -1081,11 +1033,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($rhfx) = 10.00009349   
 
 * MOLCALC: calculations using meshes 
@@ -1095,11 +1045,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($uhf) = 10.00009790   
 
 * MOLCALC: calculations using meshes 
@@ -1109,11 +1057,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($uhfw) = 10.00009783   
 
 * MOLCALC: calculations using meshes 
@@ -1123,11 +1069,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($uhfx) = 10.00009791   
 
 * MOLCALC: calculations using meshes 
@@ -1137,11 +1081,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($rohfw) = 10.00009788   
 
 * MOLCALC: calculations using meshes 
@@ -1151,11 +1093,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($rohfx) = 10.00009797   
 
 * MOLCALC: calculations using meshes 
@@ -1165,11 +1105,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($mp2) = 10.00009348   
 
 * MOLCALC: calculations using meshes 
@@ -1179,11 +1117,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($mp2w) = 10.00009344   
 
 * MOLCALC: calculations using meshes 
@@ -1193,11 +1129,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($mp2x) = 10.00009349   
 
 * MOLCALC: calculations using meshes 
@@ -1207,11 +1141,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($ump2) = 10.00009790   
 
 * MOLCALC: calculations using meshes 
@@ -1221,11 +1153,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($ump2w) = 10.00009783   
 
 * MOLCALC: calculations using meshes 
@@ -1235,11 +1165,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($ump2x) = 10.00009791   
 
 + Field number 1
@@ -1314,11 +1242,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($rhf) = 10.00010055   
 
 * MOLCALC: calculations using meshes 
@@ -1328,11 +1254,9 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($uhf) = 10.00010248   
 
 * MOLCALC: calculations using meshes 
@@ -1342,10 +1266,8 @@
   Mesh type      Franchini
   Mesh level     good
   Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
-  Please cite: 
-    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
-    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
-       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
-       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
+  Please cite:
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59 (1999) 477-481.
+    T. Verstraelen, P. Tecmer, F. Heidar-Zadeh, C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias, S. Vandenbrande, D. Berrocal, and P. W. Ayers, HORTON 2.1.0, http://theochem.github.com/horton/ (2017).
 + Integral($rohf) = 10.00010251   
 

@@ -29,9 +29,8 @@
 
 * Hirshfeld integration 
 + Iterative Hirshfeld (Hirshfeld-I) reference populations
-  Please cite: 
-    P. Bultinck, C. Van Alsenoy, P. W. Ayers, and R. Carbo-Dorca,
-       J. Chem. Phys. 126, 144111 (2007). (10.1063/1.2715563)
+  Please cite:
+    P. Bultinck, C. Van Alsenoy, P. W. Ayers, and R. Carbo-Dorca, J. Chem. Phys. 126 (2007) 144111. (doi:10.1063/1.2715563)
   Reference densities interpolated between integer charge states
   Convergence: max|dN| < 1.00E-05 (maximum 200 iterations)
   Frozen-core electrons (Z - ZPSP) added to the integrated valence populations

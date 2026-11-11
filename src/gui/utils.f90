@@ -80,6 +80,11 @@ module utils
   ! the window height that shows all the content and the row (-1 = no
   ! region this frame), for the windows that grow to their content
   real(c_float), public :: iw_bottomrow_height = -1._c_float
+  ! Window-local y of the row of buttons iw_setpos_bottomright placed
+  ! in the window being drawn (-1 if it placed none): where the window
+  ! framework draws the Help button, at the left end of the row
+  real(c_float), public :: iw_bottomrow_ypos = -1._c_float
+  real(c_float), public :: iw_bottomrow_xpos = 0._c_float ! window-local x where that row starts (the Help button needs the room to its left)
   logical :: iw_bottomrow_open = .false. ! the region is open
   real(c_float) :: iw_bottomrow_y0 = 0._c_float ! where it starts in the window
 
@@ -161,6 +166,7 @@ module utils
   public :: iw_tooltip, iw_tooltip_wrapwidth
   public :: iw_helpermark
   public :: iw_expression_helper
+  public :: iw_citation
   public :: chemfun_avail
   public :: iw_highlight_selectable
   public :: igIsItemHovered_delayed
@@ -592,6 +598,12 @@ module utils
        integer, intent(in), optional :: ifield
        logical :: inserted
      end function iw_expression_helper
+     module subroutine iw_citation(id,tag,ttshown,indent)
+       integer, intent(in) :: id
+       character(len=*), intent(in) :: tag
+       logical, intent(inout) :: ttshown
+       logical, intent(in), optional :: indent
+     end subroutine iw_citation
      module function chemfun_avail(a,f,av,why) result(en)
        use fieldmod, only: field
        use arithmetic, only: arith_name

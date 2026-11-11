@@ -337,6 +337,7 @@ contains
 
   !> Load and output information about the keast cuadratures.
   module subroutine getkeast()
+    use citations, only: cite_line, cite_keast_1986
     use keast, only: keast_rule_num, keast_order_num
     use tools_io, only: uout
 
@@ -347,7 +348,7 @@ contains
     call keast_rule_num(num)
 
     write (uout,'("* KEAST integration routines, by J. Burkardt et al. (see keast/)")')
-    write (uout,'("* Ref: P.Keast, Comp. Methods Appl. Mech. Eng. 55(3) (1986) 339--348")')
+    write (uout,'("* Ref: ",A)') cite_line(cite_keast_1986)
     write (uout,'("* Rule number and associated integration orders and precisions ")')
 
     do i = 1, num

@@ -1,0 +1,32 @@
+title: K-Point Grid
+keyword: KPOINTS
+manual: structure/#c2-kpoints
+
+Calculates the dimensions of a uniform k-point grid for the crystal in the "System" line
+from a single length parameter, Rk, as the KPOINTS keyword does. The
+number of points along each reciprocal lattice vector ai* is max(1, nint(Rk·|ai*|)), the
+formula used by VASP, so the short directions of the cell get more k-points and the spacing
+between k-points is about 1/Rk in every direction (no factor of 2π). Use it to choose grids of
+consistent density for electronic-structure calculations on cells of different shapes and
+sizes. Only crystals have k-point grids.
+
+# Options
+
+- "Rk (bohr)": the length parameter. Drag or type it; the grid updates as it changes.
+- "Grid" and "Total": the number of k-points along each reciprocal lattice vector and in the
+  whole grid.
+- "Spacing (1/Å)": the distance between neighboring k-points along each reciprocal lattice
+  vector, |ai*|/ni.
+- "Supercell (Å)": the lengths of the supercell that corresponds to the grid (the Born-von
+  Kármán cell), ni·|ai|. In an orthogonal cell they are close to Rk.
+- "Rk ranges": a table of all the distinct grids, one row per range of Rk that gives the same
+  dimensions, with the number of points in each direction and the total. Click a row to set
+  Rk to the start of that range. With More, "Rk max (bohr)" sets the largest Rk the table
+  covers (the RKMAX option of the keyword).
+
+# Notes
+
+- The window only reports numbers; it draws nothing in the view and runs no calculation
+  beyond the arithmetic above.
+- The grid depends only on the lattice, not on the atoms, so the same Rk gives comparable
+  grids for every structure with the same cell.

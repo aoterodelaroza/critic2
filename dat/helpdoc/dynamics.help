@@ -1,0 +1,34 @@
+title: Dynamics
+manual: structure/#c2-forcefields
+
+Run an interactive molecular dynamics simulation or a geometry relaxation on a system
+using a built-in force field, and watch it in the view. While a run is active, the
+"Interact (MD)" view mode lets you steer it with the mouse: drag an atom, or translate or
+rotate a whole molecule. The simulation parameters are kept on the system and shared with
+the Builder relaxation and the Rattle Structure window.
+
+# Options
+- Method: the force field for energies, forces and stress (UFF, DREIDING, EAM, TIP4P
+  water or, when the libraries are available, GFN1-xTB, GFN2-xTB and GFN-FF). Only the
+  methods that apply to the system are listed.
+- Potential (EAM): the embedded-atom potential file, from the catalog of potentials that
+  cover the elements of the system.
+- Dynamics (NVT): animate the system at constant temperature. Relaxation: move the atoms
+  to the nearest energy minimum.
+- Temperature (K): the thermostat temperature of the NVT run.
+- Time step (au): the integration time step, in atomic units.
+- RUN starts the simulation and Stop ends it; "Reset" restores the initial geometry and
+  removes all motion.
+
+# Results
+Once a run has started, the "Status" section lists the current temperature, the EAM
+potential in use, the potential energy in Hartree and kcal/mol and, for a relaxation,
+the largest atomic force; for dynamics, the elapsed time in fs and, in crystals, the
+pressure in GPa. Error messages and automatic stops are shown below the table. The atoms
+move in the view as the simulation advances.
+
+# Notes
+- The geometry of the system changes during the run; use "Reset", or Restore in the
+  Builder, to go back to the original structure.
+- A relaxation moves only the atoms selected in the view, or all of them if there is no
+  selection.

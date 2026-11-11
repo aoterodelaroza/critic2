@@ -3349,6 +3349,7 @@ contains
   ! This is the AutoCN algorithm of ToposPro.
   ! https://topospro.com/software/topospro/manual/details-of-the-autocn-algorithms/
   subroutine trick_voronoi(line0)
+    use citations, only: cite_print, cite_blatov_2004, cite_blatov_2014
     use iso_c_binding, only: c_ptr, c_int, c_double
     use systemmod, only: sy
     use tools_math, only: cross, mixed
@@ -3443,9 +3444,7 @@ contains
 
     ! header
     write (uout,'("* Calculation of AutoCN/TOPOSPRO coordination numbers")')
-    write (uout,'("# Please cite:")')
-    write (uout,'("#   V. A. Blatov, Crystallogr. Rev. 10 (2004) 249–318 (doi:10.1080/08893110412331323170)")')
-    write (uout,'("#   V. A. Blatov et al., Cryst. Growth. Des. 14 (2014) 3576-3586 (doi:10.1021/cg500498k)")')
+    call cite_print((/cite_blatov_2004,cite_blatov_2014/),comment=.true.)
     write (uout,*)
 
     ! calculate the WS radius

@@ -1,0 +1,38 @@
+title: Trace Gradient Paths
+keyword: FLUXPRINT
+manual: gradientpath/#c2-fluxprint
+
+Traces gradient paths of a scalar field, the curves that follow its gradient up to a
+maximum (usually a nucleus) and down to a minimum, and draws them as tubes in the 3D view.
+Paths started around the critical points draw the elements of the
+QTAIM topology (interatomic surfaces, ring surfaces and ring paths), as FLUXPRINT does.
+Choose the "Field" at the top; it needs critical points, found with the Critical Points
+window or read from a checkpoint.
+
+# Seeds
+
+- "Single shot": "Pick" traces the paths up and down from a point clicked in the view (an
+  atom gives its position; empty space, the clicked point).
+- "Symmetry-equivalent paths" (crystals): trace the paths of the selected symmetry-unique
+  CPs once and carry them to all their copies in the cell; otherwise the table lists every
+  CP in the cell and only the selected ones are traced.
+- The table lists the CPs of the field. "All", "None" and "Toggle" change the selection and
+  "Pick" adds a CP clicked in the view. Without CPs beyond the nuclei, "Calculate Critical
+  Points" opens the Critical Points window.
+
+# Paths
+
+- "Color" and "Radius (Å)": color and tube radius of the new paths.
+- More sets the paths per kind of CP. NCP and CCP: directions spread over a sphere
+  ("Azimuthal" and "Polar" counts). BCP: paths down in the plane perpendicular to the bond
+  path, the interatomic surface ("Number" of paths; "Angles" picks the starting directions:
+  uniform, quotient of the Hessian eigenvalues, or dynamical). RCP: the two ring paths down
+  the axis ("Ring path") and paths up in the perpendicular plane, the ring surface. The bond
+  paths themselves are already traced by the CP search.
+- "Trace" adds the paths of the selected CPs to the gradient paths object of the field in
+  the view (created if there is none), one group per CP. "Estimate Cost" times a sample of
+  them. "Edit Gradient Paths" opens that object.
+
+# Notes
+
+- "Clear" removes all the traced paths from the object; the bond paths stay.

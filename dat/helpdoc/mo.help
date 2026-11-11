@@ -1,0 +1,32 @@
+title: Molecular Orbitals
+manual: fields/
+
+Displays the molecular orbitals of the reference field of the system as isosurfaces, with
+an energy-level diagram. The reference field must be a molecular wavefunction (wfn, wfx,
+fchk, molden, ...). Select an orbital in the table or in the diagram and its positive and
+negative lobes are drawn in the view as a transient isosurface pair; select it again to hide
+it. The orbital grids are cached, so an orbital already shown comes back at once.
+
+# Options
+
+- "Reference field" and "Wavefunction": the field and a summary of its orbitals (occupied and
+  virtual). "Reload with Virtual Orbitals" re-reads the wavefunction file including the
+  unoccupied orbitals, when the format contains them (fchk and molden).
+- "Orbital": "Energy units" (Hartree or eV) for the table and the diagram, and "Diagram"
+  shows the energy-level diagram beside the orbital table. The table lists each orbital with
+  its id, a dot if its grid is cached, its label (HOMO, LUMO-1, ...), spin, occupation and
+  energy. "Frontier" scrolls back to the HOMO/LUMO boundary. In the diagram, click a level to
+  select it, or a pile of merged levels to zoom into it; "Frontier" and "All" set its range.
+- "Display": "Quality" is the density of the grid of the isosurface; automatic uses the
+  default, coarsened if sampling one orbital would take too long, and a slow choice is
+  flagged. "Isovalue (a.u.)" of the positive/negative pair, "Opacity" and the colors of the
+  "Positive lobe" and "Negative lobe".
+- "Create Isosurface Object": copies the displayed orbital into a permanent isosurface
+  object, editable from the Objects menu of the view.
+
+# Notes
+
+The orbital isosurface is transient: it disappears when the window closes unless it was made
+into an object. The orbitals can also be used in the console and in arithmetic expressions
+through the field modifiers of the fields page (for instance "$1:4" is orbital 4 of field 1,
+and labels such as HOMO and LUMO are also available).

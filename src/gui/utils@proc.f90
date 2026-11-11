@@ -942,6 +942,8 @@ contains
        call igSetCursorPosY(igGetCursorPosY() + skip)
        iw_bottom_skip = iw_bottom_skip + skip
     end if
+    iw_bottomrow_ypos = igGetCursorPosY()
+    iw_bottomrow_xpos = igGetCursorPosX()
 
   end subroutine iw_setpos_bottomright
 
@@ -2712,6 +2714,7 @@ contains
        arithreq_rhf
     use types, only: field_evaluation_avail
     use tools_io, only: string
+    use param, only: critic2_url
     character(len=*,kind=c_char), intent(in) :: strid
     integer, intent(in) :: isys
     integer, intent(in) :: ctx
@@ -2721,7 +2724,7 @@ contains
     integer, intent(in), optional :: ifield
     logical :: inserted, spinpol
 
-    character(len=*), parameter :: manual = "https://aoterodelaroza.github.io/critic2/manual/arithmetics/"
+    character(len=*), parameter :: manual = critic2_url // "manual/arithmetics/"
     character(len=2), parameter :: dername(9) = (/"x ","y ","z ","xx","xy","xz","yy","yz","zz"/)
     character(len=*), parameter :: needvirt = "Needs the virtual orbitals:&
        & load the field with 'Read virtual orbitals'"
@@ -3121,6 +3124,43 @@ contains
     end subroutine openmanual
 
   end function iw_expression_helper
+
+  !> Draw a literature citation (citations module): its one-line text
+  !> and, below it, an Open DOI button (disabled if the work has no
+  !> DOI) and a Copy-to-clipboard button, indented with indent. tag
+  !> makes the button IDs unique in the window.
+  module subroutine iw_citation(id,tag,ttshown,indent)
+    use interfaces_cimgui
+    use citations, only: cite_line, cite_doi_url
+    integer, intent(in) :: id
+    character(len=*), intent(in) :: tag
+    logical, intent(inout) :: ttshown
+    logical, intent(in), optional :: indent
+
+    logical :: indent_
+    character(len=:), allocatable :: line, url
+    character(kind=c_char,len=:), allocatable, target :: str
+
+    indent_ = .false.
+    if (present(indent)) indent_ = indent
+
+    line = cite_line(id)
+    url = cite_doi_url(id)
+    call iw_text(line,wrap=.true.)
+    if (indent_) call igIndent(0._c_float)
+    if (iw_button("Open DOI##" // tag,disabled=(len(url) == 0))) then
+       str = url // c_null_char
+       call openLink(c_loc(str))
+    end if
+    call iw_tooltip("Open the article in the browser",ttshown)
+    if (iw_button("Copy##" // tag,sameline=.true.)) then
+       str = line // c_null_char
+       call igSetClipboardText(c_loc(str))
+    end if
+    call iw_tooltip("Copy the citation to the clipboard",ttshown)
+    if (indent_) call igUnindent(0._c_float)
+
+  end subroutine iw_citation
 
   !> Whether chemical function a (one of arith_names) can be evaluated
   !> with field f, whose evaluation categories are av; if not, why

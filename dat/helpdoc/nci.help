@@ -1,0 +1,38 @@
+title: NCI Plot
+keyword: NCIPLOT
+manual: nciplot/
+cite: nci_2010 nci_2012
+
+Makes a non-covalent interactions (NCI) plot: the reduced density gradient (RDG, s) and the
+signed density sign(λ2)ρ (the density times the sign of the second eigenvalue of its
+Hessian) are calculated on a grid, and the isosurfaces of the former are drawn colored by
+the latter. Low-RDG regions at low density mark non-covalent interactions: negative sign(λ2)ρ
+(blue) for attractive contacts, near zero (green) for van der Waals contacts and positive
+(red) for steric repulsion.
+
+# Options
+
+- "Density": the "Field" the plot is calculated from (the promolecular density if the system
+  has no fields). For a grid field, "Derivatives" are calculated from the interpolant or by
+  Fourier transform.
+- "Region" and "Grid": the region the grid spans and the grid "Level" (coarse to very fine,
+  or custom). "Estimate Cost" predicts the time.
+- "Fragments": the molecules of the system and the fragments added with "Add from
+  Selection" (the atoms selected in the view). With two or more fragments selected, only the
+  regions between them are plotted: a point is kept if no single fragment contributes more
+  than "Dominance" of the promolecular density of the fragments, and the fragments together
+  at least "Share" of that of the whole system. "Show region" draws that region in the view.
+- "Plot": the "Isovalue (s)" of the RDG isosurface, the "sign(λ2)ρ range (a.u.)" outside
+  which points are left out, and the "Color scale (a.u.)" of the isosurface. More: "Voids
+  only" plots only where the promolecular density is below "Void density (a.u.)".
+- "Output": "Complete molecules" completes the molecules that cross the cell boundary in
+  the xyz file written with the cubes.
+
+# Results
+
+"Calculate" evaluates the grids, loads them as two fields and adds an isosurface object
+"NCI plot" with its color bar to the view. The "Plot" section shows the
+scatter of s against sign(λ2)ρ; drag its lines to change the isovalue, the range and the
+color scale. "Domains" lists the connected regions under the isovalue with their volume and
+electrons. "Write Files..." writes the cube files of the NCIPLOT keyword and "Save Plot..."
+the scatter plot as a PNG image.

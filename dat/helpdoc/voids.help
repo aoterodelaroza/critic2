@@ -1,0 +1,43 @@
+title: Crystal Voids
+manual: structure/#c2-packing
+
+Measures the empty space in a crystal: the volume of the unit cell not occupied by the
+atoms. Three definitions of "empty" are available, one per tab, and each
+reports the void volume and its fraction of the cell volume. The analysis needs a periodic
+cell, so it is only available for crystals; the results are dropped if the geometry changes.
+
+# Isosurface tab
+
+- "Isovalue (a.u.)": a point belongs to a void if the promolecular density (the sum of the
+  in-vacuo atomic densities) at that point is lower than this value.
+- "Grid spacing (Å)": approximate distance between consecutive points of the grid on which
+  the promolecular density is calculated. A finer grid resolves the voids better but takes
+  longer (the grid size is shown next to it).
+- "Calculate": calculates the density on the grid and groups the points below the isovalue
+  into voids.
+- "Visualize isosurface": draws the isosurface that bounds the voids in the view. "Create
+  Object" copies it into a permanent object, editable from the Objects menu of the view.
+
+# Polyhedra tab
+
+- "Center" and "Vertices": species of the atoms at the center and at the vertices of the
+  coordination polyhedra (several species can be ticked).
+- "Distance range (Å)": shortest and longest center-vertex distance that makes an atom a
+  vertex. "Reset" restores the defaults for this system.
+- "Visualize polyhedra": draws the polyhedra in the view.
+
+# Packing tab
+
+- "Atomic radii": van der Waals, covalent, or half the nearest-neighbor distance, as in the
+  PACKING keyword.
+- "Scale": factor multiplying the radius of every atom.
+- "Precision": the sphere volume is found by Monte Carlo sampling, which stops when its
+  standard deviation divided by the volume reaches this value.
+- "Calculate" and "Visualize spheres", as in the other tabs.
+
+# Results
+
+Each tab has a Results section with the volumes, the cell volume and the percentages. The
+Isosurface tab also lists every void (volume, density minimum, density there), the Polyhedra
+tab each polyhedron (atom, multiplicity, vertices, distances, volume), and the Packing tab
+gives the packing ratio.

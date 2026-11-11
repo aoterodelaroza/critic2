@@ -450,6 +450,7 @@ contains
   !> input. Otherwise, open the documentation.
   subroutine launch_keyword_action(textinsert,ikeyw)
     use windows, only: fill_input_ci
+    use param, only: critic2_url
     use interfaces_cimgui
     logical, intent(in) :: textinsert
     integer, intent(in) :: ikeyw
@@ -460,7 +461,7 @@ contains
        str = get_keyword_template(ikeyw)
        call fill_input_ci(str)
     else
-       str = "https://aoterodelaroza.github.io/critic2/manual/" // trim(doclink(ikeyw)) //&
+       str = critic2_url // "manual/" // trim(doclink(ikeyw)) //&
           c_null_char
        call openLink(c_loc(str))
     end if

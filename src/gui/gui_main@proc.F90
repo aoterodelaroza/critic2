@@ -88,8 +88,8 @@ contains
     use shapes, only: shapes_init, shapes_end
     use icons, only: icons_init, icons_end
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
-       wintype_console_output, wintype_about, iwin_tree, iwin_view,&
-       iwin_console_input, iwin_console_output, iwin_about,&
+       wintype_console_output, wintype_about, wintype_help, iwin_tree, iwin_view,&
+       iwin_console_input, iwin_console_output, iwin_about, iwin_help,&
        stack_create_window, stack_realloc_maybe, wpurp_view_main, windows_init,&
        read_output_uout, objedit_busy
     use global, only: critic_home, abort_requested
@@ -351,6 +351,7 @@ contains
     iwin_console_input = stack_create_window(wintype_console_input,.true.,permanent=.true.)
     iwin_console_output = stack_create_window(wintype_console_output,.true.,permanent=.true.)
     iwin_about = stack_create_window(wintype_about,.false.,permanent=.true.)
+    iwin_help = stack_create_window(wintype_help,.false.,permanent=.true.)
 
     ! the window layout saved by the user, if any
     call layout_load()
@@ -1211,7 +1212,7 @@ contains
   ! that was focused most recently (each window's own draw routine
   ! handles the bind when it is focused).
   subroutine process_close_bind()
-    use windows, only: win, nwin, wintype_view, wintype_about
+    use windows, only: win, nwin, wintype_view, wintype_about, wintype_help
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
 
     integer :: i, ibest
@@ -1230,8 +1231,8 @@ contains
     do i = 1, nwin
        if (.not.win(i)%isinit .or. .not.win(i)%isopen) cycle
        ! skip permanent windows (tree, main view, consoles) except the
-       ! about window, which is permanent but closable
-       if (win(i)%permanent .and. win(i)%type /= wintype_about) cycle
+       ! about and help windows, which are permanent but closable
+       if (win(i)%permanent .and. win(i)%type /= wintype_about .and. win(i)%type /= wintype_help) cycle
        if (win(i)%focused()) return
 
        ! alternate views close with this bind only when focused: closing
@@ -1255,7 +1256,7 @@ contains
        add_system_empty_molecule, reread_system_from_file, remove_system,&
        kill_initialization_thread, write_system, sysclip, paste_clipboard, clipboard_clear
     use windows, only: win, objedit_cancel_views, iwin_tree, iwin_view, iwin_console_input, wintype_display,&
-       iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
+       iwin_console_output, iwin_about, help_open, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wpurp_dialog_savescenefile, wpurp_dialog_saveobjfile, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_water_cluster, wintype_melting, wintype_exportimage,&
@@ -1270,11 +1271,7 @@ contains
        BIND_PREFERENCES, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string, ferror, warning
-    use param, only: isformat_write_from_read, isformat_w_unknown
-
-    ! the critic2 manual, opened by the help menu and its keybinding
-    character(kind=c_char,len=*), parameter :: manual_url = &
-       "https://aoterodelaroza.github.io/critic2/" // c_null_char
+    use param, only: isformat_write_from_read, isformat_w_unknown, critic2_url
 
     ! enum for the dialog types that can be launched from the menu
     integer, parameter :: d_open = 1
@@ -1354,7 +1351,7 @@ contains
 
     !! open the manual in the browser
     if (is_bind_event(BIND_MANUAL,norepeat=.true.)) then
-       str2 = manual_url
+       str2 = critic2_url // c_null_char
        call openLink(c_loc(str2))
     end if
 
@@ -1690,9 +1687,14 @@ contains
 
        ! Help
        if (iw_beginmenu("Help")) then
+          ! Help -> Help Topics
+          if (iw_menuitem("Help Topics...")) call help_open("index")
+          call iw_tooltip("Open the help window: a topic for each tool window of the GUI, with the "//&
+             "link to the manual and the references to cite",ttshown)
+
           ! Help -> Critic2 Manual
           if (iw_menuitem("Critic2 Manual...",BIND_MANUAL)) then
-             str2 = manual_url
+             str2 = critic2_url // c_null_char
              call openLink(c_loc(str2))
           end if
           call iw_tooltip("Visit the critic2 website for more information about the program",ttshown)

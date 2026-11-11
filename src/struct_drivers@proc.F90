@@ -1413,6 +1413,7 @@ contains
   !> Match. Commun. Math. Comput. Chem., 87 (2022) 529, doi:10.46793/match.87-3.529W
   !> Reference implementation: https://github.com/dwiddo/average-minimum-distance
   module subroutine struct_amd(s,line)
+    use citations, only: cite_print, cite_amd_2022
     use global, only: iunitname0, dunit0, iunit
     use tools_io, only: uout, isinteger, ferror, faterr, string, ioj_left, ioj_right, warning
     type(system), intent(inout) :: s
@@ -1435,8 +1436,7 @@ contains
 
     ! header
     write (uout,'("* AMD: average minimum distances")')
-    write (uout,'("# Please cite:")')
-    write (uout,'("#   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529 (doi:10.46793/match.87-3.529W)")')
+    call cite_print((/cite_amd_2022/),comment=.true.)
     write (uout,*)
 
     ! check input and allocate
@@ -1469,6 +1469,7 @@ contains
   !> similarity based on cross-correlation functions proposed in
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   module subroutine struct_compare(s,line)
+    use citations, only: cite_print, cite_gpwdf_2024, cite_degelder_2001, cite_emd_2000, cite_amd_2022
     use systemmod, only: system
     use crystalmod, only: crystal, xrpd_lambda_def, xrpd_peaklist, xrpd_alpha_def,&
        xrpd_sigma_def, crosscorr_gaussian, xrpd_th2ini_def, xrpd_th2end_def, xrpd_fpol_def
@@ -1747,23 +1748,19 @@ contains
     ! rest of the header and default variables
     if (imethod == imethod_gpdwf) then
        write (uout,'("# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).")')
-       write (uout,'("# Please cite:")')
-       write (uout,'("#   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)")')
+       call cite_print((/cite_gpwdf_2024/),comment=.true.)
        write (uout,'("# Two structures are exactly equal if their difference = 0.")')
        if (xend < 0d0) xend = xrpd_th2end_def
        difstr = "DIFF"
     elseif (imethod == imethod_powder) then
        write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
-       write (uout,'("# Please cite:")')
-       write (uout,'("#   de Gelder et al., J. Comput. Chem., 22 (2001) 273")')
-       write (uout,'("#       (10.1002/1096-987X(200102)22:3%3C273::AID-JCC1001%3E3.0.CO;2-0)")')
+       call cite_print((/cite_degelder_2001/),comment=.true.)
        write (uout,'("# Two structures are exactly equal if their difference = 0.")')
        if (xend < 0d0) xend = xrpd_th2end_def
        difstr = "DIFF"
     elseif (imethod == imethod_emd) then
        write (uout,'("# Using discrete powder diffraction patterns and the earth mover''s distance (EMD).")')
-       write (uout,'("# Please cite:")')
-       write (uout,'("#   Rubner et al., Int. J. Comput. Vis. 40.2 (2000) 99-121 (10.1023/A:1026543900054)")')
+       call cite_print((/cite_emd_2000/),comment=.true.)
        write (uout,'("# Two structures are exactly equal if their difference = 0.")')
        if (xend < 0d0) xend = xrpd_th2end_def
        difstr = "DIFF"
@@ -1774,9 +1771,7 @@ contains
        difstr = "DIFF"
     elseif (imethod == imethod_amd) then
        write (uout,'("# Using average minimum distances (AMD) in bohr.")')
-       write (uout,'("# Please cite:")')
-       write (uout,'("#   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529")')
-       write (uout,'("#       (doi:10.46793/match.87-3.529W)")')
+       call cite_print((/cite_amd_2022/),comment=.true.)
        write (uout,'("# Two structures are exactly equal if their difference = 0.")')
        if (xend < 0d0) xend = rend0
        difstr = "DIFF"
@@ -2220,6 +2215,7 @@ contains
   !> Returns the minimal powder diffraction pattern (de Gelder) overlap. See:
   !>   Mayo et al., CrystEngComm 24 (2022) 8326-8338.
   subroutine struct_comparevc_vcpwdf(s,line)
+    use citations, only: cite_print, cite_vcpwdf_2022
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use crystalmod, only: crystal, vcpwdf_compare
     use crystalseedmod, only: crystalseed
@@ -2243,8 +2239,7 @@ contains
     ! header and initalization
     write (uout,'("* COMPAREVC: compare crystal structures allowing for deformed cells")')
     write (uout,'("+ VCPWDF method: exploring lattice deformations until a match is found")')
-    write (uout,'("# Please cite:")')
-    write (uout,'("#   Mayo et al., CrystEngComm 24 (2022) 8326-8338. (doi:10.1039/D2CE01080A)")')
+    call cite_print((/cite_vcpwdf_2022/),comment=.true.)
     write (uout,*)
 
     ! read the input files
@@ -2354,6 +2349,7 @@ contains
   !> experimental pattern. See:
   !> Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)
   subroutine struct_comparevc_vcgpwdf(s,line)
+    use citations, only: cite_print, cite_gpwdf_2024
     use tools_io, only: uout, ferror, faterr
 #ifdef HAVE_NLOPT
     use global, only: fileroot
@@ -2398,8 +2394,7 @@ contains
     ! header and initalization
     write (uout,'("* COMPAREVC: compare crystal structures allowing for deformed cells")')
     write (uout,'("+ VCGPWDF method: global lattice search for maximal powder diffraction overlap")')
-    write (uout,'("# Please cite:")')
-    write (uout,'("#   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)")')
+    call cite_print((/cite_gpwdf_2024/),comment=.true.)
     write (uout,*)
 
 #ifndef HAVE_NLOPT
@@ -5681,6 +5676,7 @@ contains
 
   !> Calculate the Effective Coordination Number (ECON).
   module subroutine struct_econ(s)
+    use citations, only: cite_print, cite_econ_2016, cite_econ_1979
     use systemmod, only: system
     use crystalmod, only: crystal
     use global, only: iunitname0, dunit0, iunit
@@ -5794,9 +5790,7 @@ contains
     ! write the output
     write (uout, '("* ECON")')
     write (uout, '("+ Effective Coordination Number (ECoN), per-species")')
-    write (uout, '("# Please cite:")')
-    write (uout, '("#   Nespolo, Acta Cryst. B, 72 (2016) 51. (doi:10.1107/S2052520615019472)")')
-    write (uout, '("#   Hoppe, Z. Kristallogr. 150 (1979) 23. (doi:10.1524/zkri.1979.150.14.23)")')
+    call cite_print((/cite_econ_2016,cite_econ_1979/),comment=.true.)
     write (uout, '("# nid = non-equivalent atom ID. name = atomic name (symbol)")')
     write (uout, '("# spc = atomic species (* means all species)")')
     write (uout, '("# econ = effective coordination number species spc around non-equivalent")')
@@ -6800,6 +6794,7 @@ contains
 
   !> Calculate and print information about the Brilloun zone.
   module subroutine struct_bz(s,line)
+    use citations, only: cite_line, cite_hinuma_2017
     use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr, c_loc
     use global, only: iunitname0, iunit, dunit0
     use tools_math, only: matinv, cellpar_from_metric, det3
@@ -6978,7 +6973,7 @@ contains
           call ferror('struct_bz','Cannot calculate the special k-points: ' // errmsg,faterr)
           return
        end if
-       write (uout,'("+ Special k-points (Hinuma et al., Comput. Mater. Sci. 128 (2017) 140)")')
+       write (uout,'("+ Special k-points: ",A)') cite_line(cite_hinuma_2017)
        write (uout,'("  Space group number: ",A)') string(spgnum)
        write (uout,'("  Extended Bravais lattice: ",A)') ext
        if (issuper) &
@@ -7035,6 +7030,7 @@ contains
   !> Tools for editing and processing 1D x-ray powder diffraction
   !> patterns.
   module subroutine struct_xrpd(line0)
+    use citations, only: cite_print, cite_gpwdf_2024, cite_xrpd_bg_2001
     use crystalmod, only: david_sivia_calculate_background, xrpd_peaklist
     use global, only: fileroot
     use tools_io, only: uout, getword, lgetword, equal, ferror, faterr, isinteger, string,&
@@ -7060,8 +7056,7 @@ contains
        ! background fit using David-Sivia's method
        !   BACKGROUND file-xy.s file-newxy.s [nknot.i]
        write (uout,'("+ BACKGROUND: Fitting background to experimental XRPD data")')
-       write (uout,'("# Please cite:")')
-       write (uout,'("#   David and Sivia, J. Appl. Crystallogr. 34 (2001) 318-324 (doi:10.1107/S0021889801004332)")')
+       call cite_print((/cite_xrpd_bg_2001/),comment=.true.)
 
        ! read file names and header
        xyfile = getword(line0,lp)
@@ -7098,8 +7093,7 @@ contains
 
        ! header
        write (uout,'("+ FIT: Fitting a peak profile to experimental XRPD data")')
-       write (uout,'("# Please cite:")')
-       write (uout,'("#   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)")')
+       call cite_print((/cite_gpwdf_2024/),comment=.true.)
 
        ! read the input options
        file = getword(line0,lp)
@@ -7139,8 +7133,7 @@ contains
 
        ! read file names and header
        write (uout,'("+ REFIT: refit a powder pattern with a user-provided peaks file")')
-       write (uout,'("# Please cite:")')
-       write (uout,'("#   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)")')
+       call cite_print((/cite_gpwdf_2024/),comment=.true.)
        xyfile = getword(line0,lp)
        write (uout,'("  Reading the pattern from file: ",A)') trim(xyfile)
        file = getword(line0,lp)

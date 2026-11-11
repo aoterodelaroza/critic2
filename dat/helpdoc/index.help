@@ -1,0 +1,26 @@
+title: Help
+manual:
+cite: critic2_2014 critic2_2009
+
+The Help window describes the tool windows of the critic2 graphical interface, one topic per
+window. Open a topic from the Help button at the bottom of the window it belongs to, or pick
+it from the list in this window. Each topic says what the window does, what its controls mean
+(using the same labels as the window) and where the results appear: in the window itself, as
+an object in the 3D view, or in the Output console.
+
+The "Open in Manual" button opens the section of the online manual that covers the topic in
+the web browser. The manual is the authoritative reference for the behavior of the program and
+for the syntax of the command-line keyword that the window corresponds to, named at the top of
+the topic.
+
+The References section at the end of a topic lists the papers that describe the method the
+window uses. "Open DOI" opens the paper in the browser and "Copy" copies the reference to the
+clipboard, so it can be pasted into a manuscript. The keywords of the command-line interface
+(the input script language) are documented separately: the Input console has its own Help
+button, which describes each keyword.
+
+# Citing critic2
+
+Please cite the two program papers listed under References in any work that uses critic2,
+whichever tool or keyword was used. Methods with papers of their own (NCI, XDM, Bader
+integration, Hirshfeld partitioning and others) list them in the References of their topic.

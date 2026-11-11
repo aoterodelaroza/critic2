@@ -495,6 +495,7 @@ contains
   !> or its values (mf) on a mesh with points mx (Cartesian) and
   !> weights mw.
   subroutine hirsh_iterate(c,xn,tol,maxit,ncore,gridf,mx,mw,mf)
+    use citations, only: cite_print, cite_hirshfeld_i_2007
     use global, only: abort_poll, progress_start, progress_set
     use crystalmod, only: crystal
     use grid1mod, only: sgrid
@@ -526,9 +527,7 @@ contains
     end do
 
     write (uout,'("+ Iterative Hirshfeld (Hirshfeld-I) reference populations")')
-    write (uout,'("  Please cite: ")')
-    write (uout,'("    P. Bultinck, C. Van Alsenoy, P. W. Ayers, and R. Carbo-Dorca,")')
-    write (uout,'("       J. Chem. Phys. 126, 144111 (2007). (10.1063/1.2715563)")')
+    call cite_print((/cite_hirshfeld_i_2007/))
     write (uout,'("  Reference densities interpolated between integer charge states")')
     write (uout,'("  Convergence: max|dN| < ",A," (maximum ",A," iterations)")') &
        string(tol,'e',decimal=2), string(maxit)

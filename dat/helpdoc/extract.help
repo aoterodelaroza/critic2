@@ -1,0 +1,32 @@
+title: Extract as Molecule(s)
+manual: write/
+
+Cut a finite piece of the current system and load it as one or more new molecular
+systems. Choose a region (a sphere, a cube or a block of unit cells), decide how the
+molecules crossing its boundary are treated and, in molecular systems, whether the atoms
+are extracted as a single molecule or split into monomers, dimers and higher n-mers. The
+number of atoms the region contains is shown next to the "Extract" button.
+
+# Options
+- Shape: "Sphere" or "Cube" around a center, or whole "Unit cell" blocks (crystals only).
+- Center (Å or frac): the center of the region. "Pick" takes it from the view: click an
+  atom to use its position, or empty space to use the clicked point.
+- Radius (Å) / Half-edge (Å): the size of the sphere or cube.
+- Cells: the number of cells along a, b and c, and "Include border atoms" to keep the atoms
+  near the boundary of the chosen cells.
+- Extract (molecular systems): "Single molecule" loads the region as one system;
+  "Monomers, dimers, etc." splits it into separate n-mers.
+- Include: for a single molecule, extract only the "Atoms in the region" (molecules at the
+  boundary are left incomplete), "Whole molecules with any atom in the region" (completed
+  with atoms from outside) or "Whole molecules centered in the region" (center of mass
+  inside).
+- Up to n =: the highest n-mer order. For each order, the table sets whether it is
+  written, the center-of-mass "Distances" filter and its "Cutoff (Å)", and the "Number
+  ('any')" of molecules of the type that must appear; the estimated number of n-mers is
+  shown.
+- Close after extracting: close the window and select the new system in the view when
+  the extraction is done.
+
+# Results
+The new systems are added to the tree, one per molecule or n-mer. While the window is
+open, the region is drawn in the view so its position and size can be checked.

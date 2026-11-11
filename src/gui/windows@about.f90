@@ -25,8 +25,14 @@ contains
   !> Draw the about window
   module subroutine draw_about(w)
     use config, only: istring_version, getstring
-    use utils, only: iw_text, iw_button, iw_setpos_bottomright, iw_close_event
+    use citations, only: cite_program
+    use utils, only: iw_text, iw_button, iw_citation, iw_setpos_bottomright, iw_close_event
+    use tools_io, only: string
     class(window), intent(inout), target :: w
+
+    integer :: i
+
+    logical, save :: ttshown = .false. ! tooltip flag
 
     call iw_text("  ---- critic2 GUI ----",danger=.true.,centered=.true.)
     call iw_text("version " // getstring(istring_version),centered=.true.)
@@ -37,6 +43,13 @@ contains
     call iw_text("Copyright (c) Alberto Otero de la Roza",centered=.true.)
     call iw_text("Distributed under GNU/GPL license, version 3",centered=.true.)
     call iw_text("Contact: aoterodelaroza@gmail.com",highlight=.true.,centered=.true.)
+    call igNewLine()
+
+    ! the program citations, as the start-up banner of the CLI writes them
+    call iw_text("If you find this software useful, please cite:",highlight=.true.,centered=.true.)
+    do i = 1, size(cite_program,1)
+       call iw_citation(cite_program(i),"about" // string(i),ttshown)
+    end do
     call igNewLine()
 
     ! bottom-align and center the rest of the contents
