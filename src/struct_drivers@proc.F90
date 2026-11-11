@@ -6794,7 +6794,7 @@ contains
 
   !> Calculate and print information about the Brilloun zone.
   module subroutine struct_bz(s,line)
-    use citations, only: cite_line, cite_hinuma_2017
+    use citations, only: cite_print, cite_hinuma_2017
     use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr, c_loc
     use global, only: iunitname0, iunit, dunit0
     use tools_math, only: matinv, cellpar_from_metric, det3
@@ -6973,7 +6973,8 @@ contains
           call ferror('struct_bz','Cannot calculate the special k-points: ' // errmsg,faterr)
           return
        end if
-       write (uout,'("+ Special k-points: ",A)') cite_line(cite_hinuma_2017)
+       write (uout,'("+ Special k-points")')
+       call cite_print((/cite_hinuma_2017/),comment=.true.)
        write (uout,'("  Space group number: ",A)') string(spgnum)
        write (uout,'("  Extended Bravais lattice: ",A)') ext
        if (issuper) &

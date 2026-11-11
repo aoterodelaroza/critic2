@@ -184,7 +184,7 @@ submodule (templates) proc
   character(len=*,kind=c_char), parameter :: keyword_titles(ikeyw_NUM) = (/&
      "AMD (average minimum distances)             ",& ! AMD
      "ATOMLABEL (relabel atoms)                   ",& ! ATOMLABEL
-     "BZ (print Brillouin zone)                   ",& ! BZ
+     "BZ (Brillouin zone and special k-points)    ",& ! BZ
      "COMPARE (compare structures)                ",& ! COMPARE
      "COMPAREVC (variable-cell compare structures)",& ! COMPAREVC
      "COORD (2- and 3-coordination numbers)       ",& ! COORD
