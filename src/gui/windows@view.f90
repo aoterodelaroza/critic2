@@ -114,7 +114,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected, lcombo
-    logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
+    logical :: hover, okmods, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
     logical :: isuc, islabelsl, needpick, enabled, enabledr, ispoly, symenabled, istarget
     integer :: islabels
     logical :: ch
@@ -998,11 +998,18 @@ contains
     if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
 
     ! set view modes based on user's key presses. The mode modifiers are
-    ! honored only over this view (or while it holds a drag lock, which
-    ! forces hover off) and never while a text field is taking input,
-    ! since otherwise typing with ctrl held would switch the mode.
-    if (goodsys) call w%viewmode_set_mode((hover .or. w%ilock /= ilock_no) .and. &
-       .not.io%WantTextInput)
+    ! honored while this view holds a drag lock or over this view window
+    ! (the canvas, its toolbar and the mode bar, so the bar shows the
+    ! mode a held key gives; ChildWindows counts the open combo list and
+    ! the toolbar popups, since the window itself has no children), and
+    ! never while a text field is taking input, since otherwise typing
+    ! with ctrl held would switch the mode.
+    if (goodsys) then
+       okmods = (w%ilock /= ilock_no)
+       if (.not.okmods) okmods = igIsWindowHovered(ior(ImGuiHoveredFlags_ChildWindows,&
+          ImGuiHoveredFlags_AllowWhenBlockedByPopup))
+       call w%viewmode_set_mode(okmods .and. .not.io%WantTextInput)
+    end if
     needpick = hover .and. (abs(w%mousepos_lastpick%x-pos%x) > 1e-4.or.abs(w%mousepos_lastpick%y-pos%y) > 1e-4) .and.&
        (w%timelast_view_getpixel + pick_interval < time)
     needpick = needpick .or. w%viewmode_activate_picking(hover)
@@ -2131,175 +2138,57 @@ contains
 
   end subroutine cursor_icon
 
-  !> Returns the tooltip message for the current viewmode
+  !> The mode combo of the bar below the view, with a tooltip per mode
+  !> (its description and bindings), and the message next to it.
   module subroutine viewmode_bar_display(w)
-    use gui_main, only: tooltip_delay, tooltip_enabled, g
     use keybindings, only: get_bind_keyname, bindnames,&
        BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
        group_viewmode_movemol, group_viewmode_moveatom, group_viewmode_mdinteract,&
        group_viewmode_objedit, groupbind, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT, BIND_NAV_MEASURE,&
-       BIND_PICKATOM_EXIT, BIND_CANCEL,&
-       BIND_NAV_MEASURE_TOGGLE
-    use utils, only: iw_combo_simple, iw_tooltip, iw_tooltip_wrapwidth, igIsItemHovered_delayed, iw_text
+       BIND_PICKATOM_EXIT, BIND_CANCEL, BIND_NAV_MEASURE_TOGGLE, BIND_VIEWMODE_SELECT,&
+       BIND_VIEWMODE_MOVEMOL, BIND_VIEWMODE_MOVEATOM
+    use utils, only: iw_combo_simple, iw_tooltip, iw_tooltip_wraptext, iw_text
     use tools_io, only: string
+    use param, only: newline
     class(window), intent(inout), target :: w
 
-    integer :: ll, i, n, m, viewmode_before, iforced, mygroup
-    character(len=:), allocatable :: viewmode_items
-    character(len=:), allocatable :: hint, descr, picklbl, altlbl, idmsg
-    integer, allocatable :: tips(:)
-    character(len=64), allocatable :: keyline(:), lblline(:)
-    logical :: pickmode, emptyexit
+    integer :: i, isel
+    logical :: ch
+    character(len=:), allocatable :: viewmode_items, viewmode_tips
+    character(len=:), allocatable :: hint, idmsg
+    character(len=:), allocatable :: descr, picklbl, altlbl ! unused outputs of viewmode_text
 
     logical, save :: ttshown = .false. ! tooltip flag
 
+    ! the options of the combo and their tooltips (the description of
+    ! the mode and its bindings, readable from the open list without
+    ! entering the mode)
     viewmode_items = ""
+    viewmode_tips = ""
     do i = 0, vm_NUM
-       viewmode_items = trim(viewmode_items) // trim(vmnames(i)) // c_null_char
+       viewmode_items = viewmode_items // trim(vmnames(i)) // c_null_char
+       viewmode_tips = viewmode_tips // mode_tooltip(i) // c_null_char
     end do
 
+    ! a window-forced mode is one more entry, selected: picking a
+    ! normal mode leaves a window-forced pick, while vm_mdinteract is
+    ! re-forced each frame. A mode the user picks is not transient.
     if (w%viewmode < 0) then
-       ! window-forced modes: show the combo; picking a normal mode
-       ! leaves a window-forced pick, while vm_mdinteract is re-forced
-       ! each frame.
-       iforced = vm_NUM+1
-       viewmode_items = viewmode_items // vm_label() // c_null_char
-       call iw_combo_simple("##viewmode",viewmode_items,iforced)
-
-       if (iforced /= vm_NUM + 1) then
-          w%viewmode = iforced
-          w%viewmode_transient = .false.
-       end if
+       isel = vm_NUM+1
+       viewmode_items = viewmode_items // vm_label(w%viewmode) // c_null_char
+       viewmode_tips = viewmode_tips // mode_tooltip(w%viewmode) // c_null_char
     else
-       ! the usual combo box; if the user selects the mode explicitly, it is not transient
-       viewmode_before = w%viewmode
-       call iw_combo_simple("##viewmode",viewmode_items,w%viewmode)
-       if (w%viewmode /= viewmode_before) w%viewmode_transient = .false.
+       isel = w%viewmode
     end if
-    pickmode = vm_is_forcedpick(w%viewmode)
-    ! modes needing an explicit exit-bind tooltip line: the persistent
-    ! builder picks (the move modes list theirs through their own group)
-    emptyexit = vm_exits_on_empty(w%viewmode)
+    call iw_combo_simple("##viewmode",viewmode_items,isel,changed=ch,tooltips=viewmode_tips,&
+       ttshown=ttshown,tooltips_nowrap=.true.)
+    if (ch) then
+       w%viewmode = isel
+       w%viewmode_transient = .false.
+    end if
 
-    ! the text for this mode; one table feeds both the tooltip and the bar hint
+    ! the hint for the bar
     call viewmode_text(w,w%viewmode,hint,descr,picklbl,altlbl)
-
-    ! delayed tooltip describing the mode and its key/mouse bindings
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       if (tooltip_enabled .and. igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
-          g%LastItemData%NavRect%max,.false._c_bool)) then
-          ! the keybinding group for this view mode; the window-forced pick
-          ! modes share the navigation binds (minus measurements)
-          if (pickmode) then
-             mygroup = group_viewmode_navigation
-          else
-             select case (w%viewmode)
-             case (vm_navigate)
-                mygroup = group_viewmode_navigation
-             case (vm_select)
-                mygroup = group_viewmode_select
-             case (vm_movemol)
-                mygroup = group_viewmode_movemol
-             case (vm_moveatom)
-                mygroup = group_viewmode_moveatom
-             case (vm_mdinteract)
-                mygroup = group_viewmode_mdinteract
-             case (vm_objedit)
-                mygroup = group_viewmode_objedit
-             case default
-                mygroup = 0
-             end select
-          end if
-
-          ! one tooltip line per bind in this mode's group; measurements
-          ! and selection are disabled in the forced pick modes
-          n = 0
-          allocate(tips(BIND_NUM))
-          do i = 1, BIND_NUM
-             if (groupbind(i) == mygroup) then
-                if (pickmode .and. (i == BIND_NAV_MEASURE .or.&
-                   i == BIND_NAV_MEASURE_TOGGLE)) cycle
-                n = n + 1
-                tips(n) = i
-             end if
-          end do
-
-          ! build the tooltip lines: one per bind in this mode's group,
-          ! plus the pick action(s) and the exit gestures
-          m = n
-          if (pickmode) m = m + 3
-          if (emptyexit) m = m + 1
-          if (w%viewmode == vm_objedit) m = m + 1
-          allocate(keyline(m),lblline(m))
-          do i = 1, n
-             keyline(i) = trim(get_bind_keyname(tips(i)))
-             lblline(i) = trim(bindnames(tips(i)))
-          end do
-          if (pickmode) then
-             ! what the pick does in this mode, and its alternate action
-             ! if it has one; the modes that do nothing mode-specific
-             ! with the pick fall back to the generic bind name
-             n = n + 1
-             keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_SELECT))
-             if (len_trim(picklbl) > 0) then
-                lblline(n) = picklbl
-             else
-                lblline(n) = trim(bindnames(BIND_PICKATOM_SELECT))
-             end if
-             ! the alternate bind leaves the mode; where it has an action
-             ! of its own it does that on an atom and exits off one
-             n = n + 1
-             keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_ALT))
-             if (len_trim(altlbl) > 0) then
-                lblline(n) = trim(altlbl) // ", or exit elsewhere"
-             elseif (w%viewmode == vm_pick_atom .or. w%viewmode == vm_pick_bond) then
-                lblline(n) = "Cancel the pick"
-             else
-                lblline(n) = "Exit mode"
-             end if
-             n = n + 1
-             keyline(n) = trim(get_bind_keyname(BIND_CANCEL))
-             if (w%viewmode == vm_pick_atom .or. w%viewmode == vm_pick_bond) then
-                lblline(n) = "Cancel the pick"
-             else
-                lblline(n) = "Exit mode"
-             end if
-          end if
-          if (emptyexit) then
-             n = n + 1
-             keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_EXIT))
-             lblline(n) = trim(bindnames(BIND_PICKATOM_EXIT))
-          end if
-          if (w%viewmode == vm_objedit) then
-             n = n + 1
-             keyline(n) = trim(get_bind_keyname(BIND_CANCEL))
-             lblline(n) = "Exit mode"
-          end if
-
-          ! align the key column
-          ll = 1
-          do i = 1, n
-             ll = max(ll,len_trim(keyline(i)))
-          end do
-
-          ! draw the tooltip: the mode name, what the mode does, then the
-          ! key table
-          call igBeginTooltip()
-          call iw_text(vm_label(),highlight=.true.)
-          if (len_trim(descr) > 0) then
-             call igPushTextWrapPos(iw_tooltip_wrapwidth())
-             call iw_text(descr)
-             call igPopTextWrapPos()
-          end if
-          call iw_text("")
-          do i = 1, n
-             call iw_text(string(trim(keyline(i)),length=ll+1),highlight=.true.)
-             call iw_text(trim(lblline(i)),sameline=.true.)
-          end do
-          call igEndTooltip()
-          deallocate(tips,keyline,lblline)
-       end if
-    end if
 
     ! Next to the combo, in order of precedence: the prompt of the window
     ! waiting for a pick (a live instruction, so it survives hovering), the
@@ -2324,17 +2213,140 @@ contains
     end if
 
   contains
-    !> The name of the view mode: in the object editing mode, the type
-    !> of the object the tool works on (select and remove), or of the
-    !> objects it draws; the name of the mode otherwise.
-    function vm_label() result(str)
+    !> The tooltip of view mode mode: its name, what it does, and one
+    !> line per key or mouse binding in its group, plus the pick actions
+    !> and exit gestures of the window-forced modes.
+    function mode_tooltip(mode) result(str)
+      integer, intent(in) :: mode
+      character(len=:), allocatable :: str
+
+      integer :: i, n, ll, mygroup, ihold
+      logical :: pickmode, emptyexit
+      character(len=:), allocatable :: mdescr, mhint, mpicklbl, maltlbl, exitlbl
+      character(len=64) :: keyline(BIND_NUM+6), lblline(BIND_NUM+6) ! group binds + the extra lines below
+
+      pickmode = vm_is_forcedpick(mode)
+      ! modes needing an explicit exit-bind tooltip line: the persistent
+      ! builder picks (the move modes list theirs through their own group)
+      emptyexit = vm_exits_on_empty(mode)
+      call viewmode_text(w,mode,mhint,mdescr,mpicklbl,maltlbl)
+
+      ! the keybinding group for this view mode and, for the transient
+      ! modes, the key held to enter it; the window-forced pick modes
+      ! share the navigation binds (minus measurements)
+      ihold = 0
+      if (pickmode) then
+         mygroup = group_viewmode_navigation
+      else
+         select case (mode)
+         case (vm_navigate)
+            mygroup = group_viewmode_navigation
+         case (vm_select)
+            mygroup = group_viewmode_select
+            ihold = BIND_VIEWMODE_SELECT
+         case (vm_movemol)
+            mygroup = group_viewmode_movemol
+            ihold = BIND_VIEWMODE_MOVEMOL
+         case (vm_moveatom)
+            mygroup = group_viewmode_moveatom
+            ihold = BIND_VIEWMODE_MOVEATOM
+         case (vm_mdinteract)
+            mygroup = group_viewmode_mdinteract
+         case (vm_objedit)
+            mygroup = group_viewmode_objedit
+         case default
+            mygroup = 0
+         end select
+      end if
+      ! what the exit gestures do: a window pick is cancelled, the
+      ! other forced modes are left
+      if (mode == vm_pick_atom .or. mode == vm_pick_bond) then
+         exitlbl = "Cancel the pick"
+      else
+         exitlbl = "Exit mode"
+      end if
+
+      ! the lines: the key that enters a transient mode while held, one
+      ! per bind in the group (measurements and selection are disabled
+      ! in the forced pick modes), then the pick action(s) and the exit
+      ! gestures
+      n = 0
+      if (ihold > 0) then
+         n = n + 1
+         keyline(n) = trim(get_bind_keyname(ihold))
+         lblline(n) = "Hold to enter this mode"
+      end if
+      do i = 1, BIND_NUM
+         if (groupbind(i) /= mygroup) cycle
+         if (pickmode .and. (i == BIND_NAV_MEASURE .or. i == BIND_NAV_MEASURE_TOGGLE)) cycle
+         n = n + 1
+         keyline(n) = trim(get_bind_keyname(i))
+         lblline(n) = trim(bindnames(i))
+      end do
+      if (pickmode) then
+         ! what the pick does in this mode, and its alternate action
+         ! if it has one; the modes that do nothing mode-specific
+         ! with the pick fall back to the generic bind name
+         n = n + 1
+         keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_SELECT))
+         if (len_trim(mpicklbl) > 0) then
+            lblline(n) = mpicklbl
+         else
+            lblline(n) = trim(bindnames(BIND_PICKATOM_SELECT))
+         end if
+         ! the alternate bind leaves the mode; where it has an action
+         ! of its own it does that on an atom and exits off one
+         n = n + 1
+         keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_ALT))
+         if (len_trim(maltlbl) > 0) then
+            lblline(n) = trim(maltlbl) // ", or exit elsewhere"
+         else
+            lblline(n) = exitlbl
+         end if
+         n = n + 1
+         keyline(n) = trim(get_bind_keyname(BIND_CANCEL))
+         lblline(n) = exitlbl
+      end if
+      if (emptyexit) then
+         n = n + 1
+         keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_EXIT))
+         lblline(n) = trim(bindnames(BIND_PICKATOM_EXIT))
+      end if
+      if (mode == vm_objedit) then
+         n = n + 1
+         keyline(n) = trim(get_bind_keyname(BIND_CANCEL))
+         lblline(n) = exitlbl
+      end if
+
+      ! align the key column
+      ll = 1
+      do i = 1, n
+         ll = max(ll,len_trim(keyline(i)))
+      end do
+
+      ! the text: the mode name, what the mode does (wrapped at the
+      ! tooltip width), then the key table (one binding per line)
+      str = vm_label(mode)
+      if (len_trim(mdescr) > 0) str = str // newline // iw_tooltip_wraptext(mdescr)
+      str = str // newline
+      do i = 1, n
+         str = str // newline // string(trim(keyline(i)),length=ll+1) // " " // trim(lblline(i))
+      end do
+
+    end function mode_tooltip
+
+    !> The name of view mode mode: in the current object editing mode,
+    !> the type of the object the tool works on (select and remove), or
+    !> of the objects it draws; the name of the mode otherwise.
+    function vm_label(mode) result(str)
       use representations, only: repflavor_name
+      integer, intent(in) :: mode
       character(len=:), allocatable :: str
 
       integer :: irep
 
-      str = trim(vmnames(w%viewmode))
-      if (w%viewmode /= vm_objedit) return
+      str = trim(vmnames(mode))
+      if (mode /= vm_objedit .or. mode /= w%viewmode) return
       if (w%annot%itool <= objtool_kind0) then
          irep = annot_irep(w)
          if (annot_valid(w,irep,0)) &

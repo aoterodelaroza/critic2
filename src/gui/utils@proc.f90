@@ -1645,12 +1645,14 @@ contains
   !> item. samline_nospace = like sameline, but no extra
   !> space. changed = returns true if the combo option
   !> changed. noarrow = hide the arrow on the right of the combo.
+  !> tooltips_nowrap = the option tooltips are not word-wrapped (text
+  !> laid out by the caller).
   !> tooltips = a description of each option, in the format of stropt:
   !> shown when hovering the option in the open combo, and the one of
   !> the current option when hovering the closed combo (ttshown = the
   !> tooltip flag).
   module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed,noarrow,startsatone,&
-     tooltips,ttshown)
+     tooltips,ttshown,tooltips_nowrap)
     use interfaces_cimgui
     use types, only: realloc
     character(len=*,kind=c_char), intent(in) :: str
@@ -1663,6 +1665,7 @@ contains
     logical, intent(in), optional :: startsatone
     character(len=*,kind=c_char), intent(in), optional :: tooltips
     logical, intent(inout), optional :: ttshown
+    logical, intent(in), optional :: tooltips_nowrap
 
     type(ImVec2) :: szero
     character(len=:,kind=c_char), allocatable, target :: str1, str2, preview
@@ -1764,7 +1767,7 @@ contains
          end if
          n = n + 1
          if (n == k) then
-            if (j - 1 > j0) call iw_tooltip(tooltips(j0+1:j-1),ttshown)
+            if (j - 1 > j0) call iw_tooltip(tooltips(j0+1:j-1),ttshown,nowrap=tooltips_nowrap)
             return
          end if
          j0 = j
@@ -2675,6 +2678,49 @@ contains
     w = max(tooltip_wrap_factor,5._c_float) * fontsize%x
 
   end function iw_tooltip_wrapwidth
+
+  !> The text str broken at its blanks into lines of at most the
+  !> tooltip wrap width (a longer word stays whole on its own line), for
+  !> a nowrap tooltip that mixes wrapped text with lines laid out by the
+  !> caller (a key table). The width is counted in characters: the GUI
+  !> font is monospace, so that is iw_tooltip_wrapwidth in columns.
+  module function iw_tooltip_wraptext(str) result(out)
+    use gui_main, only: fontsize
+    use param, only: newline
+    character(len=*), intent(in) :: str
+    character(len=:), allocatable :: out
+
+    integer :: i, j, n, ncol, icol
+
+    ncol = nint(iw_tooltip_wrapwidth() / fontsize%x)
+    out = ""
+    icol = 0
+    n = len_trim(str)
+    i = 1
+    do while (i <= n)
+       ! the next word, str(i:j-1), and the blank after it
+       j = index(str(i:n)," ")
+       if (j == 0) then
+          j = n + 1
+       else
+          j = i + j - 1
+       end if
+       if (j > i) then
+          if (icol == 0) then
+             out = out // str(i:j-1)
+             icol = j - i
+          elseif (icol + 1 + (j - i) <= ncol) then
+             out = out // " " // str(i:j-1)
+             icol = icol + 1 + (j - i)
+          else
+             out = out // newline // str(i:j-1)
+             icol = j - i
+          end if
+       end if
+       i = j + 1
+    end do
+
+  end function iw_tooltip_wraptext
 
   !> Draw a "(?)" help marker (in the same line as the previous widget
   !> unless sameline is present and false) and attach the tooltip str to

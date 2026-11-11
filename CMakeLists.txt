@@ -98,6 +98,33 @@ if (ENABLE_GUI)
   ## glfw3
   find_package(GLFW3 REQUIRED)
 
+  ## X11 (optional, Linux/BSD): the GLFW backend marks the OS windows of
+  ## tooltips, popups and menus as not accepting the keyboard focus, so
+  ## the window manager leaves the focus (and the key states) on the
+  ## main window. Needs the X11 and Xrandr headers and a GLFW built with
+  ## the X11 platform (glfw3native.h); skipped if any is missing.
+  if (UNIX AND NOT APPLE)
+    find_package(X11 QUIET)
+    if (X11_FOUND)
+      include(CheckCXXSourceCompiles)
+      include(CMakePushCheckState)
+      cmake_push_check_state(RESET)
+      set(CMAKE_REQUIRED_INCLUDES "${GLFW3_INCLUDE_DIR}" "${X11_INCLUDE_DIR}")
+      set(CMAKE_REQUIRED_LIBRARIES "${GLFW3_LIBRARY}" "${X11_LIBRARIES}")
+      check_cxx_source_compiles("
+#define GLFW_EXPOSE_NATIVE_X11
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+#include <X11/Xutil.h>
+int main(){ Display *d = glfwGetX11Display(); XWMHints *h = XAllocWMHints(); XFree(h); return d == 0; }
+" GLFW_X11_FOUND)
+      cmake_pop_check_state()
+    endif()
+    if (NOT GLFW_X11_FOUND)
+      message(STATUS "X11 + GLFW native access not found (needs the X11 and Xrandr headers and a GLFW with X11): tooltip/popup windows may take the keyboard focus")
+    endif()
+  endif()
+
   ## opengl
   set(OpenGL_GL_PREFERENCE "GLVND")
   find_package(OpenGL REQUIRED)
@@ -336,6 +363,11 @@ summary_line("GUI" "${ENABLE_GUI}")
 if (ENABLE_GUI)
   summary_line("OpenGL" "${OPENGL_LIBRARIES}")
   summary_line("GLFW"   "${GLFW3_LIBRARY} | ${GLFW3_INCLUDE_DIR}")
+  if (GLFW_X11_FOUND)
+    summary_line("X11"    "${X11_LIBRARIES}")
+  elseif (UNIX AND NOT APPLE)
+    summary_line("X11"    "not found (tooltip/popup windows may take the keyboard focus)")
+  endif()
   summary_pkg("Freetype" FREETYPE_FOUND "" "${FREETYPE_LIBRARIES}")
   summary_pkg("HDF5"     HDF5_FOUND     "" "${HDF5_LIBRARIES}")
 endif()

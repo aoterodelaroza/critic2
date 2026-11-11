@@ -38,7 +38,9 @@ extern "C" const int const_GLFW_KEY_ESCAPE;
 extern "C" const int const_GLFW_PRESS;
 
 // functions //
+struct GLFWwindow;
 extern "C" int glfw_platform_is_wayland();
 extern "C" int glfw_any_window_key(int key, int sticky);
+extern "C" void glfw_window_set_no_input_focus(struct GLFWwindow *window);
 
 #endif

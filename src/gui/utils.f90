@@ -163,7 +163,7 @@ module utils
   public :: iw_close_button
   public :: iw_cell_right
   public :: iw_menuitem
-  public :: iw_tooltip, iw_tooltip_wrapwidth
+  public :: iw_tooltip, iw_tooltip_wrapwidth, iw_tooltip_wraptext
   public :: iw_helpermark
   public :: iw_expression_helper
   public :: iw_citation
@@ -424,7 +424,7 @@ module utils
        real(c_float) :: iw_calcwidth
      end function iw_calcwidth
      module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed,&
-        noarrow,startsatone,tooltips,ttshown)
+        noarrow,startsatone,tooltips,ttshown,tooltips_nowrap)
        character(len=*,kind=c_char), intent(in) :: str
        character(len=*,kind=c_char), intent(in) :: stropt
        integer, intent(inout) :: ival
@@ -435,6 +435,7 @@ module utils
        logical, intent(in), optional :: startsatone
        character(len=*,kind=c_char), intent(in), optional :: tooltips
        logical, intent(inout), optional :: ttshown
+       logical, intent(in), optional :: tooltips_nowrap
      end subroutine iw_combo_simple
      module function iw_radiobutton(str,bool,boolval,int,intval,sameline)
        character(len=*,kind=c_char), intent(in) :: str
@@ -584,6 +585,10 @@ module utils
      module function iw_tooltip_wrapwidth() result(w)
        real(c_float) :: w
      end function iw_tooltip_wrapwidth
+     module function iw_tooltip_wraptext(str) result(out)
+       character(len=*), intent(in) :: str
+       character(len=:), allocatable :: out
+     end function iw_tooltip_wraptext
      module subroutine iw_helpermark(str,sameline)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: sameline

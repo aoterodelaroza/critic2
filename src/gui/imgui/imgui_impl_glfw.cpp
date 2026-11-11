@@ -60,6 +60,7 @@
 #include "../cimgui/cimgui.h"
 #include "../cimgui/cimgui_impl.h"
 #include "imgui_impl_glfw.h"
+#include "glfwwrapper.h" // critic2: glfw_window_set_no_input_focus
 
 // Clang warnings with -Weverything
 #if defined(__clang__)
@@ -932,6 +933,16 @@ static void ImGui_ImplGlfw_CreateWindow(ImGuiViewport* viewport)
     glfwSetWindowCloseCallback(vd->Window, ImGui_ImplGlfw_WindowCloseCallback);
     glfwSetWindowPosCallback(vd->Window, ImGui_ImplGlfw_WindowPosCallback);
     glfwSetWindowSizeCallback(vd->Window, ImGui_ImplGlfw_WindowSizeCallback);
+
+    // critic2: tooltips, popups and menus (the viewports imgui marks
+    // _NoFocusOnClick) must not take the keyboard focus from the main
+    // window. GLFW_FOCUS_ON_SHOW only keeps GLFW from asking for it: on
+    // X11 the window manager focuses a new window anyway, the main window
+    // gets a focus-loss event, and imgui clears its key states, so a held
+    // modifier is lost every time a tooltip opens as an OS window.
+    if (viewport->Flags & ImGuiViewportFlags_NoFocusOnClick)
+        glfw_window_set_no_input_focus(vd->Window);
+
     if (bd->ClientApi == GlfwClientApi_OpenGL)
     {
         glfwMakeContextCurrent(vd->Window);

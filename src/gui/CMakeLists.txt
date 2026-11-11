@@ -68,6 +68,13 @@ if (GLFW3_INCLUDE_DIR)
   target_include_directories(fgui PRIVATE "${GLFW3_INCLUDE_DIR}")
 endif()
 
+## X11: see the GLFW_X11_FOUND check in the top-level CMakeLists.txt
+if (GLFW_X11_FOUND)
+  target_compile_definitions(fgui PRIVATE CRITIC2_GLFW_X11)
+  target_include_directories(fgui PRIVATE "${X11_INCLUDE_DIR}")
+  target_link_libraries(fgui PUBLIC "${X11_LIBRARIES}")
+endif()
+
 ## On macOS, gl3w.c loads GL entry points through the CoreFoundation bundle
 ## API (CFBundleGetFunctionPointerForName, ...), so CoreFoundation must be
 ## linked explicitly; the OpenGL framework does not pull it in.

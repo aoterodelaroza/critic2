@@ -24,7 +24,7 @@ value.
 
 # Polyhedra tab
 
-In the polyehdra tab, empty space is whatever is left after
+In the polyhedra tab, empty space is whatever is left after
 coordination polyhedra are drawn.
 
 - "Center" and "Vertices": species of the atoms at the center and at the vertices of the
@@ -36,7 +36,7 @@ coordination polyhedra are drawn.
 # Packing tab
 
 In the packing tab, spheres are placed on atoms and empty space
-corresponds to those poins outside an atomic sphere.
+corresponds to those points outside an atomic sphere.
 
 - "Atomic radii": van der Waals, covalent, or half the nearest-neighbor distance, as in the
   PACKING keyword.

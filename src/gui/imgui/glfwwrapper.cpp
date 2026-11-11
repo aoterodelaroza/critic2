@@ -22,6 +22,11 @@
 #include "imgui.h"
 
 #include <GLFW/glfw3.h>
+#ifdef CRITIC2_GLFW_X11
+#define GLFW_EXPOSE_NATIVE_X11
+#include <GLFW/glfw3native.h>
+#include <X11/Xutil.h>
+#endif
 
 // constants //
 const int const_GLFW_TRUE = GLFW_TRUE;
@@ -64,5 +69,40 @@ int glfw_any_window_key(int key, int sticky){
     if (glfwGetKey(w, key) == GLFW_PRESS) pressed = 1;
   }
   return pressed;
+}
+
+// Nonzero if GLFW runs on X11. glfwGetPlatform is new in GLFW 3.4;
+// older versions built with X11 support are assumed to run on it.
+static int glfw_platform_is_x11(){
+#if GLFW_VERSION_MAJOR > 3 || (GLFW_VERSION_MAJOR == 3 && GLFW_VERSION_MINOR >= 4)
+  return glfwGetPlatform() == GLFW_PLATFORM_X11;
+#else
+  return 1;
+#endif
+}
+
+// Mark the (not yet shown) window as not accepting the keyboard focus:
+// on X11, the ICCCM "No Input" model (WM_HINTS input = False and no
+// WM_TAKE_FOCUS, which GLFW never sets), so the window manager never
+// focuses it and the focus stays on the window that had it. Used for
+// the OS windows of tooltips, popups and menus, whose keyboard input
+// comes through the main window. A no-op on the other platforms (the
+// native X11 calls would raise a fatal GLFW error there).
+void glfw_window_set_no_input_focus(GLFWwindow *window){
+#ifdef CRITIC2_GLFW_X11
+  if (!glfw_platform_is_x11()) return;
+  Display *dpy = glfwGetX11Display();
+  Window win = glfwGetX11Window(window);
+  if (!dpy || !win) return;
+  XWMHints *hints = XGetWMHints(dpy, win);
+  if (!hints) hints = XAllocWMHints();
+  if (!hints) return;
+  hints->flags |= InputHint;
+  hints->input = False;
+  XSetWMHints(dpy, win, hints);
+  XFree(hints);
+#else
+  (void) window;
+#endif
 }
 
