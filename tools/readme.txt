@@ -210,26 +210,3 @@ ones, but states no licence for the files it hosts, so potentials
 obtained from it are for your own use and must not be redistributed.
 See dat/eam/README.
 
-Fragment diagrams for the GUI builder
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The script genfrag.py draws the diagrams the GUI builder shows for the
-fragments in its library: it reads the geometries in
-dat/lib/fragment.dat and writes one png per fragment to
-dat/assets/fragments. Run it after adding or changing a fragment in
-the library, and commit the images:
-
-::
-
-  #ascii#
-  tools/genfrag.py                     # all of them
-  tools/genfrag.py outdir methyl acac  # just these, written to outdir
-
-It needs RDKit and Pillow. It is usually run through the python
-environment that has them:
-
-::
-
-  #ascii#
-  conda run -n myenv python tools/genfrag.py
-
