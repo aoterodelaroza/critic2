@@ -1,0 +1,41 @@
+title: Input/Output Console
+manual:
+
+The two consoles are the command-line program inside the GUI. The Input console takes a
+critic2 script, with the same keywords as an input file, and runs it on the current
+system; the Output console keeps what every run printed. The keywords are documented in
+the online manual, and the "Help" button of the Input console gives a reference for each.
+
+# Input console
+
+- "Clear" empties the text; "Template" inserts the template of a critic2 command;
+  "Help" brings up the critic2 command reference.
+- "System" chooses the current system and "Field" its reference field: the commands are
+  applied to them. The system follows the selection in the tree unless the preference
+  "Tree selects input console system" is off.
+- "RUN" (Ctrl+Enter with the console focused) runs the text as a script. Right-click the
+  button for "Run on All Systems", which runs the same commands on every loaded system.
+
+The script runs as it would in the command-line program, with the current system as the
+loaded structure and the reference field as the current field. A command that changes the
+geometry (EDIT, NEWCELL) or the critical points (AUTO) updates the view and the tree when
+it finishes. The CRYSTAL, MOLECULE and RESET keywords are refused in the GUI, where
+structures are opened with File > New or File > Open: the script reports it in the output
+and goes on with the next line.
+
+# Output console
+
+Every run is a record, headed by "### Command: N" with the time, the system, the field
+and the input text, and listed as a numbered button above the text area, newest first.
+Click a button to show that record alone, or "All" for the whole log. Hover a button for
+its system, field and input, and right-click it for "Edit Input", which copies its text
+back to the Input console, and "Remove".
+
+- "Clear" (shown with "All" active) empties the log; "Copy" copies the record on display
+  to the clipboard and "Save" writes it to a file; "Remove All" discards every record.
+- The tab of the window shows "Output" with a dot when something was written since the
+  console was last focused.
+
+The "Please cite" blocks that the methods print in the command-line program (NCI, XDM,
+Bader integration and others) appear here too; the same references are in the Help topic
+of the corresponding tool window.

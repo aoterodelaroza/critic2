@@ -1,0 +1,59 @@
+title: Menus
+manual:
+
+The menu bar holds the commands that do not belong to one window. Default key bindings
+are given in parentheses (changeable in Edit > Preferences).
+
+# File
+
+- "New..." (Ctrl+Shift+N), "New from Library..." and "New Molecule" (Ctrl+N) create a
+  structure from scratch, from the critic2 library, or an empty molecule.
+- "Open..." (Ctrl+O) reads structures from files; "Duplicate", "Restore" (Ctrl+R)
+  and "Close" (Ctrl+W) act on the current system.
+- "Export to PNG" (Ctrl+E) writes an image of the view next to the source file; "Export
+  to Image..." (Ctrl+Shift+E) asks for the file and settings; "Export to 3D Model..."
+  writes a 3D model file.
+- "Save" (Ctrl+S) writes the current system back to its input file, "Save As..."
+  (Ctrl+Shift+S) in a chosen format, "Save Multiple..." several systems at once and
+  "Save Scene..." the system as shown.
+- "Load Field..." and "Load Field from File..." load a scalar field.
+- "Demonstrations": "Water Cluster" and "Metal Melting".
+- "Quit" (Ctrl+Q).
+
+# Edit
+
+- "Undo" (Ctrl+Z) and "Redo" (Ctrl+Y, Ctrl+Shift+Z) revert or repeat the last change to
+  the geometry or the objects.
+- "Cut" (Ctrl+X), "Copy" (Ctrl+C) and "Paste" (Ctrl+V) move the selected atoms through
+  the clipboard. "Paste as..." makes a "New Molecule" or "New Crystal" from it. "Remove
+  Selection" (Delete) deletes them.
+- "Select All" (Ctrl+A), "Select None" (Escape) and "Invert Selection" change the
+  selection; "System from Selection" and "Molecule from Selection" make a new system
+  from it.
+- "Preferences..." (Ctrl+,) opens the settings and key bindings window; "Reset
+  Preferences" restores the defaults.
+
+# Windows
+
+- "Tree" (F2), "Main View", "Input Console" (F3) and "Output Console" (F4) show or hide
+  the permanent windows; "Display Settings" selects the part of the system drawn in the
+  main view; "New View Window" opens an additional view.
+- "Save Layout" stores the window positions for the next start; "Reset Layout" docks
+  the permanent windows in their default places.
+
+# Tools
+
+The tool windows, described in the other help topics.
+
+- "Recalculate Bonds" (F5), "View/Edit Geometry..." (G), "Builder..." (Ctrl+B) and
+  "Extract Molecule(s)..." act on the structure.
+- "Dynamics": "Vibrations...", "Dynamics...", "Rattle Structure...".
+- "Structure Analysis": "Crystal Voids...", "K-Point Grid...".
+- "Field Plots": "Point Properties...", "Line Profile...", "Plane Map...",
+  "Isosurface...", "Calculate Grid...", "NCI Plot...", "Molecular Orbitals...".
+- "QTAIM": "Critical Points...", "Trace Gradient Paths...".
+
+# Help
+
+- "Help Topics..." opens this window, "Critic2 Manual..." (F1) the online manual and
+  "About..." the version and references.

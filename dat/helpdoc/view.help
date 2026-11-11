@@ -1,0 +1,45 @@
+title: View Window(s)
+manual:
+
+The view draws the current system in 3D: atoms, bonds, cell and the objects added to the
+scene. The main view follows the system selected in the tree; the combo at
+the right end of the toolbar also chooses the system shown.
+
+# Toolbar
+
+- "An" (D) shows the annotation toolbar, with the tools that draw shapes, text,
+  measurements and axes.
+- "Atoms" (1), "Bonds" (2), "Labels" (3), "Cell" (4) and "Poly" (5)
+  show or hide those objects.
+- "Cells" shows the number of unit cells drawn along a, b and c (Keypad + and - change
+  it); its popup sets them. "k-space" (Ctrl+K) switches to the reciprocal-space scene.
+- "Camera": "Orthographic" or "Perspective" projection, buttons that align the camera
+  with the cell or Cartesian axes (A, B, C, X, Y, Z), the "Reset distance" ratio, the
+  "Camera lock" between systems (main view only) and the background "Color".
+- "All" applies the settings of this scene to the systems selected in the tree;
+  "Reset" returns the scene to its defaults.
+- "Show" opens the Display Settings window, which selects the part of the system drawn;
+  "Draw" adds an object; "Objects" lists the objects.
+- "Tools" is the Tools menu for this system; "View" opens a new view of the same scene.
+
+# Mouse and view modes
+
+The combo at the bottom sets the view mode; its tooltip lists the bindings.
+
+- "Navigate": drag with the left button to rotate, the middle button to spin and the
+  right button to pan; the wheel zooms and a right double-click resets the view.
+  Double-click atoms to select them for a measurement (distance, angle, dihedral) and
+  right-click to add or remove it.
+- "Select" (or hold Shift in Navigate): click or drag a rectangle to select atoms,
+  right-click to select a molecule.
+- "Move Molecules" (hold Ctrl) drags a molecule as a rigid body; "Move Atoms"
+  (Ctrl+Shift) drags one atom.
+- The pick, builder, "Interact (MD)" and "Edit Object" modes are set by the window that
+  needs them and return to Navigate when done. Escape exits the mode and clears the
+  selection.
+
+# Several views
+
+Windows > New View Window, or the "View" button, opens an alternate view. Tool
+windows anchor to the view they were opened from and follow the system it shows.
+File > Export to Image... (Ctrl+Shift+E) writes the view to a PNG file.

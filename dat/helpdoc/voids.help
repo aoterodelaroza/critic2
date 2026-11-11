@@ -2,14 +2,18 @@ title: Crystal Voids
 manual: structure/#c2-packing
 
 Measures the empty space in a crystal: the volume of the unit cell not occupied by the
-atoms. Three definitions of "empty" are available, one per tab, and each
+atoms. Three definitions of "empty space" are available, one per tab, and each
 reports the void volume and its fraction of the cell volume. The analysis needs a periodic
-cell, so it is only available for crystals; the results are dropped if the geometry changes.
+cell, so it is only available for crystals.
 
 # Isosurface tab
 
-- "Isovalue (a.u.)": a point belongs to a void if the promolecular density (the sum of the
-  in-vacuo atomic densities) at that point is lower than this value.
+In this tab, the empty space is the volume where the promolecular
+density (the sum of free-atom densities) is lower than a certain
+value.
+
+- "Isovalue (a.u.)": a point belongs to a void if the promolecular
+  density at that point is lower than this value.
 - "Grid spacing (Å)": approximate distance between consecutive points of the grid on which
   the promolecular density is calculated. A finer grid resolves the voids better but takes
   longer (the grid size is shown next to it).

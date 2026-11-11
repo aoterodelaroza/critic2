@@ -31,9 +31,10 @@ submodule (windows) help
 
   ! the topics, in the order of the list; the key is the name of the
   ! file in helpdoc/ and the key window_help_topic gives
-  integer, parameter :: nhelp = 18
+  integer, parameter :: nhelp = 22
   character(len=10), parameter :: help_key(nhelp) = (/&
      "index     ",&
+     "menus     ","tree      ","console   ","view      ",&
      "geometry  ","builder   ","extract   ",&
      "vibrations","dynamics  ","rattle    ",&
      "voids     ","kpoints   ",&
@@ -41,11 +42,11 @@ submodule (windows) help
      "cp        ","gpaths    "/)
 
   ! the group of each topic: a header in the list, as in the Tools menu
-  integer, parameter :: nhelpgroup = 6
+  integer, parameter :: nhelpgroup = 7
   character(len=18), parameter :: help_group(nhelpgroup) = (/&
-     "Overview          ","Structure         ","Dynamics          ",&
+     "Overview          ","Critic2 interface ","Structure         ","Dynamics          ",&
      "Structure analysis","Field plots       ","QTAIM             "/)
-  integer, parameter :: help_igroup(nhelp) = (/1, 2,2,2, 3,3,3, 4,4, 5,5,5,5,5,5,5, 6,6/)
+  integer, parameter :: help_igroup(nhelp) = (/1, 2,2,2,2, 3,3,3, 4,4,4, 5,5, 6,6,6,6,6,6,6, 7,7/)
 
   ! width of the topic list (characters)
   integer, parameter :: help_list_width = 27
@@ -222,7 +223,13 @@ contains
     character(len=:), allocatable :: key
 
     key = ""
-    if (w%type == wintype_geometry) then
+    if (w%type == wintype_tree) then
+       key = "tree"
+    elseif (w%type == wintype_view) then
+       key = "view"
+    elseif (w%type == wintype_console_input .or. w%type == wintype_console_output) then
+       key = "console"
+    elseif (w%type == wintype_geometry) then
        key = "geometry"
     elseif (w%type == wintype_builder) then
        key = "builder"

@@ -1,0 +1,49 @@
+title: System Tree
+manual:
+
+The tree lists the loaded systems, one row each, and is where the current system is
+chosen: the main view, the input console and the tool windows follow it. A file with
+several geometries (SCF or optimization steps) comes in as a group under a header row.
+
+# Columns
+
+- The first columns hold the close button, the expand triangle of a group, the "Id", an
+  icon for the "File format" and the "System properties" icons: scalar fields loaded
+  (click it to show or hide the field list), vibration data, partial site occupancies
+  (disorder) and critical points.
+- "Name" shows the name of the system. Right-click the header for the hidden columns
+  ("Symmetry", "Volume/Å³", numbers of atoms, Z, Z', cell parameters, energy,
+  pressure). Clicking a header sorts by it.
+
+# Header row
+
+- The "❇" button opens the tree menu: "Expand All", "Collapse All", "Plot Tree Data...",
+  "Save Multiple...", "Close Selected", "Close Visible" and "Close All".
+- The filter box keeps the rows whose name matches it: comma-separated fields are
+  alternatives and a leading - excludes (inc1,inc2,-exc). "Clear" empties it. The
+  numbers of shown and selected systems follow the box.
+
+# Selection
+
+A click makes a row the current system and selects it alone; control-click toggles single
+rows and shift-click selects a range. "All", "None" and "Toggle" select every
+visible system, deselect all but the current one, or invert the selection. "Close
+Selected", the Delete key and the "All" button of the view act on the selection. The
+preferences "Tree selects view system" and "Tree selects input console system" decide
+whether the main view and the input console follow the tree; J and K move to the next
+and the previous system.
+
+# Fields
+
+The triangle before the name, or a double-click on the row, opens the list of the fields
+of the system; the reference field is outlined. Click a field to make it the reference,
+and right-click it for its menu (rename, duplicate, evaluation options, "Critical
+Points...", "New Isosurface", "Remove"). The red X of a field removes it; the Delete key
+removes the reference field while the list is open and closes the selected systems
+otherwise.
+
+# Context menu
+
+Right-click a system for "Set as Current System", "Rename", "Duplicate", "Display in New
+View", "View/Edit Geometry...", "Describe in Output Window", the "Fields", "Vibrations"
+and "Critical Points" submenus, "Save Scene...", "Restore from File" and "Close".
