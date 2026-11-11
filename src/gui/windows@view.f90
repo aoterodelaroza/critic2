@@ -2181,7 +2181,7 @@ contains
        isel = w%viewmode
     end if
     call iw_combo_simple("##viewmode",viewmode_items,isel,changed=ch,tooltips=viewmode_tips,&
-       ttshown=ttshown,tooltips_nowrap=.true.)
+       ttshown=ttshown,tooltips_nowrap=.true.,tooltips_hltitle=.true.)
     if (ch) then
        w%viewmode = isel
        w%viewmode_transient = .false.

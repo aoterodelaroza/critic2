@@ -1646,13 +1646,14 @@ contains
   !> space. changed = returns true if the combo option
   !> changed. noarrow = hide the arrow on the right of the combo.
   !> tooltips_nowrap = the option tooltips are not word-wrapped (text
-  !> laid out by the caller).
+  !> laid out by the caller). tooltips_hltitle = the first line of each
+  !> option tooltip is a title, drawn in the highlight color.
   !> tooltips = a description of each option, in the format of stropt:
   !> shown when hovering the option in the open combo, and the one of
   !> the current option when hovering the closed combo (ttshown = the
   !> tooltip flag).
   module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed,noarrow,startsatone,&
-     tooltips,ttshown,tooltips_nowrap)
+     tooltips,ttshown,tooltips_nowrap,tooltips_hltitle)
     use interfaces_cimgui
     use types, only: realloc
     character(len=*,kind=c_char), intent(in) :: str
@@ -1666,6 +1667,7 @@ contains
     character(len=*,kind=c_char), intent(in), optional :: tooltips
     logical, intent(inout), optional :: ttshown
     logical, intent(in), optional :: tooltips_nowrap
+    logical, intent(in), optional :: tooltips_hltitle
 
     type(ImVec2) :: szero
     character(len=:,kind=c_char), allocatable, target :: str1, str2, preview
@@ -1767,7 +1769,8 @@ contains
          end if
          n = n + 1
          if (n == k) then
-            if (j - 1 > j0) call iw_tooltip(tooltips(j0+1:j-1),ttshown,nowrap=tooltips_nowrap)
+            if (j - 1 > j0) call iw_tooltip(tooltips(j0+1:j-1),ttshown,nowrap=tooltips_nowrap,&
+               hltitle=tooltips_hltitle)
             return
          end if
          j0 = j
@@ -2614,20 +2617,24 @@ contains
   !> Create a wrapped tooltip, maybe with a delay to show. ttshown
   !> activates the delay, and is the show flag for the delayed tooltip.
   !> whendisabled shows the tooltip also for a disabled widget, which is
-  !> where the user most needs to be told why it cannot be used.
-  module subroutine iw_tooltip(str,ttshown,rgba,nowrap,whendisabled)
+  !> where the user most needs to be told why it cannot be used. With
+  !> hltitle, the first line of str is a title, drawn in the highlight
+  !> color above the rest.
+  module subroutine iw_tooltip(str,ttshown,rgba,nowrap,whendisabled,hltitle)
     use interfaces_cimgui
     use gui_main, only: tooltip_delay, tooltip_enabled, pending_block_window, force_run_commands
+    use param, only: newline
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout), optional :: ttshown
     real(c_float), intent(in), optional :: rgba(4)
     logical, intent(in), optional :: nowrap
     logical, intent(in), optional :: whendisabled
+    logical, intent(in), optional :: hltitle
 
     character(len=:,kind=c_char), allocatable, target :: strloc
-    integer :: flags
+    integer :: flags, idx
     type(ImVec4) :: col
-    logical :: nowrap_
+    logical :: nowrap_, hltitle_
 
     ! no tooltips once a blocking job was requested: its overlay is
     ! drawn later in this frame, which stays on the screen during the
@@ -2635,6 +2642,8 @@ contains
     if (.not.tooltip_enabled .or. pending_block_window > 0 .or. force_run_commands > 0) return
     nowrap_ = .false.
     if (present(nowrap)) nowrap_ = nowrap
+    hltitle_ = .false.
+    if (present(hltitle)) hltitle_ = hltitle
     if (present(rgba)) then
        col%x = rgba(1)
        col%y = rgba(2)
@@ -2658,11 +2667,18 @@ contains
 
   contains
     subroutine show_tooltip()
-      strloc = trim(str) // c_null_char
       call igBeginTooltip()
       if (.not.nowrap_) call igPushTextWrapPos(iw_tooltip_wrapwidth())
+      strloc = trim(str) // c_null_char
+      if (hltitle_) then
+         ! the title line in the highlight color, then the rest
+         idx = index(str,newline)
+         if (idx == 0) idx = len(str) + 1
+         call iw_text(str(1:idx-1),highlight=.true.)
+         strloc = trim(str(min(idx+1,len(str)+1):)) // c_null_char
+      end if
       ! unformatted: the text is data, not a printf format string
-      call igTextUnformatted(c_loc(strloc),c_null_ptr)
+      if (len(strloc) > 1) call igTextUnformatted(c_loc(strloc),c_null_ptr)
       if (.not.nowrap_) call igPopTextWrapPos()
       call igEndTooltip()
     end subroutine show_tooltip
