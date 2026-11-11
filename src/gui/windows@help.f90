@@ -72,12 +72,7 @@ contains
     ! load the topics on the first pass; they are kept when the window
     ! is closed and reopened (the selected topic too: help_open sets it)
     if (w%firstpass) then
-       if (.not.allocated(w%hp%tp)) then
-          allocate(w%hp%tp(nhelp))
-          do i = 1, nhelp
-             call help_load_topic(trim(help_key(i)),w%hp%tp(i))
-          end do
-       end if
+       call help_load_all(w%hp)
        w%hp%itopic = max(1,min(w%hp%itopic,nhelp))
        w%hp%sec_refs = iw_section()
     end if
@@ -200,6 +195,25 @@ contains
 
   end subroutine help_open
 
+  !> The citation ids of the help topic with the given key (an empty
+  !> array if the topic has none or the key is unknown): the Cite
+  !> button of a tool window copies them. Loads the topics into the
+  !> help window if it has not been opened yet.
+  module function help_topic_cites(key) result(ids)
+    character(len=*), intent(in) :: key
+    integer, allocatable :: ids(:)
+
+    integer :: it
+
+    allocate(ids(0))
+    if (iwin_help < 1 .or. iwin_help > nwin) return
+    it = findloc(help_key,key,dim=1)
+    if (it == 0) return
+    call help_load_all(win(iwin_help)%hp)
+    ids = win(iwin_help)%hp%tp(it)%icite
+
+  end function help_topic_cites
+
   !> The key of the help topic of window w, or an empty string if the
   !> window has none (then it gets no Help button).
   module function window_help_topic(w) result(key)
@@ -251,6 +265,21 @@ contains
   end function window_help_topic
 
   !xx! private procedures
+
+  !> Load every topic into the help state hp, once (the topics are
+  !> kept while the window is closed).
+  subroutine help_load_all(hp)
+    type(help_state), intent(inout) :: hp
+
+    integer :: i
+
+    if (allocated(hp%tp)) return
+    allocate(hp%tp(nhelp))
+    do i = 1, nhelp
+       call help_load_topic(trim(help_key(i)),hp%tp(i))
+    end do
+
+  end subroutine help_load_all
 
   !> Read the help file of topic key into tp. A missing or unreadable
   !> file leaves tp%found false, with the key as title.

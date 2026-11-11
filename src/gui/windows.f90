@@ -2749,6 +2749,10 @@ module windows
        class(window), intent(in) :: w
        character(len=:), allocatable :: key
      end function window_help_topic
+     module function help_topic_cites(key) result(ids)
+       character(len=*), intent(in) :: key
+       integer, allocatable :: ids(:)
+     end function help_topic_cites
      !xx! kpoints submodule !xx!
      module subroutine draw_kpoints(w)
        class(window), intent(inout), target :: w

@@ -1604,12 +1604,16 @@ contains
        iw_bottomrow_height, iw_bottomrow_ypos, iw_bottomrow_xpos, iw_button, iw_tooltip
     use systems, only: sysc, ok_system, sys_init
     use tools_io, only: string, ferror, faterr
-    use param, only: dirsep
+    use param, only: dirsep, newline
     use representations, only: iso_region_cell, reptype_slice
+    use citations, only: cite_bibtex
     class(window), intent(inout), target :: w
 
     integer :: idp ! the window that opened this dialog, if still there
 
+    integer :: i
+    integer, allocatable :: icite(:)
+    real(c_float) :: wneed
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     character(len=:), allocatable :: str4
     integer(c_int) :: dflags
@@ -2194,16 +2198,38 @@ contains
              call iw_bottomrow_end()
 
              ! the Help button of a window with a help topic, at the
-             ! left end of its row of buttons (the row is right-aligned);
-             ! not when the window is too narrow to fit it before the row
-             if (iw_bottomrow_ypos >= 0._c_float .and. &
-                g%Style%WindowPadding%x + iw_calcwidth(4,1) + g%Style%ItemSpacing%x <= iw_bottomrow_xpos) then
+             ! left end of its row of buttons (the row is right-aligned),
+             ! and the Cite button next to it if the topic has
+             ! references; not when the window is too narrow to fit them
+             ! before the row
+             if (iw_bottomrow_ypos >= 0._c_float) then
                 str4 = window_help_topic(w)
                 if (len(str4) > 0) then
-                   call igSetCursorPosX(g%Style%WindowPadding%x)
-                   call igSetCursorPosY(iw_bottomrow_ypos)
-                   if (iw_button("Help##windowhelp")) call help_open(str4)
-                   call iw_tooltip("Open the help for this window",ttshown)
+                   icite = help_topic_cites(str4)
+                   if (size(icite,1) > 0) then
+                      wneed = iw_calcwidth(8,2) + g%Style%ItemSpacing%x
+                   else
+                      wneed = iw_calcwidth(4,1)
+                   end if
+                   if (g%Style%WindowPadding%x + wneed + g%Style%ItemSpacing%x <= iw_bottomrow_xpos) then
+                      call igSetCursorPosX(g%Style%WindowPadding%x)
+                      call igSetCursorPosY(iw_bottomrow_ypos)
+                      if (iw_button("Help##windowhelp")) call help_open(str4)
+                      call iw_tooltip("Open the help for this window",ttshown)
+                      if (size(icite,1) > 0) then
+                         if (iw_button("Cite##windowcite",sameline=.true.)) then
+                            str1 = ""
+                            do i = 1, size(icite,1)
+                               if (i > 1) str1 = str1 // newline // newline
+                               str1 = str1 // cite_bibtex(icite(i))
+                            end do
+                            str1 = str1 // c_null_char
+                            call igSetClipboardText(c_loc(str1))
+                         end if
+                         call iw_tooltip("Copy the references for the method of this window to the "//&
+                            "clipboard, in BibTeX format",ttshown)
+                      end if
+                   end if
                 end if
              end if
 

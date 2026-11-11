@@ -72,19 +72,61 @@ contains
 
   end function cite_find
 
-  !> The one-line form of citation id: the reference text followed by
-  !> the DOI in parentheses, if there is one.
+  !> The one-line form of citation id: authors, journal, volume
+  !> (year) pages, and the DOI in parentheses, if there is one.
   module function cite_line(id) result(str)
     integer, intent(in) :: id
     character(len=:), allocatable :: str
 
     str = ""
     if (id < 1 .or. id > ncite) return
-    str = trim(citelist(id)%text)
-    if (len_trim(citelist(id)%doi) > 0) &
-       str = str // " (doi:" // trim(citelist(id)%doi) // ")"
+    associate (c => citelist(id))
+      str = authors_text(trim(c%author)) // ", " // trim(c%journal)
+      if (len_trim(c%volume) > 0) str = str // " " // trim(c%volume)
+      str = str // " (" // trim(c%year) // ")"
+      if (len_trim(c%pages) > 0) str = str // " " // trim(c%pages)
+      str = str // "."
+      if (len_trim(c%doi) > 0) str = str // " (doi:" // trim(c%doi) // ")"
+    end associate
 
   end function cite_line
+
+  !> The BibTeX entry of citation id (an empty string for an unknown
+  !> id). The key is the surname of the first author and the year.
+  module function cite_bibtex(id) result(str)
+    use param, only: newline
+    integer, intent(in) :: id
+    character(len=:), allocatable :: str
+
+    character(len=:), allocatable :: first
+    integer :: idx
+
+    str = ""
+    if (id < 1 .or. id > ncite) return
+    associate (c => citelist(id))
+      ! the key: surname of the first author and the year
+      first = trim(c%author)
+      idx = index(first," and ")
+      if (idx > 0) first = first(1:idx-1)
+      idx = index(first," ",back=.true.)
+      if (idx > 0) first = first(idx+1:)
+
+      str = "@" // trim(c%kind) // "{" // first // trim(c%year) // "," // newline //&
+         "  author = {" // trim(c%author) // "}," // newline //&
+         "  title = {{" // trim(c%title) // "}}," // newline
+      if (c%kind == "article") then
+         str = str // "  journal = {" // trim(c%journal) // "}," // newline
+         if (len_trim(c%volume) > 0) str = str // "  volume = {" // trim(c%volume) // "}," // newline
+         if (len_trim(c%pages) > 0) str = str // "  pages = {" // trim(c%pages) // "}," // newline
+      else
+         str = str // "  howpublished = {" // trim(c%journal) // "}," // newline
+      end if
+      str = str // "  year = {" // trim(c%year) // "}"
+      if (len_trim(c%doi) > 0) str = str // "," // newline // "  doi = {" // trim(c%doi) // "}"
+      str = str // newline // "}"
+    end associate
+
+  end function cite_bibtex
 
   !> The https://doi.org/ URL of citation id, or an empty string if
   !> the citation has no DOI.
@@ -124,5 +166,43 @@ contains
     end function url_encode
 
   end function cite_doi_url
+
+  !xx! private procedures
+
+  !> The author list of a citation (BibTeX form, "A and B and C") as
+  !> written in text: "A", "A and B", or "A, B, and C".
+  function authors_text(author) result(str)
+    character(len=*), intent(in) :: author
+    character(len=:), allocatable :: str
+
+    character(len=:), allocatable :: rest
+    integer :: idx, n
+
+    ! count the authors
+    n = 1
+    rest = author
+    do while (.true.)
+       idx = index(rest," and ")
+       if (idx == 0) exit
+       n = n + 1
+       rest = rest(idx+5:)
+    end do
+
+    if (n <= 2) then
+       str = author
+    else
+       ! commas between the authors, and ", and" before the last
+       str = ""
+       rest = author
+       do while (.true.)
+          idx = index(rest," and ")
+          if (idx == 0) exit
+          str = str // rest(1:idx-1) // ", "
+          rest = rest(idx+5:)
+       end do
+       str = str // "and " // rest
+    end if
+
+  end function authors_text
 
 end submodule proc
