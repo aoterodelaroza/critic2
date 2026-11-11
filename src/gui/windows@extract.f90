@@ -140,12 +140,19 @@ contains
        end if
     end if
 
-    ! default center (cell center for crystals, origin for molecules);
+    ! default center: the center of the cell, as fractional coordinates
+    ! for crystals and, for molecules, in the absolute frame (Å), which
+    ! includes the molecular origin molx0 (the cell center is where the
+    ! molecule was placed, not the origin of its coordinates);
     ! re-applied when the anchor view changes system. Also compute the
     ! rough atom number density (bohr^-3) for the atom-count estimate:
     ! atoms per cell volume for crystals, per bounding box for molecules
     if (w%firstpass .or. syschanged) then
-       w%extract_center = merge(0._c_float,0.5_c_float,ismol)
+       if (ismol) then
+          w%extract_center = real((sys(isys)%c%x2c((/0.5d0,0.5d0,0.5d0/)) + sys(isys)%c%molx0) * bohrtoa,c_float)
+       else
+          w%extract_center = 0.5_c_float
+       end if
        w%errmsg = ""
        w%okmsg = ""
        w%extract_atdens = 0._c_float
