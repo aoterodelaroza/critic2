@@ -72,6 +72,9 @@ module representations
   real*8, parameter, public :: latvec_rad_def = 0.3d0 / bohrtoa ! sphere radius
   real(c_float), parameter, public :: latvec_rgb_def(3) = (/0._c_float,1._c_float,168._c_float/255._c_float/) ! sphere color (#00FFA8)
   real(c_float), parameter, public :: latvec_cenrgb_def(3) = (/0.15_c_float,0.35_c_float,0.85_c_float/) ! centering points
+  !--> special k-points
+  real*8, parameter, public :: skp_rad_def = 1.2d0 * latvec_rad_def ! sphere radius (larger than the lattice points, so Gamma shows over the origin)
+  real(c_float), parameter, public :: skp_rgb_def(3) = (/1._c_float,0.55_c_float,0.1_c_float/) ! sphere color (#FF8C1A)
   !--> axes
   real*8, parameter, public :: axes_length_def = 1.0d0 / bohrtoa ! length of each axis
   real*8, parameter, public :: axes_radius_def = 0.06d0 / bohrtoa ! radius of the axis shafts
@@ -448,7 +451,8 @@ module representations
   integer, parameter, public :: reptype_reclat = 22 ! spheres at the reciprocal lattice points
   integer, parameter, public :: reptype_reccell = 23 ! reciprocal cell (a*, b*, c*)
   integer, parameter, public :: reptype_recaxes = 24 ! reciprocal axes gizmo (a*, b*, c*)
-  integer, parameter, public :: reptype_NUM = 24
+  integer, parameter, public :: reptype_skpoints = 25 ! special k-points of the Brillouin zone (HPKOT)
+  integer, parameter, public :: reptype_NUM = 25
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -481,7 +485,8 @@ module representations
   integer, parameter, public :: repflavor_reclat = 27
   integer, parameter, public :: repflavor_reccell = 28
   integer, parameter, public :: repflavor_recaxes = 29
-  integer, parameter, public :: repflavor_NUM = 29
+  integer, parameter, public :: repflavor_skpoints = 30
+  integer, parameter, public :: repflavor_NUM = 30
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -502,7 +507,7 @@ module representations
      reptype_symelem, reptype_text, reptype_measure, reptype_shapes, reptype_isosurface,&
      reptype_cps, reptype_gpaths, reptype_planar, reptype_legend, reptype_scalebar,&
      reptype_colorbar, reptype_slice, reptype_wscell, reptype_latvec, reptype_bz, reptype_reclat,&
-     reptype_reccell, reptype_recaxes/)
+     reptype_reccell, reptype_recaxes, reptype_skpoints/)
 
   ! default name of an object, by flavor (each flavor belongs to exactly
   ! one kind, so this is also the name of the kind for its basic flavor)
@@ -536,7 +541,8 @@ module representations
      "Brillouin Zone    ",& ! repflavor_bz
      "Lattice Vectors   ",& ! repflavor_reclat
      "Reciprocal Cell   ",& ! repflavor_reccell
-     "Reciprocal Axes   "/) ! repflavor_recaxes
+     "Reciprocal Axes   ",& ! repflavor_recaxes
+     "Special Points    "/) ! repflavor_skpoints
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -639,6 +645,25 @@ module representations
      real*8, allocatable :: hide(:,:) ! points not drawn (fractional; reciprocal: hkl)
   end type rep_latvec
   public :: rep_latvec
+
+  !> Special k-points options (reptype_skpoints; accessed as r%skp%...).
+  !> The points come from the system (sysc%skp, calculated once per
+  !> geometry); sizes are in bohr^-1.
+  type rep_skpoints
+     logical :: equiv = .false. ! draw the symmetry-equivalent images of the points too
+     real*8 :: rad = skp_rad_def ! sphere radius (bohr^-1)
+     real(c_float) :: rgb(3) = skp_rgb_def ! sphere color
+     real*8 :: alpha = 1d0 ! sphere opacity (1 = opaque)
+     real*8 :: border_size = atomborder_def ! sphere border size (bohr^-1)
+     real(c_float) :: border_rgb(3) = 0._c_float ! sphere border color
+     logical :: showlabels = .true. ! draw the labels
+     real*8 :: label_scale = label_scale_def ! label size, relative to the sphere radius
+     real(c_float) :: label_rgb(3) = 0._c_float ! label color
+     logical :: label_const_size = .false. ! labels have a constant size (do not scale with zoom)
+     real*8 :: label_offset(3) = 0d0 ! offset of the labels (Å)
+     character(len=8), allocatable :: hide(:) ! points not drawn (HPKOT labels)
+  end type rep_skpoints
+  public :: rep_skpoints
 
   !> Cartesian/crystallographic axes options (reptype_axes; accessed as r%axes%...)
   type rep_axes
@@ -1494,6 +1519,7 @@ module representations
      type(rep_slice) :: slice ! plane map options
      type(rep_wscell) :: ws ! Wigner-Seitz cell options
      type(rep_latvec) :: lv ! lattice vectors options
+     type(rep_skpoints) :: skp ! special k-points options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -1529,6 +1555,8 @@ module representations
   public :: recip_points
   public :: recip_scale
   public :: reptype_is_recip
+  public :: hpkot_label
+  public :: skpoints_shown
   public :: lattice_points
   public :: display_cell_window
   public :: wscell_isdrawn
@@ -1641,6 +1669,19 @@ module representations
        type(crystal), intent(in) :: c
        real*8 :: s
      end function recip_scale
+     module function hpkot_label(lbl) result(str)
+       character*(*), intent(in) :: lbl
+       character(len=:), allocatable :: str
+     end function hpkot_label
+     module subroutine skpoints_shown(hide,lbl,xk,xkeq,ieq,shown,shownimg)
+       character(len=8), allocatable, intent(in) :: hide(:)
+       character(len=8), intent(in) :: lbl(:)
+       real*8, intent(in) :: xk(:,:)
+       real*8, intent(in) :: xkeq(:,:)
+       integer, intent(in) :: ieq(:)
+       logical, allocatable, intent(inout) :: shown(:)
+       logical, allocatable, intent(inout), optional :: shownimg(:)
+     end subroutine skpoints_shown
      module function reptype_is_recip(itype) result(ok)
        integer, intent(in) :: itype
        logical :: ok

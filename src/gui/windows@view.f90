@@ -90,7 +90,8 @@ contains
        reptype_planar, reptype_legend, repflavor_legend, reptype_scalebar, repflavor_scalebar,&
        reptype_colorbar, repflavor_colorbar, reptype_slice, repflavor_slice, reptype_wscell,&
        repflavor_wscell, reptype_latvec, repflavor_latvec, reptype_bz, repflavor_bz, reptype_reclat,&
-       repflavor_reclat, reptype_reccell, repflavor_reccell, reptype_recaxes, repflavor_recaxes
+       repflavor_reclat, reptype_reccell, repflavor_reccell, reptype_recaxes, repflavor_recaxes,&
+       reptype_skpoints, repflavor_skpoints
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -546,6 +547,9 @@ contains
           if (iw_menuitem("Lattice Vectors")) &
              call w%add_rep_and_edit(reptype_reclat,repflavor_reclat)
           call iw_tooltip("Spheres at the reciprocal lattice points",ttshown)
+          if (iw_menuitem("Special Points")) &
+             call w%add_rep_and_edit(reptype_skpoints,repflavor_skpoints)
+          call iw_tooltip("Spheres and labels at the special k-points of the Brillouin zone (Hinuma et al.)",ttshown)
           if (iw_menuitem("Reciprocal Cell")) &
              call w%add_rep_and_edit(reptype_reccell,repflavor_reccell)
           call iw_tooltip("The cell spanned by the reciprocal lattice vectors a*, b*, c*",ttshown)

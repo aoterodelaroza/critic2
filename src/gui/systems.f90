@@ -121,6 +121,21 @@ module systems
      real*8 :: keytime = -1d0
   end type cp_anchor_entry
 
+  !> The special k-points of a crystal (crystal%special_kpoints,
+  !> HPKOT), calculated once per geometry revision for the
+  !> reciprocal-space objects that draw them (update_skpoints).
+  type skpoints_cache
+     integer :: rev = -1 ! geometry revision they were calculated for (-1 = never)
+     character(len=3) :: ext = "" ! extended Bravais lattice (e.g. cF2)
+     integer :: spgnum = 0 ! space group number
+     logical :: issuper = .false. ! the crystal is a supercell of the primitive cell the points refer to
+     character(len=:), allocatable :: errmsg ! why there are no points (empty = there are)
+     character(len=8), allocatable :: lbl(:) ! point labels (HPKOT notation)
+     real*8, allocatable :: xk(:,:) ! point coordinates (reciprocal crystallographic, no 2*pi)
+     real*8, allocatable :: xkeq(:,:) ! symmetry-equivalent images of the points in the first BZ
+     integer, allocatable :: ieq(:) ! the point each image belongs to
+  end type skpoints_cache
+
   !> A field of a scene file, waiting to be made again in the new
   !> system (scene_pending).
   type scene_field
@@ -223,6 +238,8 @@ module systems
      ! critical points used as measurement anchors (see cp_anchor_entry)
      integer :: ncpanc = 0
      type(cp_anchor_entry), allocatable :: cpanc(:)
+     ! special k-points (see skpoints_cache)
+     type(skpoints_cache) :: skp
      ! hashes of the species of the first 0..ncel cell atoms, for the atom
      ! measurement anchors (anchor_stamp), cached for the geometry of
      ! timelastchange_geometry
@@ -246,6 +263,8 @@ module systems
      ! time events
      procedure :: post_event
      procedure :: rebond ! recompute bonds/connectivity, then signal the scene
+     ! special k-points
+     procedure :: update_skpoints ! calculate the special k-points if the geometry changed
      procedure :: md_start ! start/resume the MD or relaxation run
      procedure :: md_resolve_eamfile
      procedure :: md_stop ! stop the run and rebuild the moved structure
@@ -551,6 +570,9 @@ module systems
        logical, intent(in) :: kspace
        type(scene), pointer :: sc
      end function main_scene
+     module subroutine update_skpoints(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine update_skpoints
      module function load_grid_field(isys,name,g,x0,x2cl) result(id)
        integer, intent(in) :: isys
        character(len=*), intent(in) :: name

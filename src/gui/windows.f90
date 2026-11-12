@@ -1792,6 +1792,7 @@ module windows
      procedure :: draw_editrep_unitcell
      procedure :: draw_editrep_wscell
      procedure :: draw_editrep_latvec
+     procedure :: draw_editrep_skpoints
      procedure :: draw_editrep_axes
      procedure :: draw_editrep_symelem
      procedure :: draw_editrep_text
@@ -2592,6 +2593,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_latvec
+     module function draw_editrep_skpoints(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_skpoints
      module function draw_editrep_axes(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

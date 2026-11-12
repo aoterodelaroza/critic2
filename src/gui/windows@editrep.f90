@@ -69,7 +69,8 @@ contains
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
        reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
        reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar, reptype_slice, field_has_cps,&
-       reptype_wscell, reptype_latvec, reptype_bz, reptype_reclat, reptype_reccell, reptype_recaxes
+       reptype_wscell, reptype_latvec, reptype_bz, reptype_reclat, reptype_reccell, reptype_recaxes,&
+       reptype_skpoints
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sysc, sys_init, ok_system
@@ -147,6 +148,9 @@ contains
           changed = changed .or. ch
        elseif (w%rep%type == reptype_latvec .or. w%rep%type == reptype_reclat) then
           ch = w%draw_editrep_latvec(ttshown)
+          changed = changed .or. ch
+       elseif (w%rep%type == reptype_skpoints) then
+          ch = w%draw_editrep_skpoints(ttshown)
           changed = changed .or. ch
        elseif (w%rep%type == reptype_axes .or. w%rep%type == reptype_recaxes) then
           ch = w%draw_editrep_axes(ttshown)
@@ -1482,11 +1486,10 @@ contains
   module function draw_editrep_latvec(w,ttshown) result(changed)
     use representations, only: lattice_points, replat_primitive, recip_points, reptype_reclat,&
        point_in_list
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_separatortext, iw_combo_simple, iw_intstepper
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_separatortext,&
+       iw_combo_simple, iw_intstepper
     use systems, only: sys
     use tools_io, only: string
-    use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
@@ -1495,7 +1498,6 @@ contains
     integer :: i, iview, np
     integer, allocatable :: ipt(:,:)
     logical :: isrec, chpts
-    real*8 :: u
     real*8, allocatable :: xpt(:,:)
     logical, allocatable :: shown(:)
 
@@ -1571,29 +1573,8 @@ contains
     !! the spheres
     call iw_separatortext("Spheres",w%editrep_sec(2),hasmore=.true.)
     if (w%editrep_sec(2)%open) then
-       if (isrec) then
-          ! bohr^-1 stored, 1/Å shown, in steps fit for the reciprocal cell
-          u = recip_unit(w%isys)
-          call iw_text("Radius (1/Å)",alignframe=.true.)
-          ch = iw_dragfloat_real8("##lvrad",x1=w%rep%lv%rad,speed=2d-3*u,min=0d0,max=5d0*u,&
-             scale=1d0/bohrtoa,decimal=5,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       else
-          call iw_text("Radius (Å)",alignframe=.true.)
-          ch = iw_dragfloat_real8("##lvrad",x1=w%rep%lv%rad,speed=0.002d0,min=0d0,max=5d0,scale=bohrtoa,&
-             decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       end if
-       call iw_tooltip("Radius of the lattice point spheres",ttshown)
-       changed = changed .or. ch
-
-       call iw_text("Color",alignframe=.true.,gap=.true.)
-       ch = iw_coloredit("##lvcolor",rgb=w%rep%lv%rgb,sameline=.true.)
-       call iw_tooltip("Color of the lattice point spheres",ttshown)
-       changed = changed .or. ch
-
-       call iw_text("Opacity",alignframe=.true.,gap=.true.)
-       ch = iw_dragfloat_real8("##lvalpha",x1=w%rep%lv%alpha,speed=0.005d0,min=0d0,max=1d0,&
-          decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Opacity of the spheres (0 = transparent, 1 = opaque)",ttshown)
+       ch = sphere_style_widgets(w%rep%lv%rad,w%rep%lv%rgb,w%rep%lv%alpha,isrec,w%isys,"lv",&
+          "lattice point spheres",ttshown)
        changed = changed .or. ch
 
        ! the points at the centering vectors, if there are any drawn
@@ -1612,27 +1593,126 @@ contains
 
        ! border size and color
        if (w%editrep_sec(2)%more) then
-          if (isrec) then
-             u = recip_unit(w%isys)
-             call iw_text("Border size (1/Å)",alignframe=.true.)
-             ch = iw_dragfloat_real8("##lvborder",x1=w%rep%lv%border_size,speed=2d-3*u,min=0d0,max=u,&
-                scale=1d0/bohrtoa,decimal=5,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-          else
-             call iw_text("Border size (Å)",alignframe=.true.)
-             ch = iw_dragfloat_real8("##lvborder",x1=w%rep%lv%border_size,speed=0.002d0,min=0d0,max=1d0,&
-                scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-          end if
-          call iw_tooltip("Thickness of the sphere borders",ttshown)
-          changed = changed .or. ch
-
-          call iw_text("Border color",alignframe=.true.,gap=.true.)
-          ch = iw_coloredit("##lvbordercolor",rgb=w%rep%lv%border_rgb,sameline=.true.)
-          call iw_tooltip("Color of the sphere borders",ttshown)
+          ch = sphere_border_widgets(w%rep%lv%border_size,w%rep%lv%border_rgb,isrec,w%isys,"lv",ttshown)
           changed = changed .or. ch
        end if
     end if
 
   end function draw_editrep_latvec
+
+  !> Draw the editrep window, special k-points class. Returns true if
+  !> the scene needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_skpoints(w,ttshown) result(changed)
+    use representations, only: hpkot_label, skpoints_shown
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
+       iw_separatortext
+    use systems, only: sys, sysc
+    use tools_io, only: string
+    use param, only: bohrtoa
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch, chpts
+    integer :: i, np
+    real*8 :: x0(3)
+    logical, allocatable :: shown(:)
+    character(len=12), allocatable :: lbl(:), dist(:)
+
+    ! initialize
+    changed = .false.
+    call sysc(w%isys)%update_skpoints()
+
+    !! the points
+    ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
+    ! and a widget skipped because changed is already true is a widget not drawn
+    call iw_separatortext("Points",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       associate(skp => sysc(w%isys)%skp, c => sys(w%isys)%c)
+         if (.not.allocated(skp%lbl)) then
+            call iw_text("No special k-points: " // skp%errmsg,danger=.true.)
+         else
+            call iw_text("Extended Bravais lattice: " // skp%ext // " (space group " // string(skp%spgnum) // ")")
+            call iw_tooltip("The Bravais lattice of the crystal, extended with the relations between the &
+               &lattice parameters that select the set of points and the band path (Hinuma et al., &
+               &Comput. Mater. Sci. 128 (2017) 140)",ttshown)
+            if (skp%issuper) &
+               call iw_text("The crystal is a supercell: the points are those of its primitive cell",danger=.true.)
+
+            ! the symmetry-equivalent points
+            ch = iw_checkbox("Equivalent points",w%rep%skp%equiv,labelleft=.true.)
+            call iw_tooltip("Draw every image of the points in the table by the symmetry operations of the &
+               &crystal and time reversal that lies in the first Brillouin zone, with the label of its point",&
+               ttshown)
+            changed = changed .or. ch
+            if (w%rep%skp%equiv) &
+               call iw_text("(" // string(size(skp%ieq,1)) // " points)",sameline=.true.)
+
+            ! the table of points (label, coordinates, |k| in 1/Å), and
+            ! whether each is shown
+            np = size(skp%lbl,1)
+            call skpoints_shown(w%rep%skp%hide,skp%lbl,skp%xk,skp%xkeq,skp%ieq,shown)
+            call iw_text("Points: " // string(count(shown)) // " of " // string(np) // " shown")
+            allocate(lbl(np),dist(np))
+            do i = 1, np
+               lbl(i) = hpkot_label(skp%lbl(i))
+               x0 = matmul(c%m_rx2rc,skp%xk(:,i)) / bohrtoa
+               dist(i) = string(norm2(x0),'f',decimal=4)
+            end do
+            chpts = point_table(skp%xk,shown,.true.,"skpt","Draw this point (and its images)",&
+               "special k-points",ttshown,lbl=lbl,extra=dist,extrahdr="|k| (1/Å)")
+
+            ! the points hidden are those unchecked in the table
+            if (chpts) then
+               w%rep%skp%hide = pack(skp%lbl,.not.shown)
+               changed = .true.
+            end if
+         end if
+       end associate
+    end if
+
+    !! the spheres
+    call iw_separatortext("Spheres",w%editrep_sec(2),hasmore=.true.)
+    if (w%editrep_sec(2)%open) then
+       ch = sphere_style_widgets(w%rep%skp%rad,w%rep%skp%rgb,w%rep%skp%alpha,.true.,w%isys,"skp",&
+          "spheres at the special k-points",ttshown)
+       changed = changed .or. ch
+       if (w%editrep_sec(2)%more) then
+          ch = sphere_border_widgets(w%rep%skp%border_size,w%rep%skp%border_rgb,.true.,w%isys,"skp",ttshown)
+          changed = changed .or. ch
+       end if
+    end if
+
+    !! the labels
+    call iw_separatortext("Labels",w%editrep_sec(3))
+    if (w%editrep_sec(3)%open) then
+       ch = iw_checkbox("Show labels",w%rep%skp%showlabels,labelleft=.true.)
+       call iw_tooltip("Write the name of each point next to its sphere",ttshown)
+       changed = changed .or. ch
+
+       call iw_text("Scale",alignframe=.true.)
+       ch = iw_dragfloat_real8("##skplabelscale",x1=w%rep%skp%label_scale,speed=0.01d0,&
+          min=0d0,max=10d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Size of the labels, relative to the sphere radius",ttshown)
+       changed = changed .or. ch
+
+       ch = iw_checkbox("Constant size##skplabelconstsize",w%rep%skp%label_const_size,labelleft=.true.,gap=.true.)
+       call iw_tooltip("Labels have constant size (on) or scale with the spheres (off)",ttshown)
+       changed = changed .or. ch
+
+       call iw_text("Color",alignframe=.true.,gap=.true.)
+       ch = iw_coloredit("##skplabelcolor",rgb=w%rep%skp%label_rgb,sameline=.true.)
+       call iw_tooltip("Color of the labels",ttshown)
+       changed = changed .or. ch
+
+       call iw_text("Offset (Å)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##skplabeloffset",x3=w%rep%skp%label_offset,speed=0.001d0,&
+          min=-99.999d0,max=99.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Offset of the labels from the sphere centers",ttshown)
+       changed = changed .or. ch
+    end if
+
+  end function draw_editrep_skpoints
 
   !> Draw the editrep window, legend class. Returns true if the scene
   !> needs rendering again. ttshown = the tooltip flag.
@@ -2945,13 +3025,101 @@ contains
 
   end function periodicity_widget
 
+  !> The radius, color and opacity widgets of the spheres of an object
+  !> (rad in bohr, or bohr^-1 drawn in the reciprocal scene of system
+  !> isys if isrec). idsuffix makes the IDs unique and what names the
+  !> spheres in the tooltips. Returns whether any changed.
+  function sphere_style_widgets(rad,rgb,alpha,isrec,isys,idsuffix,what,ttshown) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8
+    use param, only: bohrtoa
+    real*8, intent(inout) :: rad
+    real(c_float), intent(inout) :: rgb(3)
+    real*8, intent(inout) :: alpha
+    logical, intent(in) :: isrec
+    integer, intent(in) :: isys
+    character(len=*), intent(in) :: idsuffix, what
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch
+    real*8 :: u
+
+    changed = .false.
+    if (isrec) then
+       ! bohr^-1 stored, 1/Å shown, in steps fit for the reciprocal cell
+       u = recip_unit(isys)
+       call iw_text("Radius (1/Å)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##" // idsuffix // "rad",x1=rad,speed=2d-3*u,min=0d0,max=5d0*u,&
+          scale=1d0/bohrtoa,decimal=5,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    else
+       call iw_text("Radius (Å)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##" // idsuffix // "rad",x1=rad,speed=0.002d0,min=0d0,max=5d0,scale=bohrtoa,&
+          decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    end if
+    call iw_tooltip("Radius of the " // what,ttshown)
+    changed = changed .or. ch
+
+    call iw_text("Color",alignframe=.true.,gap=.true.)
+    ch = iw_coloredit("##" // idsuffix // "color",rgb=rgb,sameline=.true.)
+    call iw_tooltip("Color of the " // what,ttshown)
+    changed = changed .or. ch
+
+    call iw_text("Opacity",alignframe=.true.,gap=.true.)
+    ch = iw_dragfloat_real8("##" // idsuffix // "alpha",x1=alpha,speed=0.005d0,min=0d0,max=1d0,&
+       decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Opacity of the " // what // " (0 = transparent, 1 = opaque)",ttshown)
+    changed = changed .or. ch
+
+  end function sphere_style_widgets
+
+  !> The border size and color widgets of the spheres of an object
+  !> (border_size in bohr, or bohr^-1 drawn in the reciprocal scene of
+  !> system isys if isrec). idsuffix makes the IDs unique. Returns
+  !> whether any changed.
+  function sphere_border_widgets(border_size,border_rgb,isrec,isys,idsuffix,ttshown) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8
+    use param, only: bohrtoa
+    real*8, intent(inout) :: border_size
+    real(c_float), intent(inout) :: border_rgb(3)
+    logical, intent(in) :: isrec
+    integer, intent(in) :: isys
+    character(len=*), intent(in) :: idsuffix
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch
+    real*8 :: u
+
+    changed = .false.
+    if (isrec) then
+       u = recip_unit(isys)
+       call iw_text("Border size (1/Å)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##" // idsuffix // "border",x1=border_size,speed=2d-3*u,min=0d0,max=u,&
+          scale=1d0/bohrtoa,decimal=5,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    else
+       call iw_text("Border size (Å)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##" // idsuffix // "border",x1=border_size,speed=0.002d0,min=0d0,max=1d0,&
+          scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    end if
+    call iw_tooltip("Thickness of the sphere borders",ttshown)
+    changed = changed .or. ch
+
+    call iw_text("Border color",alignframe=.true.,gap=.true.)
+    ch = iw_coloredit("##" // idsuffix // "bordercolor",rgb=border_rgb,sameline=.true.)
+    call iw_tooltip("Color of the sphere borders",ttshown)
+    changed = changed .or. ch
+
+  end function sphere_border_widgets
+
   !> The table of the lattice points xpt (fractional; hkl if isrec)
   !> of an object editor, with a Show checkbox in each row (shown) and
   !> the Show All / Hide All / Toggle Show/Hide buttons under it (only
   !> the visible rows are drawn). idsuffix makes the IDs unique,
   !> tooltip is that of the checkboxes and what names the points in
-  !> the tooltips of the buttons. Returns whether shown changed.
-  function point_table(xpt,shown,isrec,idsuffix,tooltip,what,ttshown) result(changed)
+  !> the tooltips of the buttons. With lbl, a Label column precedes the
+  !> coordinates; with extra (and its header extrahdr), a text column
+  !> follows them. Returns whether shown changed.
+  function point_table(xpt,shown,isrec,idsuffix,tooltip,what,ttshown,lbl,extra,extrahdr) result(changed)
     use utils, only: iw_checkbox, iw_tooltip, iw_text, iw_table_column, iw_table_headers_row,&
        iw_calcwidth, iw_calcheight, frac_point_string
     use tools_io, only: string
@@ -2960,9 +3128,12 @@ contains
     logical, intent(in) :: isrec
     character(len=*), intent(in) :: idsuffix, tooltip, what
     logical, intent(inout) :: ttshown
+    character(len=*), intent(in), optional :: lbl(:)
+    character(len=*), intent(in), optional :: extra(:)
+    character(len=*), intent(in), optional :: extrahdr
     logical :: changed
 
-    integer :: i, np, ncol
+    integer :: i, np, ncol, nchar, icoord
     logical :: ch
     integer(c_int) :: flags
     type(ImVec2) :: sz
@@ -2979,16 +3150,23 @@ contains
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
     flags = ior(flags,ImGuiTableFlags_ScrollY)
     str1 = "##table" // idsuffix // c_null_char
-    sz%x = iw_calcwidth(30,2)
+    nchar = 30
+    if (present(lbl)) nchar = nchar + 8
+    if (present(extra)) nchar = nchar + 12
+    sz%x = iw_calcwidth(nchar,2)
     sz%y = iw_calcheight(min(8,np+1),0,.false.)
-    if (igBeginTable(c_loc(str1),2,flags,sz,0._c_float)) then
+    icoord = 1
+    if (present(lbl)) icoord = 2
+    if (igBeginTable(c_loc(str1),icoord+1+merge(1,0,present(extra)),flags,sz,0._c_float)) then
        ncol = -1
        call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+       if (present(lbl)) call iw_table_column("Label",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
        if (isrec) then
           call iw_table_column("hkl",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
        else
           call iw_table_column("Lattice point",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
        end if
+       if (present(extra)) call iw_table_column(extrahdr,icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
        call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
        clipper = ImGuiListClipper_ImGuiListClipper()
@@ -3002,8 +3180,16 @@ contains
                 call iw_tooltip(tooltip,ttshown)
                 changed = changed .or. ch
              end if
-             if (igTableSetColumnIndex(1_c_int)) &
+             if (present(lbl)) then
+                if (igTableSetColumnIndex(1_c_int)) &
+                   call iw_text(trim(lbl(i)),alignframe=.true.)
+             end if
+             if (igTableSetColumnIndex(int(icoord,c_int))) &
                 call iw_text(frac_point_string(xpt(:,i)),alignframe=.true.)
+             if (present(extra)) then
+                if (igTableSetColumnIndex(int(icoord+1,c_int))) &
+                   call iw_text(trim(extra(i)),alignframe=.true.)
+             end if
           end do
        end do
        call ImGuiListClipper_End(clipper)

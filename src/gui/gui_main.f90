@@ -57,9 +57,10 @@ module gui_main
   real(c_float), parameter, public :: iconscale = 1.3_c_float ! icon button side, in text line heights
   type(c_ptr), public :: font_normal, font_large ! GUI and rendering font pointers
   ! glyphs of the GUI fonts and of the exported plots
-  integer(c_short), target, public :: font_ranges(19) = (/&
+  integer(c_short), target, public :: font_ranges(21) = (/&
       32_c_short,   255_c_short,& ! default (basic latin + supplement)
      880_c_short,  1023_c_short,& ! Greek and Coptic
+    8320_c_short,  8329_c_short,& ! subscript digits
     8488_c_short,  8527_c_short,& ! letter-like symbols
     8592_c_short,  8703_c_short,& ! arrows
     8704_c_short,  8959_c_short,& ! mathematical operators

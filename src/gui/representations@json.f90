@@ -207,6 +207,30 @@ contains
          end if
          if (n > 0) call io%x(q,'hide',r%lv%hide)
 
+      case (reptype_skpoints)
+         call io%obj(p,'skpoints',q,found)
+         if (.not.found) return
+         call io%x(q,'equiv',r%skp%equiv)
+         call io%x(q,'rad',r%skp%rad,lo=0d0)
+         call io%x(q,'rgb',r%skp%rgb)
+         call io%x(q,'alpha',r%skp%alpha,lo=0d0,hi=1d0)
+         call io%x(q,'border_size',r%skp%border_size,lo=0d0)
+         call io%x(q,'border_rgb',r%skp%border_rgb)
+         call io%x(q,'showlabels',r%skp%showlabels)
+         call io%x(q,'label_scale',r%skp%label_scale,lo=0d0)
+         call io%x(q,'label_rgb',r%skp%label_rgb)
+         call io%x(q,'label_const_size',r%skp%label_const_size)
+         call io%x(q,'label_offset',r%skp%label_offset)
+         n = 0
+         if (allocated(r%skp%hide)) n = size(r%skp%hide,1)
+         call io%x(q,'nhide',n,0)
+         if (io%reading) then
+            if (allocated(r%skp%hide)) deallocate(r%skp%hide)
+            allocate(r%skp%hide(n))
+            r%skp%hide = ""
+         end if
+         if (n > 0) call io%x(q,'hide',r%skp%hide)
+
       case (reptype_axes, reptype_recaxes)
          if (r%type == reptype_recaxes) then
             call io%obj(p,'recaxes',q,found)

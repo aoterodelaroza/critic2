@@ -148,7 +148,8 @@ contains
   module subroutine scene_init(s,isys,space)
     use representations, only: reptype_unitcell, reptype_axes, repstyle_ballandstick,&
        repstyle_sticks, repflavor_unitcell_basic, repflavor_axes, repflavor_NUM, reptype_bz,&
-       repflavor_bz, reptype_reclat, repflavor_reclat, reptype_recaxes, repflavor_recaxes
+       repflavor_bz, reptype_reclat, repflavor_reclat, reptype_recaxes, repflavor_recaxes,&
+       reptype_skpoints, repflavor_skpoints
     use systems, only: sys, sysc, sys_ready, ok_system
     use global, only: crsmall
     use gui_main, only: lockbehavior
@@ -209,9 +210,10 @@ contains
 
     if (s%space == space_recip) then
        ! reciprocal space: the Brillouin zone, the reciprocal lattice
-       ! points around it, and the reciprocal axes
+       ! points around it, the special k-points, and the reciprocal axes
        call s%add_representation(reptype_bz,repflavor_bz)
        call s%add_representation(reptype_reclat,repflavor_reclat)
+       call s%add_representation(reptype_skpoints,repflavor_skpoints)
        call s%add_representation(reptype_recaxes,repflavor_recaxes)
     else
        ! atoms and bonds: the default look, with the bonds alone in a system
@@ -2545,7 +2547,7 @@ contains
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
        reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar, reptype_legend,&
        reptype_scalebar, reptype_colorbar, reptype_slice, reptype_wscell, reptype_latvec, reptype_bz,&
-       reptype_reclat, reptype_reccell, reptype_recaxes
+       reptype_reclat, reptype_reccell, reptype_recaxes, reptype_skpoints
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -2713,6 +2715,8 @@ contains
              str3 = "reciprocal cell" // c_null_char
           elseif (s%rep(i)%type == reptype_recaxes) then
              str3 = "reciprocal axes" // c_null_char
+          elseif (s%rep(i)%type == reptype_skpoints) then
+             str3 = "special points" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then

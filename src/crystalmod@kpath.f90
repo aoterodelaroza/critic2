@@ -78,8 +78,13 @@ contains
   !> spglib; if the primitive cell of c (its cell and its centering
   !> vectors) is a supercell of it, issuper is true and the labels do
   !> not correspond to the Brillouin zone of c. If the points cannot be
-  !> calculated, errmsg is not empty on output.
-  module subroutine special_kpoints(c,ext,spgnum,lbl,xk,xkp,mkp,ipath,issuper,errmsg)
+  !> calculated, errmsg is not empty on output. If xkeq and ieq are
+  !> present, xkeq gets all the symmetry-equivalent images of the
+  !> points (by the operations of the space group and time reversal)
+  !> that lie in the first Brillouin zone, boundary included, without
+  !> repetitions, in the same coordinates as xk, and ieq(i) is the
+  !> index in lbl of the point xkeq(:,i) is an image of.
+  module subroutine special_kpoints(c,ext,spgnum,lbl,xk,xkp,mkp,ipath,issuper,errmsg,xkeq,ieq)
     use spglib, only: SpglibDataset, spg_niggli_reduce
     use tools_math, only: matinv, det3
     use param, only: eye, pi, bohrtoa
@@ -93,6 +98,8 @@ contains
     integer, allocatable, intent(out) :: ipath(:,:)
     logical, intent(out) :: issuper
     character(len=:), allocatable, intent(out) :: errmsg
+    real*8, allocatable, intent(out), optional :: xkeq(:,:)
+    integer, allocatable, intent(out), optional :: ieq(:)
 
     type(SpglibDataset) :: spg
     character*2 :: brav
@@ -270,7 +277,92 @@ contains
     ! lattice translations that spglib found?
     issuper = (nint(abs(c%omega / max(c%ncv,1) / det3(rprim))) > 1)
 
+    ! the symmetry-equivalent points in the first Brillouin zone
+    if (present(xkeq) .and. present(ieq)) call equivalent_points()
+
   contains
+    ! Images of the points xk by the rotations of the space group (in
+    ! reciprocal space, k' = R^T k) and by time reversal (-k),
+    ! translated by the vectors of the primitive reciprocal lattice
+    ! (G = mkp * n) to the first Brillouin zone, boundary included.
+    ! Every distinct image is kept once, with the index of the first
+    ! point it comes from.
+    subroutine equivalent_points()
+      use types, only: realloc
+      integer, parameter :: ng = 2 ! range of the lattice vectors tried
+
+      integer :: n, i, j, k, iop, is, ig, jg, neq
+      real*8 :: gk(3,(2*ng+1)**3), gc(3,(2*ng+1)**3), g2((2*ng+1)**3)
+      real*8 :: eps, tol, kk(3), kc(3), kg(3)
+      real*8, allocatable :: xceq(:,:)
+      logical :: found
+
+      ! the lattice vectors around the origin, in the reciprocal
+      ! crystallographic coordinates of c (gk) and Cartesian (gc)
+      n = 0
+      do i = -ng, ng
+         do j = -ng, ng
+            do k = -ng, ng
+               n = n + 1
+               gk(:,n) = matmul(mkp,real((/i,j,k/),8))
+               gc(:,n) = matmul(c%m_rx2rc,gk(:,n))
+               g2(n) = dot_product(gc(:,n),gc(:,n))
+            end do
+         end do
+      end do
+      eps = 1d-5 * sqrt(minval(g2,mask=(g2 > 0d0)))
+      tol = 2d0 * eps * sqrt(maxval(g2))
+
+      neq = 0
+      allocate(xkeq(3,4*size(xk,2)),ieq(4*size(xk,2)),xceq(3,4*size(xk,2)))
+      do j = 1, size(xk,2)
+         do iop = 1, spg%n_operations
+            do is = 1, -1, -2
+               ! (the dataset holds the transposes of the rotations)
+               kk = is * matmul(real(spg%rotations(:,:,iop),8),xk(:,j))
+               kc = matmul(c%m_rx2rc,kk)
+               do ig = 1, n
+                  ! in the first Brillouin zone: not farther from the
+                  ! origin than from any other lattice point
+                  kg = kc + gc(:,ig)
+                  found = .false.
+                  do jg = 1, n
+                     if (g2(jg) == 0d0) cycle
+                     if (2d0 * dot_product(kg,gc(:,jg)) > g2(jg) + tol) then
+                        found = .true.
+                        exit
+                     end if
+                  end do
+                  if (found) cycle
+
+                  ! a new image?
+                  found = .false.
+                  do i = 1, neq
+                     if (norm2(xceq(:,i) - kg) < eps) then
+                        found = .true.
+                        exit
+                     end if
+                  end do
+                  if (found) cycle
+                  neq = neq + 1
+                  if (neq > size(ieq,1)) then
+                     call realloc(xkeq,3,2*neq)
+                     call realloc(xceq,3,2*neq)
+                     call realloc(ieq,2*neq)
+                  end if
+                  xkeq(:,neq) = kk + gk(:,ig)
+                  xceq(:,neq) = kg
+                  ieq(neq) = j
+               end do
+            end do
+         end do
+      end do
+      call realloc(xkeq,3,neq)
+      call realloc(ieq,neq)
+      where (abs(xkeq) < xk_zero) xkeq = 0d0
+
+    end subroutine equivalent_points
+
     ! Crystal family of space group n (a, m, o, t, h, c)
     function family(n)
       integer, intent(in) :: n

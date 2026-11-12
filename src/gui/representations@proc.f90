@@ -85,7 +85,7 @@ contains
   !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes),
   !> 14 (critical points), 15 (gradient paths), 16 (planar shapes),
   !> 17 (legend), 18 (scale bar), 19 (color bar), 20 (plane map),
-  !> 21 (Wigner-Seitz cell), 22 (lattice vectors).
+  !> 21 (Wigner-Seitz cell), 22 (lattice vectors), 23 (special k-points).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -377,6 +377,14 @@ contains
           r%lv%rad = latvec_rad_def / recip_scale(sys(isys)%c)
           r%lv%border_size = atomborder_def / recip_scale(sys(isys)%c)
        end if
+    end if
+
+    ! special k-points (sizes in bohr^-1)
+    if (itype == 0 .or. itype == 23) then
+       r%skp = rep_skpoints()
+       r%skp%rad = skp_rad_def / recip_scale(sys(isys)%c)
+       r%skp%border_size = atomborder_def / recip_scale(sys(isys)%c)
+       r%skp%label_rgb = ColorLabel_def
     end if
 
     ! initialize the styles
@@ -671,9 +679,102 @@ contains
     logical :: ok
 
     ok = (itype == reptype_bz .or. itype == reptype_reclat .or. itype == reptype_reccell .or.&
-       itype == reptype_recaxes)
+       itype == reptype_recaxes .or. itype == reptype_skpoints)
 
   end function reptype_is_recip
+
+  !> The label of a special k-point in HPKOT notation (GAMMA, X_1,
+  !> SIGMA_0) written with the Greek letter and subscript digits (Γ,
+  !> X₁, Σ₀), in UTF-8.
+  module function hpkot_label(lbl) result(str)
+    character*(*), intent(in) :: lbl
+    character(len=:), allocatable :: str
+
+    ! the subscript digits, three bytes each in UTF-8 (U+2080 to U+2089)
+    character(len=*), parameter :: subdigits = "₀₁₂₃₄₅₆₇₈₉"
+
+    integer :: i, iu, id
+
+    ! the Greek letters
+    str = trim(lbl)
+    iu = index(str,"_")
+    if (iu > 0) then
+       str = str(1:iu-1)
+    end if
+    select case (str)
+    case ("GAMMA")
+       str = "Γ"
+    case ("DELTA")
+       str = "Δ"
+    case ("LAMBDA")
+       str = "Λ"
+    case ("SIGMA")
+       str = "Σ"
+    end select
+
+    ! the subscript
+    if (iu > 0) then
+       do i = iu+1, len_trim(lbl)
+          id = index("0123456789",lbl(i:i))
+          if (id > 0) then
+             str = str // subdigits(3*id-2:3*id)
+          else
+             str = str // lbl(i:i)
+          end if
+       end do
+    end if
+
+  end function hpkot_label
+
+  !> Which special k-points of a system are shown by an object: those
+  !> whose HPKOT label (lbl) is not in its hide list (shown). If
+  !> shownimg is present, also which of the symmetry-equivalent images
+  !> (xkeq, images of the points ieq) are: an image is hidden when any
+  !> point of its orbit is (the points xk at the same position as an
+  !> image belong to its orbit).
+  module subroutine skpoints_shown(hide,lbl,xk,xkeq,ieq,shown,shownimg)
+    character(len=8), allocatable, intent(in) :: hide(:)
+    character(len=8), intent(in) :: lbl(:)
+    real*8, intent(in) :: xk(:,:)
+    real*8, intent(in) :: xkeq(:,:)
+    integer, intent(in) :: ieq(:)
+    logical, allocatable, intent(inout) :: shown(:)
+    logical, allocatable, intent(inout), optional :: shownimg(:)
+
+    real*8, parameter :: eps = 1d-6
+
+    integer :: i, j, n
+    integer, allocatable :: irep(:)
+
+    n = size(lbl,1)
+    if (allocated(shown)) deallocate(shown)
+    allocate(shown(n))
+    do j = 1, n
+       shown(j) = .true.
+       if (allocated(hide)) shown(j) = .not.any(hide == lbl(j))
+    end do
+    if (.not.present(shownimg)) return
+
+    ! the orbit of each point: that of the image at its position
+    allocate(irep(n))
+    irep = 0
+    do j = 1, n
+       do i = 1, size(ieq,1)
+          if (all(abs(xkeq(:,i) - xk(:,j)) < eps)) then
+             irep(j) = ieq(i)
+             exit
+          end if
+       end do
+    end do
+
+    ! an image is shown if no point of its orbit is hidden
+    if (allocated(shownimg)) deallocate(shownimg)
+    allocate(shownimg(size(ieq,1)))
+    do i = 1, size(ieq,1)
+       shownimg(i) = .not.any(.not.shown .and. irep == ieq(i))
+    end do
+
+  end subroutine skpoints_shown
 
   !> The row of the label style of the labels object r that holds cell
   !> atom iat: its species, non-equivalent atom, cell atom, or molecule,
@@ -1914,6 +2015,9 @@ contains
     elseif (r%type == reptype_latvec .or. r%type == reptype_reclat) then
        !!! lattice vectors, reciprocal lattice !!!
        call append_latvec()
+    elseif (r%type == reptype_skpoints) then
+       !!! special k-points !!!
+       call append_skpoints()
     elseif (r%type == reptype_reccell) then
        !!! reciprocal cell !!!
        call append_reccell()
@@ -4511,6 +4615,65 @@ contains
       end do
 
     end subroutine append_latvec
+
+    !> A sphere and a label at each special k-point of the system
+    !> (HPKOT; calculated once per geometry, sysc%skp), or at every
+    !> symmetry-equivalent image of them in the first Brillouin zone if
+    !> asked. The points hidden in the object are skipped, with their
+    !> images. The spheres are not pickable.
+    subroutine append_skpoints()
+      integer :: i, j, np
+      real*8 :: xs(3), rscale, mframe(3,3)
+      type(dl_sphere) :: dsk
+      logical, allocatable :: shown(:), shownimg(:)
+
+      call sysc(r%id)%update_skpoints()
+      associate(skp => sysc(r%id)%skp)
+        if (.not.allocated(skp%lbl)) return
+        rscale = recip_scale(c)
+        mframe = rscale * c%m_rx2rc
+
+        ! the points (and images) shown
+        call skpoints_shown(r%skp%hide,skp%lbl,skp%xk,skp%xkeq,skp%ieq,shown,shownimg)
+        np = size(skp%lbl,1)
+        if (r%skp%equiv) np = size(skp%ieq,1)
+        do i = 1, np
+           if (r%skp%equiv) then
+              if (.not.shownimg(i)) cycle
+              j = skp%ieq(i)
+              xs = matmul(mframe,skp%xkeq(:,i))
+           else
+              if (.not.shown(i)) cycle
+              j = i
+              xs = matmul(mframe,skp%xk(:,i))
+           end if
+
+           ! the sphere
+           dsk = dl_sphere(x=real(xs,c_float),r=real(rscale * r%skp%rad,c_float),&
+              rgb=r%skp%rgb,idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
+              border=real(rscale * r%skp%border_size,c_float),rgbborder=r%skp%border_rgb,&
+              alpha=real(r%skp%alpha,c_float))
+           call dl_append(obj%sph,obj%nsph,dsk)
+
+           ! the label
+           if (r%skp%showlabels) then
+              dstr%x = real(xs,c_float)
+              dstr%xdelta = cmplx(0._c_float,0._c_float,c_float_complex)
+              dstr%r = real(rscale * r%skp%rad,c_float)
+              dstr%rgb = r%skp%label_rgb
+              if (r%skp%label_const_size) then
+                 dstr%scale = real(r%skp%label_scale,c_float)
+              else
+                 dstr%scale = real(-r%skp%label_scale,c_float)
+              end if
+              dstr%offset = real(r%skp%label_offset,c_float)
+              dstr%str = hpkot_label(skp%lbl(j))
+              call dl_append(obj%string,obj%nstring,dstr)
+           end if
+        end do
+      end associate
+
+    end subroutine append_skpoints
 
     !> The twelve edges of the reciprocal cell (spanned by a*, b*, c*)
     !> at its origin, with a*, b*, c* in the axis colors if asked.

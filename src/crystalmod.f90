@@ -1042,7 +1042,7 @@ module crystalmod
        real*8, allocatable, intent(out) :: rk1(:), rk2(:)
        integer, allocatable, intent(out) :: nk(:,:)
      end subroutine get_kpoints_ranges
-     module subroutine special_kpoints(c,ext,spgnum,lbl,xk,xkp,mkp,ipath,issuper,errmsg)
+     module subroutine special_kpoints(c,ext,spgnum,lbl,xk,xkp,mkp,ipath,issuper,errmsg,xkeq,ieq)
        class(crystal), intent(in) :: c
        character(len=3), intent(out) :: ext
        integer, intent(out) :: spgnum
@@ -1053,6 +1053,8 @@ module crystalmod
        integer, allocatable, intent(out) :: ipath(:,:)
        logical, intent(out) :: issuper
        character(len=:), allocatable, intent(out) :: errmsg
+       real*8, allocatable, intent(out), optional :: xkeq(:,:)
+       integer, allocatable, intent(out), optional :: ieq(:)
      end subroutine special_kpoints
      module subroutine bulk_rattle_seeds(c,nstruct,mag,seed,nseed)
        use crystalseedmod, only: crystalseed

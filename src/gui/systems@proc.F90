@@ -1249,6 +1249,33 @@ contains
 
   end function main_scene
 
+  !> Calculate the special k-points of the system (sysc%skp) if they
+  !> have not been calculated for its current geometry revision.
+  module subroutine update_skpoints(sysc)
+    use global, only: symprec
+    class(sysconf), intent(inout) :: sysc
+
+    real*8 :: mkp(3,3), osp
+    real*8, allocatable :: xkp(:,:)
+    integer, allocatable :: ipath(:,:)
+
+    if (sysc%skp%rev == sysc%rev_geometry) return
+    sysc%skp = skpoints_cache()
+    sysc%skp%rev = sysc%rev_geometry
+    if (.not.ok_system(sysc%id,sys_init)) then
+       sysc%skp%errmsg = "system not initialized"
+       return
+    end if
+
+    ! at the symmetry tolerance of the system (recalc_symmetry)
+    osp = symprec
+    symprec = sysc%symeps
+    call sys(sysc%id)%c%special_kpoints(sysc%skp%ext,sysc%skp%spgnum,sysc%skp%lbl,sysc%skp%xk,&
+       xkp,mkp,ipath,sysc%skp%issuper,sysc%skp%errmsg,sysc%skp%xkeq,sysc%skp%ieq)
+    symprec = osp
+
+  end subroutine update_skpoints
+
   !> Measurement anchor for the critical point icel (index in the
   !> complete CP list) of field ifield of system isys, in the image at
   !> lattice vector lvec from cpcel(icel)%x: idx(1) = -k, where k is
