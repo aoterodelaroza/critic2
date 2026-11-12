@@ -1050,7 +1050,7 @@ contains
           & arithmetic expressions along a line between two points",ttshown)
 
        ! maps of the fields on a plane (PLANE): a plane map object of
-       ! the view, and its editor (as Draw > Plane Map)
+       ! the view, and its editor (as Draw > Fields > Plane Map)
        if (iw_menuitem("Plane Map...")) &
           call win(idparent)%add_rep_and_edit(reptype_slice,repflavor_slice)
        call iw_tooltip("Map the values of a field of this system, one of its derivatives,&
@@ -1058,7 +1058,7 @@ contains
           & object of the view",ttshown)
 
        ! isosurfaces of the fields: an isosurface object of the view,
-       ! and its editor (as Draw > Isosurface)
+       ! and its editor (as Draw > Fields > Isosurface)
        if (iw_menuitem("Isosurface...")) &
           call win(idparent)%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
        call iw_tooltip("Draw isosurfaces of a field of this system, one of its derivatives,&

@@ -547,13 +547,6 @@ contains
           if (iw_menuitem("Lattice Vectors")) &
              call w%add_rep_and_edit(reptype_reclat,repflavor_reclat)
           call iw_tooltip("Spheres at the reciprocal lattice points",ttshown)
-          if (iw_menuitem("Special Points")) &
-             call w%add_rep_and_edit(reptype_skpoints,repflavor_skpoints)
-          call iw_tooltip("Spheres and labels at the special k-points of the Brillouin zone (Hinuma et al.)",ttshown)
-          if (iw_menuitem("K-Path")) &
-             call w%add_rep_and_edit(reptype_kpath,repflavor_kpath)
-          call iw_tooltip("A path through k-points for a band structure calculation, starting from the &
-             &suggested path of the Brillouin zone; the points are added by clicking them",ttshown)
           if (iw_menuitem("Reciprocal Cell")) &
              call w%add_rep_and_edit(reptype_reccell,repflavor_reccell)
           call iw_tooltip("The cell spanned by the reciprocal lattice vectors a*, b*, c*",ttshown)
@@ -561,6 +554,17 @@ contains
              call w%add_rep_and_edit(reptype_recaxes,repflavor_recaxes)
           call iw_tooltip("The directions of the reciprocal lattice vectors a*, b*, c*, in a corner of &
              &the view",ttshown)
+
+          ! the k-point objects
+          call igSeparator()
+
+          if (iw_menuitem("Special Points")) &
+             call w%add_rep_and_edit(reptype_skpoints,repflavor_skpoints)
+          call iw_tooltip("Spheres and labels at the special k-points of the Brillouin zone (Hinuma et al.)",ttshown)
+          if (iw_menuitem("K-Path")) &
+             call w%add_rep_and_edit(reptype_kpath,repflavor_kpath)
+          call iw_tooltip("A path through k-points for a band structure calculation, starting from the &
+             &suggested path of the Brillouin zone; the points are added by clicking them",ttshown)
        end if
        call igEndPopup()
     elseif (ok) then
@@ -624,83 +628,107 @@ contains
              call w%add_rep_and_edit(reptype_polyhedra,repflavor_polyhedra_basic)
           call iw_tooltip("Draw coordination polyhedra around the center atoms",ttshown)
 
-          if (.not.sys(w%isys)%c%ismolecule) then
-             if (iw_menuitem("Unit Cell")) &
-                call w%add_rep_and_edit(reptype_unitcell,repflavor_unitcell_basic)
-             call iw_tooltip("Display the unit cell",ttshown)
+          ! the rest of the objects, grouped by type
+          call igSeparator()
 
-             if (iw_menuitem("Wigner-Seitz Cell")) &
-                call w%add_rep_and_edit(reptype_wscell,repflavor_wscell)
-             call iw_tooltip("Display the Wigner-Seitz cell of the lattice",ttshown)
+          ! cell and symmetry submenu
+          if (iw_beginmenu("Cell and Symmetry")) then
+             if (.not.sys(w%isys)%c%ismolecule) then
+                if (iw_menuitem("Unit Cell")) &
+                   call w%add_rep_and_edit(reptype_unitcell,repflavor_unitcell_basic)
+                call iw_tooltip("Display the unit cell",ttshown)
 
-             if (iw_menuitem("Lattice Vectors")) &
-                call w%add_rep_and_edit(reptype_latvec,repflavor_latvec)
-             call iw_tooltip("Draw a sphere at each lattice point",ttshown)
+                if (iw_menuitem("Wigner-Seitz Cell")) &
+                   call w%add_rep_and_edit(reptype_wscell,repflavor_wscell)
+                call iw_tooltip("Display the Wigner-Seitz cell of the lattice",ttshown)
+
+                if (iw_menuitem("Lattice Vectors")) &
+                   call w%add_rep_and_edit(reptype_latvec,repflavor_latvec)
+                call iw_tooltip("Draw a sphere at each lattice point",ttshown)
+             end if
+
+             ! symmetry available for crystals (always) or molecules with a point group
+             symenabled = .true.
+             if (sys(w%isys)%c%ismolecule) symenabled = sys(w%isys)%c%pg%avail
+             if (iw_menuitem("Symmetry Elements",enabled=symenabled)) &
+                call w%add_rep_and_edit(reptype_symelem,repflavor_symelem)
+             call iw_tooltip("Display symmetry elements",ttshown)
+
+             call igEndMenu()
           end if
 
-          if (iw_menuitem("Axes")) &
-             call w%add_rep_and_edit(reptype_axes,annot_flavor(reptype_axes))
-          call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes; the editor's toolbar &
-             &drags them into place",ttshown)
+          ! fields submenu
+          if (iw_beginmenu("Fields")) then
+             if (iw_menuitem("Isosurface")) &
+                call w%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
+             call iw_tooltip("Display an isosurface of a scalar field",ttshown)
 
-          if (iw_menuitem("Isosurface")) &
-             call w%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
-          call iw_tooltip("Display an isosurface of a scalar field",ttshown)
+             if (iw_menuitem("Plane Map")) &
+                call w%add_rep_and_edit(reptype_slice,repflavor_slice)
+             call iw_tooltip("Display the values of a scalar field on a plane as colors and&
+                & contour lines",ttshown)
 
-          if (iw_menuitem("Plane Map")) &
-             call w%add_rep_and_edit(reptype_slice,repflavor_slice)
-          call iw_tooltip("Display the values of a scalar field on a plane as colors and&
-             & contour lines",ttshown)
+             if (iw_menuitem("Critical Points")) &
+                call w%add_rep_and_edit(reptype_cps,repflavor_cps)
+             call iw_tooltip("Display the critical points of a scalar field",ttshown)
 
-          if (iw_menuitem("Critical Points")) &
-             call w%add_rep_and_edit(reptype_cps,repflavor_cps)
-          call iw_tooltip("Display the critical points of a scalar field",ttshown)
+             if (iw_menuitem("Gradient Paths")) &
+                call w%add_rep_and_edit(reptype_gpaths,repflavor_gpaths)
+             call iw_tooltip("Display the bond paths of a scalar field",ttshown)
 
-          if (iw_menuitem("Gradient Paths")) &
-             call w%add_rep_and_edit(reptype_gpaths,repflavor_gpaths)
-          call iw_tooltip("Display the bond paths of a scalar field",ttshown)
+             call igEndMenu()
+          end if
 
-          ! symmetry available for crystals (always) or molecules with a point group
-          symenabled = .true.
-          if (sys(w%isys)%c%ismolecule) symenabled = sys(w%isys)%c%pg%avail
-          if (iw_menuitem("Symmetry Elements",enabled=symenabled)) &
-             call w%add_rep_and_edit(reptype_symelem,repflavor_symelem)
-          call iw_tooltip("Display symmetry elements",ttshown)
+          ! annotations submenu: the texts, measurements and shapes made
+          ! with the annotation toolbar
+          if (iw_beginmenu("Annotations")) then
+             if (iw_menuitem("Text")) &
+                call annot_draw_menu(w,reptype_text)
+             call iw_tooltip("Add text annotations to the view, placed with the annotation toolbar",&
+                ttshown)
 
-          if (iw_menuitem("Text")) &
-             call annot_draw_menu(w,reptype_text)
-          call iw_tooltip("Add text annotations to the view, placed with the annotation toolbar",&
-             ttshown)
+             if (iw_menuitem("Measurements")) &
+                call annot_draw_menu(w,reptype_measure)
+             call iw_tooltip("Measure and display distances, angles, and dihedrals, picked with &
+                &the annotation toolbar",ttshown)
 
-          if (iw_menuitem("Measurements")) &
-             call annot_draw_menu(w,reptype_measure)
-          call iw_tooltip("Measure and display distances, angles, and dihedrals, picked with &
-             &the annotation toolbar",ttshown)
+             if (iw_menuitem("3D Shapes")) &
+                call annot_draw_menu(w,reptype_shapes)
+             call iw_tooltip("Add 3D shapes (spheres, boxes, arrows, cones, cylinders) to the scene, &
+                &drawn with the annotation toolbar; they move with the structure",ttshown)
 
-          if (iw_menuitem("3D Shapes")) &
-             call annot_draw_menu(w,reptype_shapes)
-          call iw_tooltip("Add 3D shapes (spheres, boxes, arrows, cones, cylinders) to the scene, &
-             &drawn with the annotation toolbar; they move with the structure",ttshown)
+             if (iw_menuitem("2D Drawing")) &
+                call annot_draw_menu(w,reptype_planar)
+             call iw_tooltip("Draw 2D shapes (ellipses, rectangles, polygons, lines, arrows, freehand) &
+                &on the screen with the annotation toolbar; they stay fixed when the camera moves",ttshown)
 
-          if (iw_menuitem("2D Drawing")) &
-             call annot_draw_menu(w,reptype_planar)
-          call iw_tooltip("Draw 2D shapes (ellipses, rectangles, polygons, lines, arrows, freehand) &
-             &on the screen with the annotation toolbar; they stay fixed when the camera moves",ttshown)
+             call igEndMenu()
+          end if
 
-          if (iw_menuitem("Legend")) &
-             call w%add_rep_and_edit(reptype_legend,repflavor_legend)
-          call iw_tooltip("Show a legend with the color of each atomic species in a corner of the view",&
-             ttshown)
+          ! guides submenu: the axes and the boxes in the corners of the view
+          if (iw_beginmenu("Guides")) then
+             if (iw_menuitem("Axes")) &
+                call w%add_rep_and_edit(reptype_axes,annot_flavor(reptype_axes))
+             call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes; the editor's toolbar &
+                &drags them into place",ttshown)
 
-          if (iw_menuitem("Scale Bar")) &
-             call w%add_rep_and_edit(reptype_scalebar,repflavor_scalebar)
-          call iw_tooltip("Show a scale bar of a given length in a corner of the view; it follows the zoom",&
-             ttshown)
+             if (iw_menuitem("Legend")) &
+                call w%add_rep_and_edit(reptype_legend,repflavor_legend)
+             call iw_tooltip("Show a legend with the color of each atomic species in a corner of the view",&
+                ttshown)
 
-          if (iw_menuitem("Color Bar")) &
-             call w%add_rep_and_edit(reptype_colorbar,repflavor_colorbar)
-          call iw_tooltip("Show the colormap of an isosurface colored by a field or an expression, &
-             &with its values, in a corner of the view",ttshown)
+             if (iw_menuitem("Scale Bar")) &
+                call w%add_rep_and_edit(reptype_scalebar,repflavor_scalebar)
+             call iw_tooltip("Show a scale bar of a given length in a corner of the view; it follows the zoom",&
+                ttshown)
+
+             if (iw_menuitem("Color Bar")) &
+                call w%add_rep_and_edit(reptype_colorbar,repflavor_colorbar)
+             call iw_tooltip("Show the colormap of an isosurface colored by a field or an expression, &
+                &with its values, in a corner of the view",ttshown)
+
+             call igEndMenu()
+          end if
        end if
        call igEndPopup()
     end if

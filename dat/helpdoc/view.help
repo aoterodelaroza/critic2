@@ -19,7 +19,9 @@ the right end of the toolbar also chooses the system shown.
 - "All" applies the settings of this scene to the systems selected in the tree;
   "Reset" returns the scene to its defaults.
 - "Show" opens the Display Settings window, which selects the part of the system drawn;
-  "Draw" adds an object; "Objects" lists the objects.
+  "Draw" adds an object: a whole style, the atoms, bonds, labels and polyhedra, and the
+  rest in the "Cell and Symmetry", "Fields", "Annotations" and "Guides" submenus;
+  "Objects" lists the objects.
 - "Tools" is the Tools menu for this system; "View" opens a new view of the same scene.
 
 # Mouse and view modes
