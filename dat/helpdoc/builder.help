@@ -1,35 +1,40 @@
 title: Builder
 manual: structure/#c2-edit
 
-Modify the structure shown in the view by clicking on it: add or remove atoms and
-fragments, change the number of hydrogens, create or remove bonds, and edit distances,
-angles and dihedrals. Choose a tool from the palette; the panel below explains what a
-click in the view does and how to stop. Undo in the Edit menu reverts a change.
+Modify the structure shown in the view by clicking on it: add or
+remove atoms and fragments, change the number of hydrogens, create or
+remove bonds, and edit distances, angles, and dihedrals. To use the
+builder, choose a tool from the palette; the panel below explains what
+a click in the view does and how to stop. Undo in the Edit menu
+(by default Control-z) reverts a change.
 
 # Tools
-- Add: "Add Atoms" opens the periodic table; the element is placed with the selected local
-  geometry (linear, bent, tetrahedral, ...), and clicking an atom replaces it, keeping the
-  non-hydrogen substituents. "Add Fragments" opens the fragment library; clicking an atom
-  bonds the fragment to it (ligands) or replaces the atom, and clicking empty space places
-  the fragment there. The "Recent:" row re-arms an entry placed before.
+- Add: "Add Atoms" opens the periodic table; the chosen element is
+  placed with the selected local geometry (linear, bent, tetrahedral,
+  ...), and clicking an atom replaces it, keeping the non-hydrogen
+  substituents. "Add Fragments" opens the fragment library; clicking
+  an atom bonds the fragment to it (ligands) or replaces the atom, and
+  clicking empty space places the fragment there. The "Recent:" allows
+  reselecting previously used atoms or fragments.
 - Valence: "Change Valence" adds or removes hydrogens on the clicked atom.
 - Remove: "Remove Atoms" deletes the clicked atoms and their terminal hydrogens; "Trim
   Branches" also deletes every fragment left disconnected.
-- Bonds: "Create Bonds" bonds two atoms clicked one after the other, changing only the
-  connectivity; "Create Bonds (-H)" also removes a terminal hydrogen from each; "Remove
-  Bonds" removes the clicked bond; "Bond Order" cycles it through single, double, triple,
-  aromatic and dashed.
+- Bonds: "Create Bonds" bonds two atoms clicked one after the other;
+  "Create Bonds (-H)" also removes a terminal hydrogen from each;
+  "Remove Bonds" removes the clicked bond; "Bond Order" cycles it
+  through single, double, triple, aromatic and dashed.
 - Edit: select two, three or four atoms in the view, then press the button to change
   their distance, angle or dihedral, choosing which atoms move. "Apply" commits and
-  "Revert" restores the starting value.
-- Symmetry: moves the atoms onto their symmetry positions exactly; the point or space
-  group is shown next to it.
+  "Revert" restores the starting value. When measuring in the view,
+  pressing "E" allows editing a distance, angle, or dihedral.
+- Symmetry: moves the atoms onto their symmetry positions exactly; the
+  point group or space group is shown next to the button.
 - Relax: relaxes the geometry to the nearest minimum with the chosen force field until
   the maximum force drops below "Fmax (eV/Å)". Only the atoms selected in the view move;
-  with no selection, all of them do.
+  with no selection, all of the atoms move.
 - "Rebond" recomputes the connectivity, discarding the bonds created or removed by hand;
   "Restore" reloads the original geometry, discarding every edit.
 - The "Atoms", "Cell", "Bonds", "Symmetry" and "Dynamics" buttons open those windows.
 
 # Notes
-- Errors from a tool appear in red at the bottom of the window.
+- An error from any tool appears in red at the bottom of the window.
