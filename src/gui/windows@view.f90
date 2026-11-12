@@ -5053,21 +5053,53 @@ contains
   !> it. An isosurface is bound to field ifield, if given, instead of
   !> the reference field. Returns its id in irep (0 if it could not be
   !> made). Does nothing if the scene is not available.
-  !> add_representation flags the scene for rebuild.
-  module subroutine add_rep_and_edit(w,itype,flavor,ifield,irep)
+  !> add_representation flags the scene for rebuild. With reuse, no
+  !> representation is added if the scene has one of this type
+  !> already: the first one in the object list is shown, and its
+  !> editor opened (or raised).
+  module subroutine add_rep_and_edit(w,itype,flavor,ifield,irep,reuse)
     use representations, only: reptype_isosurface, reptype_is_recip
     class(window), intent(inout), target :: w
     integer, intent(in) :: itype, flavor
     integer, intent(in), optional :: ifield
     integer, intent(out), optional :: irep
+    logical, intent(in), optional :: reuse
 
-    integer :: id, idw
+    integer :: i, id, idw
+    logical :: reuse_
 
+    reuse_ = .false.
+    if (present(reuse)) reuse_ = reuse
     if (present(irep)) irep = 0
     ! the view shows the space of the object (real/reciprocal)
     if (reptype_is_recip(itype) .neqv. w%kspace) call w%view_set_kspace(reptype_is_recip(itype))
     if (.not.associated(w%sc)) return
     if (w%sc%isinit == 0) call w%sc%init(w%isys)
+
+    ! with reuse, edit the first object of this type in the object
+    ! list, if there is one, and show it if it was hidden
+    if (reuse_) then
+       id = 0
+       do i = 1, w%sc%nrep
+          if (.not.w%sc%rep(i)%isinit .or. w%sc%rep(i)%type /= itype) cycle
+          if (id == 0) then
+             id = i
+          elseif (w%sc%rep(i)%iord < w%sc%rep(id)%iord) then
+             id = i
+          end if
+       end do
+       if (id > 0) then
+          if (.not.w%sc%rep(id)%shown) then
+             w%sc%rep(id)%shown = .true.
+             w%sc%forcebuildlists = .true.
+          end if
+          idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=id,&
+             idparent=w%id,orraise=-1)
+          if (present(irep)) irep = id
+          return
+       end if
+    end if
+
     call w%sc%add_representation(itype,flavor,id=id)
     if (id <= 0) return
     if (itype == reptype_isosurface) then

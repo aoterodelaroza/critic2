@@ -946,7 +946,7 @@ contains
        wintype_point, wintype_line, wintype_cube, wintype_nci, win
     use utils, only: iw_tooltip, iw_menuitem, iw_beginmenu
     use representations, only: reptype_slice, repflavor_slice, reptype_isosurface,&
-       repflavor_isosurface
+       repflavor_isosurface, reptype_kpath, repflavor_kpath
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_BUILDER
     use types, only: field_evaluation_avail, fieldeval_category_mo
     integer, intent(in) :: isys
@@ -1021,6 +1021,15 @@ contains
           idum = stack_create_window(wintype_kpoints,.true.,idparent=idparent,orraise=-1)
        call iw_tooltip("Calculate the dimensions of a uniform k-point grid from a length&
           & parameter (KPOINTS)",ttshown)
+
+       ! the path through k-points of a band structure: the k-path
+       ! object of the reciprocal-space scene of the view (made if
+       ! there is none), and its editor
+       if (iw_menuitem("K-Path Selection...",enabled=ok)) &
+          call win(idparent)%add_rep_and_edit(reptype_kpath,repflavor_kpath,reuse=.true.)
+       call iw_tooltip("Choose the path through k-points for a band structure calculation,&
+          & starting from the path suggested for this crystal, and write it in the format of&
+          & an electronic structure code. The view switches to reciprocal space",ttshown)
        call igEndMenu()
     end if
 

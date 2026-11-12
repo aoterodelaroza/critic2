@@ -48,7 +48,7 @@ The tool windows, described in the other help topics.
 - "Recalculate Bonds" (F5), "View/Edit Geometry..." (G), "Builder..." (Ctrl+B) and
   "Extract Molecule(s)..." act on the structure.
 - "Dynamics": "Vibrations...", "Dynamics...", "Rattle Structure...".
-- "Structure Analysis": "Crystal Voids...", "K-Point Grid...".
+- "Structure Analysis": "Crystal Voids...", "K-Point Grid...", "K-Path Selection...".
 - "Field Plots": "Point Properties...", "Line Profile...", "Plane Map...",
   "Isosurface...", "Calculate Grid...", "NCI Plot...", "Molecular Orbitals...".
 - "QTAIM": "Critical Points...", "Trace Gradient Paths...".

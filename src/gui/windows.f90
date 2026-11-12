@@ -2265,11 +2265,12 @@ module windows
        class(window), intent(inout), target :: w
        logical, intent(in) :: kspace
      end subroutine view_set_kspace
-     module subroutine add_rep_and_edit(w,itype,flavor,ifield,irep)
+     module subroutine add_rep_and_edit(w,itype,flavor,ifield,irep,reuse)
        class(window), intent(inout), target :: w
        integer, intent(in) :: itype, flavor
        integer, intent(in), optional :: ifield
        integer, intent(out), optional :: irep
+       logical, intent(in), optional :: reuse
      end subroutine add_rep_and_edit
      module subroutine annot_set_tool(w,itype,itool,irep)
        class(window), intent(inout), target :: w

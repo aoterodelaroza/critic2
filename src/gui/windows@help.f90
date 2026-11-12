@@ -31,13 +31,13 @@ submodule (windows) help
 
   ! the topics, in the order of the list; the key is the name of the
   ! file in helpdoc/ and the key window_help_topic gives
-  integer, parameter :: nhelp = 22
+  integer, parameter :: nhelp = 23
   character(len=10), parameter :: help_key(nhelp) = (/&
      "index     ",&
      "menus     ","tree      ","console   ","view      ",&
      "geometry  ","builder   ","extract   ",&
      "vibrations","dynamics  ","rattle    ",&
-     "voids     ","kpoints   ",&
+     "voids     ","kpoints   ","kpath     ",&
      "point     ","line      ","planemap  ","isosurface","cube      ","nci       ","mo        ",&
      "cp        ","gpaths    "/)
 
@@ -46,7 +46,7 @@ submodule (windows) help
   character(len=18), parameter :: help_group(nhelpgroup) = (/&
      "Overview          ","Critic2 interface ","Structure         ","Dynamics          ",&
      "Structure analysis","Field plots       ","QTAIM             "/)
-  integer, parameter :: help_igroup(nhelp) = (/1, 2,2,2,2, 3,3,3, 4,4,4, 5,5, 6,6,6,6,6,6,6, 7,7/)
+  integer, parameter :: help_igroup(nhelp) = (/1, 2,2,2,2, 3,3,3, 4,4,4, 5,5,5, 6,6,6,6,6,6,6, 7,7/)
 
   ! width of the topic list (characters)
   integer, parameter :: help_list_width = 27
@@ -218,7 +218,7 @@ contains
   !> The key of the help topic of window w, or an empty string if the
   !> window has none (then it gets no Help button).
   module function window_help_topic(w) result(key)
-    use representations, only: reptype_slice, reptype_isosurface
+    use representations, only: reptype_slice, reptype_isosurface, reptype_kpath
     class(window), intent(in) :: w
     character(len=:), allocatable :: key
 
@@ -265,6 +265,8 @@ contains
              key = "planemap"
           elseif (w%rep%type == reptype_isosurface) then
              key = "isosurface"
+          elseif (w%rep%type == reptype_kpath) then
+             key = "kpath"
           end if
        end if
     end if

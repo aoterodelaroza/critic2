@@ -221,6 +221,9 @@ contains
        if (w%rep%type == reptype_gpaths) then
           call iw_tooltip("Reset all the settings of this object to their defaults, and remove all&
              & the traced gradient paths",ttshown)
+       elseif (w%rep%type == reptype_kpath) then
+          call iw_tooltip("Reset all the settings of this object to their defaults, and replace&
+             & the path with the one suggested for this crystal",ttshown)
        else
           call iw_tooltip("Reset all the settings of this object to their defaults",ttshown)
        end if
@@ -1709,7 +1712,7 @@ contains
        iw_separatortext, iw_table_column, iw_table_headers_row, iw_calcheight, frac_point_string,&
        iw_button, iw_close_button, iw_highlight_selectable, iw_inputtext, iw_combo_simple,&
        iw_intstepper
-    use systems, only: sys
+    use systems, only: sys, sysc
     use tools_io, only: string, uout, fopen_write, fclose
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -1759,8 +1762,11 @@ contains
     idel = 0
     ihover = 0
     if (w%editrep_sec(1)%open) then
-       associate(kp => w%rep%kpath, c => sys(w%isys)%c)
+       associate(kp => w%rep%kpath, c => sys(w%isys)%c, skp => sysc(w%isys)%skp)
          call iw_text("Points: " // string(kp%npt))
+         ! no suggested path to start from
+         if (kp%npt == 0 .and. .not.allocated(skp%lbl) .and. allocated(skp%errmsg)) &
+            call iw_text("No special k-points: " // skp%errmsg,danger=.true.)
          flags = ImGuiTableFlags_None
          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
          flags = ior(flags,ImGuiTableFlags_RowBg)

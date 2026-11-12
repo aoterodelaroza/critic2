@@ -1,0 +1,36 @@
+title: K-Path Selection
+keyword: BZ SPECIAL
+manual: structure/#c2-bz
+cite: hinuma_2017
+
+Chooses the path through k-points for a band structure calculation and writes it in the
+format of an electronic structure code. Tools > Structure Analysis > K-Path Selection
+switches the view to reciprocal space and opens the editor of its k-path object, making one
+if there is none (Draw > K-Path adds more). A new path is the one suggested for the crystal
+by Hinuma et al., which the BZ SPECIAL keyword prints with the special k-points. The path is
+drawn in the view as arrows from each point to the next. Only crystals have k-paths.
+
+# Options
+
+- "Name" and "Show": the name of the object and whether it is drawn.
+- "Path": a table of the points, in order, with the label, the coordinates in the reciprocal
+  basis of this cell (hkl) and the distance to the origin. The red cross removes a point;
+  "Break" makes the path jump to that point, with no segment from the previous one; the
+  label can be edited (HPKOT notation, e.g. GAMMA, X_1). The point of the row under the
+  mouse is highlighted in the view. Click a row to select it, and again to unselect it.
+- "Add Point": click a special k-point or a reciprocal lattice point in the view to add it
+  after the selected point, or at the end if none is selected.
+- "Move Up" and "Move Down" change the place of the selected point in the path. "Reset to
+  Suggested Path" replaces the path with the suggested one.
+- "Style": the "Radius (1/Å)" and "Color" of the arrows, the spheres at the "Points" with
+  their "Point radius (1/Å)", and the "Labels" of the points with their size, color and
+  offset.
+
+# Results
+
+The "Export" section writes the path in the chosen "Format": a text table of labels and
+coordinates, the K_POINTS crystal_b card of Quantum ESPRESSO, or a VASP KPOINTS file in line
+mode, the last two with the given number of "Points per segment". "Write to Output" sends it
+to the Output console and "Write to File..." to a file. The coordinates are in the reciprocal
+basis of the cell of this system, which must be the one of the calculation. "Reset" restores
+the defaults and replaces the path with the suggested one.
