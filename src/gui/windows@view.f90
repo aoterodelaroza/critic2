@@ -91,7 +91,7 @@ contains
        reptype_colorbar, repflavor_colorbar, reptype_slice, repflavor_slice, reptype_wscell,&
        repflavor_wscell, reptype_latvec, repflavor_latvec, reptype_bz, repflavor_bz, reptype_reclat,&
        repflavor_reclat, reptype_reccell, repflavor_reccell, reptype_recaxes, repflavor_recaxes,&
-       reptype_skpoints, repflavor_skpoints
+       reptype_skpoints, repflavor_skpoints, reptype_kpath, repflavor_kpath
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -550,6 +550,10 @@ contains
           if (iw_menuitem("Special Points")) &
              call w%add_rep_and_edit(reptype_skpoints,repflavor_skpoints)
           call iw_tooltip("Spheres and labels at the special k-points of the Brillouin zone (Hinuma et al.)",ttshown)
+          if (iw_menuitem("K-Path")) &
+             call w%add_rep_and_edit(reptype_kpath,repflavor_kpath)
+          call iw_tooltip("A path through k-points for a band structure calculation, starting from the &
+             &suggested path of the Brillouin zone; the points are added by clicking them",ttshown)
           if (iw_menuitem("Reciprocal Cell")) &
              call w%add_rep_and_edit(reptype_reccell,repflavor_reccell)
           call iw_tooltip("The cell spanned by the reciprocal lattice vectors a*, b*, c*",ttshown)
@@ -850,6 +854,8 @@ contains
           w%measure_pend_cp = 0
           w%mousepos_lat = 0
           w%measure_pend_lat = 0
+          w%mousepos_kp = 0
+          w%measure_pend_kp = 0
           w%mousepos_anchor = w%mousepos_idx
        end if
        if (chbuild) w%sc%forcebuildlists = .true.
@@ -1029,6 +1035,7 @@ contains
        w%mousepos_bidx = 0
        w%mousepos_cp = 0
        w%mousepos_lat = 0
+       w%mousepos_kp = 0
        w%mousepos_anchor = 0
        w%mousepos_lastpick = pos
        call w%mousepos_to_texpos(pos)
@@ -1063,6 +1070,10 @@ contains
              ! (nothing while a rebuild is pending, as for the CPs)
              if (.not.w%sc%forcebuildlists) w%mousepos_lat = w%sc%obj%sph(w%mousepos_idx(1))%latidx
              w%mousepos_idx = 0
+          elseif (w%sc%obj%sph(w%mousepos_idx(1))%kpidx(1) > 0) then
+             ! a special k-point: its own identity (the same rebuild rule)
+             if (.not.w%sc%forcebuildlists) w%mousepos_kp = w%sc%obj%sph(w%mousepos_idx(1))%kpidx
+             w%mousepos_idx = 0
           else
              ! transform to atom cell ID and lattice vector
              w%mousepos_idx(1:4) = w%sc%obj%sph(w%mousepos_idx(1))%idx
@@ -1077,6 +1088,7 @@ contains
        w%mousepos_bidx = 0
        w%mousepos_cp = 0
        w%mousepos_lat = 0
+       w%mousepos_kp = 0
        w%mousepos_anchor = 0
        ! forget where the last pick was taken: the cursor can leave the view
        ! and come back to the very same pixel, and the "has it moved" test
@@ -1442,6 +1454,7 @@ contains
     w%mousepos_idx = 0
     w%mousepos_cp = 0
     w%mousepos_lat = 0
+    w%mousepos_kp = 0
     w%mousepos_anchor = 0
 
     ! reset the viewmodes; the annotation tools work on the objects of
@@ -1509,8 +1522,10 @@ contains
     w%mousepos_cp = 0
     w%mousepos_lat = 0
     w%mousepos_anchor = 0
+    w%mousepos_kp = 0
     w%measure_pend_cp = 0
     w%measure_pend_lat = 0
+    w%measure_pend_kp = 0
     call viewmode_to_navigate(w)
     w%annot%shown = .false.
     w%annot%rref = rep_ref()
@@ -1629,16 +1644,23 @@ contains
   !> shows the mode hint from viewmode_text. idcaller is the window
   !> ID (win(:)) of the caller, used by the caller to verify it owns
   !> the pick result.
-  module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty,latonly)
+  module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty,latonly,kspace)
     class(window), intent(inout), target :: w
     integer, intent(in) :: mode
     character(len=*), intent(in), optional :: message
     integer, intent(in) :: idcaller
     logical, intent(in), optional :: acceptempty
     logical, intent(in), optional :: latonly
+    logical, intent(in), optional :: kspace
 
-    ! the picks are of the real-space objects
-    if (w%kspace) call w%view_set_kspace(.false.)
+    logical :: kspace_
+
+    ! the picks are of the real-space objects, unless the caller asks
+    ! for the reciprocal-space ones (kspace: reciprocal lattice points
+    ! and special k-points)
+    kspace_ = .false.
+    if (present(kspace)) kspace_ = kspace
+    if (w%kspace .neqv. kspace_) call w%view_set_kspace(kspace_)
 
     call objedit_drop_picks(w)
     w%viewmode = mode
@@ -1656,6 +1678,7 @@ contains
     w%vmdata%bidx = 0
     w%vmdata%cpidx = 0
     w%vmdata%latidx = 0
+    w%vmdata%kpidx = 0
     w%vmdata%xpos = 0._c_float
     w%vmdata%flag = 0
     w%vmdata%tooltip_iz = 0
@@ -2108,6 +2131,66 @@ contains
 
   end function lat_hover_identity
 
+  !> The identity of the special k-point kpidx (dl_sphere%kpidx, a
+  !> point of sysc%skp or one of its images) under the mouse, for the
+  !> view bar: its label, reciprocal crystallographic coordinates and
+  !> reciprocal Cartesian coordinates in 1/Å. Empty if there is none.
+  function skp_hover_identity(w,kpidx) result(msg)
+    use systems, only: sys, sysc, ok_system, sys_init
+    use representations, only: hpkot_label
+    use utils, only: frac_point_string
+    use tools_io, only: string
+    use param, only: bohrtoa
+    class(window), intent(in) :: w
+    integer(c_int), intent(in) :: kpidx(2)
+    character(len=:), allocatable :: msg
+
+    real*8 :: x(3), x0(3)
+
+    msg = ""
+    if (kpidx(1) <= 0) return
+    if (.not.ok_system(w%isys,sys_init)) return
+    if (.not.skp_point(w%isys,kpidx,x)) return
+    x0 = matmul(sys(w%isys)%c%m_rx2rc,x) / bohrtoa
+    where (abs(x0) < 1d-10) x0 = 0d0
+    msg = "Special k-point " // hpkot_label(sysc(w%isys)%skp%lbl(kpidx(1))) // " " //&
+       frac_point_string(x) // " " // string(x0(1),'f',decimal=4) // " " //&
+       string(x0(2),'f',decimal=4) // " " // string(x0(3),'f',decimal=4) // " (1/Å)"
+
+  end function skp_hover_identity
+
+  !> The reciprocal crystallographic coordinates x (and the HPKOT
+  !> label lbl) of the special k-point kpidx (dl_sphere%kpidx) of
+  !> system isys, from its cached list (sysc%skp). Returns false if
+  !> the list does not have it.
+  module function skp_point(isys,kpidx,x,lbl) result(ok)
+    use systems, only: sysc
+    integer, intent(in) :: isys
+    integer(c_int), intent(in) :: kpidx(2)
+    real*8, intent(out) :: x(3)
+    character(len=*), intent(out), optional :: lbl
+    logical :: ok
+
+    ok = .false.
+    x = 0d0
+    if (present(lbl)) lbl = ""
+    associate(skp => sysc(isys)%skp)
+      if (.not.allocated(skp%lbl)) return
+      if (kpidx(1) < 1 .or. kpidx(1) > size(skp%lbl,1)) return
+      if (kpidx(2) > 0) then
+         if (.not.allocated(skp%ieq)) return
+         if (kpidx(2) > size(skp%ieq,1)) return
+         if (skp%ieq(kpidx(2)) /= kpidx(1)) return
+         x = skp%xkeq(:,kpidx(2))
+      else
+         x = skp%xk(:,kpidx(1))
+      end if
+      if (present(lbl)) lbl = skp%lbl(kpidx(1))
+    end associate
+    ok = .true.
+
+  end function skp_point
+
   !> The image drawn at the mouse cursor for the current view mode: itex
   !> is the icon texture saying what the next click does (0 = none), txt
   !> is a short label drawn instead when the cue is a chemical symbol
@@ -2203,6 +2286,7 @@ contains
     idmsg = hover_identity(w,w%mousepos_idx)
     if (len_trim(idmsg) == 0) idmsg = cp_hover_identity(w,w%mousepos_cp)
     if (len_trim(idmsg) == 0) idmsg = lat_hover_identity(w,w%mousepos_lat)
+    if (len_trim(idmsg) == 0) idmsg = skp_hover_identity(w,w%mousepos_kp)
     if (len_trim(w%errmsg) > 0) then
        ! an edit failed (e.g. a drag that could not be applied): the error
        ! outranks any hint, and stays until the next action clears it
@@ -2478,6 +2562,7 @@ contains
 
     integer(c_int), parameter :: izerob(8) = 0_c_int ! "no bond", for the picks that cannot target one
     integer(c_int), parameter :: izerocp(5) = 0_c_int ! "no critical point", likewise
+    integer(c_int), parameter :: izerokp(2) = 0_c_int ! "no special k-point", likewise
     integer(c_int), parameter :: izerolat(4) = 0_c_int ! "no lattice point", likewise
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
@@ -2682,9 +2767,11 @@ contains
                 w%measure_pend_bidx = w%mousepos_bidx
                 w%measure_pend_cp = w%mousepos_cp
                 w%measure_pend_lat = w%mousepos_lat
+                w%measure_pend_kp = w%mousepos_kp
                 w%press_p0 = mousepos
              else
-                call deliver_pick(w%mousepos_idx(1:4),w%mousepos_bidx,w%mousepos_cp,w%mousepos_lat,.false.)
+                call deliver_pick(w%mousepos_idx(1:4),w%mousepos_bidx,w%mousepos_cp,w%mousepos_lat,&
+                   w%mousepos_kp,.false.)
              end if
           elseif (hover .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.,iview=w%id)) then
              if (bind_mouse_button(BIND_PICKATOM_ALT) >= 0) then
@@ -2723,7 +2810,7 @@ contains
                    w%forcerender = .true.
                 elseif (w%measure_pend == pend_pick) then
                    call deliver_pick(w%measure_pend_idx(1:4),w%measure_pend_bidx,w%measure_pend_cp,&
-                      w%measure_pend_lat,.false.)
+                      w%measure_pend_lat,w%measure_pend_kp,.false.)
                 elseif (w%measure_pend == pend_pick_alt) then
                    w%measure_pend = pend_none
                    if (resolve_alt_pick(w%measure_pend_idx(1:4))) return
@@ -2740,7 +2827,7 @@ contains
        ! point under the cursor is not empty space)
        if (.not.forcedpick .and. .not.editexit .and. hover .and.&
           is_bind_event(BIND_NAV_MEASURE,iview=w%id) .and. w%mousepos_idx(1) == 0 .and.&
-          w%mousepos_cp(1) == 0 .and. w%mousepos_lat(4) == 0) then
+          w%mousepos_cp(1) == 0 .and. w%mousepos_lat(4) == 0 .and. w%mousepos_kp(1) == 0) then
           call sysc(w%isys)%highlight_clear(.false.)
           w%forcerender = .true.
        end if
@@ -3157,7 +3244,7 @@ contains
       ! the mode
       exit_on_empty = hover .and. is_bind_event(bindid,norepeat=.true.,iview=w%id) .and.&
          w%mousepos_idx(1) == 0 .and. w%mousepos_bidx(1) == 0 .and. w%mousepos_cp(1) == 0 .and.&
-         w%mousepos_lat(4) == 0
+         w%mousepos_lat(4) == 0 .and. w%mousepos_kp(1) == 0
 
     end function exit_on_empty
 
@@ -3172,7 +3259,7 @@ contains
       if (exited) then
          call w%viewmode_exit_forced()
       else
-         call deliver_pick(idx,izerob,izerocp,izerolat,.true.)
+         call deliver_pick(idx,izerob,izerocp,izerolat,izerokp,.true.)
       end if
 
     end function resolve_alt_pick
@@ -3190,11 +3277,12 @@ contains
     ! clicks, with the click position), flag whether the main or the
     ! alternate pick bind fired, and stay in the mode for successive
     ! edits.
-    subroutine deliver_pick(idx,bidx,cp,lat,alt)
+    subroutine deliver_pick(idx,bidx,cp,lat,kp,alt)
       integer(c_int), intent(in) :: idx(4)
       integer(c_int), intent(in) :: bidx(8)
       integer(c_int), intent(in) :: cp(5)
       integer(c_int), intent(in) :: lat(4)
+      integer(c_int), intent(in) :: kp(2)
       logical, intent(in) :: alt
 
       logical :: deliver
@@ -3238,15 +3326,19 @@ contains
          w%vmdata%bidx = 0
          w%vmdata%cpidx = 0
          w%vmdata%latidx = 0
+         w%vmdata%kpidx = 0
          if (w%vmdata%latonly) then
-            ! only a lattice point is delivered; anything else aborts
+            ! only a lattice point (or a special k-point, in reciprocal
+            ! space) is delivered; anything else aborts
             w%vmdata%latidx = lat
-            deliver = (lat(4) > 0)
+            w%vmdata%kpidx = kp
+            deliver = (lat(4) > 0 .or. kp(1) > 0)
          else
             if (idx(1) > 0) w%vmdata%idx = idx
             if (idx(1) == 0 .and. w%vmdata%acceptempty) then
                w%vmdata%cpidx = cp
                w%vmdata%latidx = lat
+               w%vmdata%kpidx = kp
             end if
             deliver = (idx(1) > 0 .or. w%vmdata%acceptempty)
          end if
@@ -4641,7 +4733,7 @@ contains
   !> view's pick data as needed; the caller keeps only its own pending
   !> marker and the destination of the
   !> point.
-  module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx)
+  module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx,kpidx)
     use systems, only: sysc
     integer, intent(in) :: iview
     integer, intent(in) :: idcaller
@@ -4651,6 +4743,7 @@ contains
     real*8, intent(out) :: xc(3)
     integer, intent(out), optional :: cpidx(5)
     integer, intent(out), optional :: latidx(4)
+    integer, intent(out), optional :: kpidx(2)
 
     logical :: okp
 
@@ -4658,6 +4751,7 @@ contains
     xc = 0d0
     if (present(cpidx)) cpidx = 0
     if (present(latidx)) latidx = 0
+    if (present(kpidx)) kpidx = 0
     associate(v => win(iview))
       if (.not.v%viewmode_owner_is(idcaller)) then
          ! the pick was taken over by another window
@@ -4673,10 +4767,12 @@ contains
          istat = merge(ipick_point,ipick_cancelled,okp)
          if (present(cpidx) .and. okp) cpidx = v%vmdata%cpidx
          if (present(latidx) .and. okp) latidx = v%vmdata%latidx
+         if (present(kpidx) .and. okp) kpidx = v%vmdata%kpidx
          v%vmdata%idx = 0
          v%vmdata%bidx = 0
          v%vmdata%cpidx = 0
          v%vmdata%latidx = 0
+         v%vmdata%kpidx = 0
          v%vmdata%flag = 0
       end if
     end associate

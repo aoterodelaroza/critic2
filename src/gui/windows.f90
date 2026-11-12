@@ -1350,6 +1350,7 @@ module windows
                                    ! joins, each a cell index + lattice vector (as in dl_cylinder%bidx)
      integer(c_int) :: cpidx(5) = 0 ! critical point clicked in pick-atom mode with acceptempty (as in dl_sphere%cpidx)
      integer(c_int) :: latidx(4) = 0 ! lattice point clicked in pick-atom mode with acceptempty (as in dl_sphere%latidx)
+     integer(c_int) :: kpidx(2) = 0 ! special k-point clicked in pick-atom mode with acceptempty or latonly (as in dl_sphere%kpidx)
      integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate; 0 = nothing delivered/cancelled)
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms and pick-atom modes)
      logical :: acceptempty = .false. ! pick-atom mode: an empty-space click delivers a position instead of aborting
@@ -1444,6 +1445,7 @@ module windows
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      integer(c_int) :: mousepos_cp(5) = 0 ! critical point under mouse position (dl_sphere%cpidx; 0 = none)
      integer(c_int) :: mousepos_lat(4) = 0 ! lattice point under mouse position (dl_sphere%latidx; 0 = none)
+     integer(c_int) :: mousepos_kp(2) = 0 ! special k-point under mouse position (dl_sphere%kpidx; 0 = none)
      integer(c_int) :: mousepos_anchor(5) = 0 ! measurement anchor under mouse position: the atom (as
                                               ! mousepos_idx) or the critical point (idx(1) < 0, see
                                               ! cp_anchor_make) with the sphere index in (5); 0 = none
@@ -1466,6 +1468,7 @@ module windows
      integer :: measure_pend_bidx(8) = 0 ! bond captured at the press for the pending pick
      integer :: measure_pend_cp(5) = 0 ! critical point captured at the press for the pending pick
      integer :: measure_pend_lat(4) = 0 ! lattice point captured at the press for the pending pick
+     integer :: measure_pend_kp(2) = 0 ! special k-point captured at the press for the pending pick
      real*8 :: timelast_view_getpixel = 0d0 ! time the pick buffer was last queried for atom ID
      ! dialog parameters
      type(dialog_userdata), pointer :: dialog_data => null() ! for the side pane callback
@@ -1793,6 +1796,7 @@ module windows
      procedure :: draw_editrep_wscell
      procedure :: draw_editrep_latvec
      procedure :: draw_editrep_skpoints
+     procedure :: draw_editrep_kpath
      procedure :: draw_editrep_axes
      procedure :: draw_editrep_symelem
      procedure :: draw_editrep_text
@@ -1958,6 +1962,7 @@ module windows
   integer, parameter, public :: wpurp_dialog_savemapfile = 17
   integer, parameter, public :: wpurp_dialog_savegridfile = 18
   integer, parameter, public :: wpurp_dialog_savencifiles = 19
+  integer, parameter, public :: wpurp_dialog_savekpathfile = 20
   ! largest size of the font atlas glyphs of an image for print (pixels; ipPrintContextCreate)
   real(c_float), parameter :: print_bakemax = 128._c_float
 
@@ -2278,13 +2283,14 @@ module windows
        class(window), intent(inout), target :: w
        logical, intent(in) :: okmods
      end subroutine viewmode_set_mode
-     module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty,latonly)
+     module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty,latonly,kspace)
        class(window), intent(inout), target :: w
        integer, intent(in) :: mode
        character(len=*), intent(in), optional :: message
        integer, intent(in) :: idcaller
        logical, intent(in), optional :: acceptempty
        logical, intent(in), optional :: latonly
+       logical, intent(in), optional :: kspace
      end subroutine viewmode_set_forced
      module subroutine viewmode_exit_forced(w)
        class(window), intent(inout), target :: w
@@ -2385,7 +2391,7 @@ module windows
        real*8, intent(out) :: xc(3)
        logical, intent(out) :: ok
      end subroutine view_pick_point
-     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx)
+     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx,kpidx)
        integer, intent(in) :: iview
        integer, intent(in) :: idcaller
        integer, intent(in) :: isys
@@ -2394,7 +2400,15 @@ module windows
        real*8, intent(out) :: xc(3)
        integer, intent(out), optional :: cpidx(5)
        integer, intent(out), optional :: latidx(4)
+       integer, intent(out), optional :: kpidx(2)
      end subroutine view_pick_result
+     module function skp_point(isys,kpidx,x,lbl) result(ok)
+       integer, intent(in) :: isys
+       integer(c_int), intent(in) :: kpidx(2)
+       real*8, intent(out) :: x(3)
+       character(len=*), intent(out), optional :: lbl
+       logical :: ok
+     end function skp_point
      module subroutine view_pick_winfrac(iview,idcaller,istat,winfrac)
        integer, intent(in) :: iview
        integer, intent(in) :: idcaller
@@ -2598,6 +2612,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_skpoints
+     module function draw_editrep_kpath(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_kpath
      module function draw_editrep_axes(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

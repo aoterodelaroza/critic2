@@ -70,7 +70,7 @@ contains
        reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
        reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar, reptype_slice, field_has_cps,&
        reptype_wscell, reptype_latvec, reptype_bz, reptype_reclat, reptype_reccell, reptype_recaxes,&
-       reptype_skpoints
+       reptype_skpoints, reptype_kpath
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sysc, sys_init, ok_system
@@ -151,6 +151,9 @@ contains
           changed = changed .or. ch
        elseif (w%rep%type == reptype_skpoints) then
           ch = w%draw_editrep_skpoints(ttshown)
+          changed = changed .or. ch
+       elseif (w%rep%type == reptype_kpath) then
+          ch = w%draw_editrep_kpath(ttshown)
           changed = changed .or. ch
        elseif (w%rep%type == reptype_axes .or. w%rep%type == reptype_recaxes) then
           ch = w%draw_editrep_axes(ttshown)
@@ -1690,29 +1693,257 @@ contains
        call iw_tooltip("Write the name of each point next to its sphere",ttshown)
        changed = changed .or. ch
 
-       call iw_text("Scale",alignframe=.true.)
-       ch = iw_dragfloat_real8("##skplabelscale",x1=w%rep%skp%label_scale,speed=0.01d0,&
-          min=0d0,max=10d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Size of the labels, relative to the sphere radius",ttshown)
-       changed = changed .or. ch
-
-       ch = iw_checkbox("Constant size##skplabelconstsize",w%rep%skp%label_const_size,labelleft=.true.,gap=.true.)
-       call iw_tooltip("Labels have constant size (on) or scale with the spheres (off)",ttshown)
-       changed = changed .or. ch
-
-       call iw_text("Color",alignframe=.true.,gap=.true.)
-       ch = iw_coloredit("##skplabelcolor",rgb=w%rep%skp%label_rgb,sameline=.true.)
-       call iw_tooltip("Color of the labels",ttshown)
-       changed = changed .or. ch
-
-       call iw_text("Offset (Å)",alignframe=.true.)
-       ch = iw_dragfloat_real8("##skplabeloffset",x3=w%rep%skp%label_offset,speed=0.001d0,&
-          min=-99.999d0,max=99.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Offset of the labels from the sphere centers",ttshown)
+       ch = label_style_widgets(w%rep%skp%label_scale,w%rep%skp%label_const_size,w%rep%skp%label_rgb,&
+          w%rep%skp%label_offset,"skp","spheres",ttshown)
        changed = changed .or. ch
     end if
 
   end function draw_editrep_skpoints
+
+  !> Draw the editrep window, k-path class. Returns true if the scene
+  !> needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_kpath(w,ttshown) result(changed)
+    use representations, only: kpath_point, kpath_seed, kpath_insert, kpath_delete, kpath_move,&
+       kpath_write, kpath_fmt_qe, kpath_fmt_vasp
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
+       iw_separatortext, iw_table_column, iw_table_headers_row, iw_calcheight, frac_point_string,&
+       iw_button, iw_close_button, iw_highlight_selectable, iw_inputtext, iw_combo_simple,&
+       iw_intstepper
+    use systems, only: sys
+    use tools_io, only: string, uout, fopen_write, fclose
+    use param, only: bohrtoa
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch, ldum, okwrite
+    integer :: i, iview, idel, istat, ipos, lu, idum
+    integer(c_int) :: flags
+    integer :: lat(4), kpidx(2)
+    real*8 :: x0(3), xc(3), u
+    type(ImVec2) :: sz0
+    type(kpath_point) :: pt
+    character(kind=c_char,len=:), allocatable, target :: str1
+
+    ! initialize
+    changed = .false.
+    iview = w%anchor_view()
+
+    ! the result of a pending pick: a special k-point (its label and
+    ! coordinates) or a reciprocal lattice point, added after the
+    ! selected point (at the end if none is selected)
+    if (w%editrep_pick_item > 0 .and. iview > 0) then
+       call view_pick_result(iview,w%id,w%isys,w%editrep_pick,istat,xc,latidx=lat,kpidx=kpidx)
+       if (istat == ipick_point) then
+          pt = kpath_point()
+          ipos = w%rep%kpath%npt + 1
+          if (w%rep%kpath%isel >= 1 .and. w%rep%kpath%isel <= w%rep%kpath%npt) ipos = w%rep%kpath%isel + 1
+          if (kpidx(1) > 0) then
+             if (skp_point(w%isys,kpidx,pt%x,pt%lbl)) then
+                call kpath_insert(w%rep%kpath,pt,ipos)
+                changed = .true.
+             end if
+          elseif (lat(4) > 0) then
+             pt%x = lat(1:3)
+             call kpath_insert(w%rep%kpath,pt,ipos)
+             changed = .true.
+          end if
+       end if
+       if (istat /= ipick_pending) w%editrep_pick_item = 0
+    end if
+
+    !! the path
+    ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
+    ! and a widget skipped because changed is already true is a widget not drawn
+    call iw_separatortext("Path",w%editrep_sec(1))
+    idel = 0
+    if (w%editrep_sec(1)%open) then
+       associate(kp => w%rep%kpath, c => sys(w%isys)%c)
+         call iw_text("Points: " // string(kp%npt))
+         flags = ImGuiTableFlags_None
+         flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+         flags = ior(flags,ImGuiTableFlags_RowBg)
+         flags = ior(flags,ImGuiTableFlags_Borders)
+         flags = ior(flags,ImGuiTableFlags_ScrollY)
+         flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+         str1 = "##kpathtable" // c_null_char
+         sz0%x = 0
+         sz0%y = iw_calcheight(min(kp%npt,8)+1,0,.false.)
+         if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
+            call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("Break",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("Label",id=2,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("hkl",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
+            call iw_table_column("|k| (1/Å)",id=4,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_headers_row(freezetop=.true.)
+
+            do i = 1, kp%npt
+               call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+
+               ! delete button
+               if (igTableSetColumnIndex(0)) then
+                  call igAlignTextToFramePadding()
+                  if (iw_close_button("##kpathdel" // string(i))) idel = i
+                  call iw_tooltip("Remove this point from the path",ttshown)
+               end if
+
+               ! break checkbox (the first point has nothing before it)
+               if (igTableSetColumnIndex(1)) then
+                  if (i > 1) then
+                     ch = iw_checkbox("##kpathbreak" // string(i),kp%pt(i)%break)
+                     call iw_tooltip("The path jumps to this point: no segment from the previous one",ttshown)
+                     changed = changed .or. ch
+                  end if
+               end if
+
+               ! label
+               if (igTableSetColumnIndex(2)) then
+                  ch = iw_inputtext("##kpathlbl" // string(i),bufsize=16,textf=kp%pt(i)%lbl,width=8)
+                  call iw_tooltip("Label of this point (HPKOT notation, e.g. GAMMA, X_1)",ttshown)
+                  changed = changed .or. ch
+               end if
+
+               ! coordinates, and the row-spanning selectable
+               if (igTableSetColumnIndex(3)) then
+                  call iw_text(frac_point_string(kp%pt(i)%x),alignframe=.true.)
+                  ldum = iw_highlight_selectable("##kpathsel" // string(i),clicked=ch,selected=(i == kp%isel))
+                  if (ch) kp%isel = i
+               end if
+
+               ! distance to the origin
+               if (igTableSetColumnIndex(4)) then
+                  x0 = matmul(c%m_rx2rc,kp%pt(i)%x) / bohrtoa
+                  call iw_text(string(norm2(x0),'f',decimal=4),alignframe=.true.)
+               end if
+            end do
+            call igEndTable()
+         end if
+
+         ! add a point by picking it in the view
+         if (iw_button("Add Point",disabled=(w%editrep_pick_item > 0 .or. iview == 0))) then
+            w%editrep_pick_item = 1
+            call w%editrep_pick%arm()
+            call win(iview)%viewmode_set_forced(vm_pick_atom,"Click a special k-point or a lattice point",&
+               w%id,latonly=.true.,kspace=.true.)
+         end if
+         call iw_tooltip("Add a point to the path, after the selected point (at the end if none is &
+            &selected): click a special k-point or a reciprocal lattice point in the view",ttshown)
+
+         ! move the selected point
+         if (iw_button("Move Up",sameline=.true.,disabled=(kp%isel <= 1 .or. kp%isel > kp%npt))) then
+            call kpath_move(kp,kp%isel,kp%isel-1)
+            changed = .true.
+         end if
+         call iw_tooltip("Move the selected point one place up the path",ttshown)
+         if (iw_button("Move Down",sameline=.true.,disabled=(kp%isel < 1 .or. kp%isel >= kp%npt))) then
+            call kpath_move(kp,kp%isel,kp%isel+1)
+            changed = .true.
+         end if
+         call iw_tooltip("Move the selected point one place down the path",ttshown)
+
+         ! the suggested path again
+         if (iw_button("Reset to Suggested Path",sameline=.true.)) then
+            call kpath_seed(kp,w%isys)
+            changed = .true.
+         end if
+         call iw_tooltip("Replace the path with the band path suggested for this crystal (Hinuma et al.)",ttshown)
+       end associate
+    end if
+
+    ! process a deletion
+    if (idel > 0) then
+       call kpath_delete(w%rep%kpath,idel)
+       changed = .true.
+    end if
+
+    !! the style (bohr^-1 stored, 1/Å shown, in steps fit for the reciprocal cell)
+    call iw_separatortext("Style",w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       u = recip_unit(w%isys)
+       associate(kp => w%rep%kpath)
+         call iw_text("Radius (1/Å)",alignframe=.true.)
+         ch = iw_dragfloat_real8("##kpathrad",x1=kp%rad,speed=2d-3*u,min=0d0,max=5d0*u,&
+            scale=1d0/bohrtoa,decimal=5,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Radius of the path segments",ttshown)
+         changed = changed .or. ch
+
+         call iw_text("Color",alignframe=.true.,gap=.true.)
+         ch = iw_coloredit("##kpathcolor",rgb=kp%rgb,sameline=.true.)
+         call iw_tooltip("Color of the path segments and points",ttshown)
+         changed = changed .or. ch
+
+         ch = iw_checkbox("Points",kp%showpts,labelleft=.true.)
+         call iw_tooltip("Draw a sphere at each point of the path",ttshown)
+         changed = changed .or. ch
+         if (kp%showpts) then
+            call iw_text("Point radius (1/Å)",alignframe=.true.,gap=.true.)
+            ch = iw_dragfloat_real8("##kpathptrad",x1=kp%ptrad,speed=2d-3*u,min=0d0,max=5d0*u,&
+               scale=1d0/bohrtoa,decimal=5,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Radius of the spheres at the points",ttshown)
+            changed = changed .or. ch
+         end if
+
+         ch = iw_checkbox("Labels",kp%showlabels,labelleft=.true.)
+         call iw_tooltip("Write the label of each point next to it",ttshown)
+         changed = changed .or. ch
+         if (kp%showlabels) then
+            ch = label_style_widgets(kp%label_scale,kp%label_const_size,kp%label_rgb,kp%label_offset,&
+               "kpath","points",ttshown)
+            changed = changed .or. ch
+         end if
+       end associate
+    end if
+
+    !! the export
+    call iw_separatortext("Export",w%editrep_sec(3))
+    if (w%editrep_sec(3)%open) then
+       associate(kp => w%rep%kpath)
+         call iw_text("Format",alignframe=.true.)
+         call iw_combo_simple("##kpathfmt","Text table" // c_null_char // "Quantum ESPRESSO (crystal_b)" //&
+            c_null_char // "VASP (line mode)" // c_null_char,kp%fmt,sameline=.true.)
+         call iw_tooltip("Format of the exported path: a table of labels and coordinates; the K_POINTS &
+            &crystal_b card of a Quantum ESPRESSO band structure calculation; or a VASP KPOINTS file &
+            &in line mode. Coordinates are in the reciprocal basis of this cell",ttshown)
+         if (kp%fmt == kpath_fmt_qe .or. kp%fmt == kpath_fmt_vasp) then
+            call iw_text("Points per segment",alignframe=.true.,gap=.true.)
+            ldum = iw_intstepper("##kpathnseg",kp%nseg,minval=1,maxval=1000,sameline=.true.)
+            call iw_tooltip("Number of k-points along each segment of the path",ttshown)
+         end if
+
+         ! something to write: points, or segments in the VASP format
+         okwrite = (kp%npt > 0)
+         if (kp%fmt == kpath_fmt_vasp .and. kp%npt > 1) then
+            okwrite = any(.not.kp%pt(2:kp%npt)%break)
+         elseif (kp%fmt == kpath_fmt_vasp) then
+            okwrite = .false.
+         end if
+         if (iw_button("Write to Output",disabled=.not.okwrite)) then
+            call kpath_write(kp,w%isys,uout)
+            ldum = read_output_uout(.true.,"[K-path export]")
+         end if
+         call iw_tooltip("Write the path in the chosen format to the Output console",ttshown)
+         if (iw_button("Write to File...",sameline=.true.,disabled=.not.okwrite)) &
+            idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savekpathfile,idparent=w%id,orraise=-1)
+         call iw_tooltip("Write the path in the chosen format to a file",ttshown)
+       end associate
+    end if
+
+    ! the file chosen with Write to File: write the path
+    if (w%okfile_set) then
+       w%okfile_set = .false.
+       w%errmsg = ""
+       lu = fopen_write(w%okfile,errstop=.false.)
+       if (lu < 0) then
+          w%errmsg = "Could not open file: " // trim(w%okfile)
+       else
+          call kpath_write(w%rep%kpath,w%isys,lu)
+          call fclose(lu)
+          call okfile_save_dir(w%okfile)
+       end if
+    end if
+    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+
+  end function draw_editrep_kpath
 
   !> Draw the editrep window, legend class. Returns true if the scene
   !> needs rendering again. ttshown = the tooltip flag.
@@ -3024,6 +3255,46 @@ contains
     changed = iw_periodicity_widget(w%rep%disp%ncell,ttshown,pertype=w%rep%disp%pertype)
 
   end function periodicity_widget
+
+  !> The scale, constant size, color and offset widgets of the labels
+  !> of an object. idsuffix makes the IDs unique and what names the
+  !> labeled objects (plural) in the tooltips. Returns whether any
+  !> changed.
+  function label_style_widgets(scale,const_size,rgb,offset,idsuffix,what,ttshown) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8
+    real*8, intent(inout) :: scale
+    logical, intent(inout) :: const_size
+    real(c_float), intent(inout) :: rgb(3)
+    real*8, intent(inout) :: offset(3)
+    character(len=*), intent(in) :: idsuffix, what
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch
+
+    changed = .false.
+    call iw_text("Scale",alignframe=.true.)
+    ch = iw_dragfloat_real8("##" // idsuffix // "labelscale",x1=scale,speed=0.01d0,&
+       min=0d0,max=10d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Size of the labels, relative to the radius of the " // what,ttshown)
+    changed = changed .or. ch
+
+    ch = iw_checkbox("Constant size##" // idsuffix // "labelconstsize",const_size,labelleft=.true.,gap=.true.)
+    call iw_tooltip("Labels have constant size (on) or scale with the " // what // " (off)",ttshown)
+    changed = changed .or. ch
+
+    call iw_text("Color",alignframe=.true.,gap=.true.)
+    ch = iw_coloredit("##" // idsuffix // "labelcolor",rgb=rgb,sameline=.true.)
+    call iw_tooltip("Color of the labels",ttshown)
+    changed = changed .or. ch
+
+    call iw_text("Offset (Å)",alignframe=.true.)
+    ch = iw_dragfloat_real8("##" // idsuffix // "labeloffset",x3=offset,speed=0.001d0,&
+       min=-99.999d0,max=99.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Offset of the labels from the centers of the " // what,ttshown)
+    changed = changed .or. ch
+
+  end function label_style_widgets
 
   !> The radius, color and opacity widgets of the spheres of an object
   !> (rad in bohr, or bohr^-1 drawn in the reciprocal scene of system

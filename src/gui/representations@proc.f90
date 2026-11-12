@@ -85,7 +85,8 @@ contains
   !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes),
   !> 14 (critical points), 15 (gradient paths), 16 (planar shapes),
   !> 17 (legend), 18 (scale bar), 19 (color bar), 20 (plane map),
-  !> 21 (Wigner-Seitz cell), 22 (lattice vectors), 23 (special k-points).
+  !> 21 (Wigner-Seitz cell), 22 (lattice vectors), 23 (special k-points),
+  !> 24 (k-path).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -387,6 +388,15 @@ contains
        r%skp%label_rgb = ColorLabel_def
     end if
 
+    ! k-path (sizes in bohr^-1): the suggested band path of the system
+    if (itype == 0 .or. itype == 24) then
+       r%kpath = rep_kpath()
+       r%kpath%rad = kpath_rad_def / recip_scale(sys(isys)%c)
+       r%kpath%ptrad = kpath_ptrad_def / recip_scale(sys(isys)%c)
+       r%kpath%label_rgb = ColorLabel_def
+       if (r%type == reptype_kpath) call kpath_seed(r%kpath,isys)
+    end if
+
     ! initialize the styles
     call r%reset_all_styles(itype)
 
@@ -679,7 +689,7 @@ contains
     logical :: ok
 
     ok = (itype == reptype_bz .or. itype == reptype_reclat .or. itype == reptype_reccell .or.&
-       itype == reptype_recaxes .or. itype == reptype_skpoints)
+       itype == reptype_recaxes .or. itype == reptype_skpoints .or. itype == reptype_kpath)
 
   end function reptype_is_recip
 
@@ -775,6 +785,167 @@ contains
     end do
 
   end subroutine skpoints_shown
+
+  !> Replace the points of the k-path kp with the band path suggested
+  !> for system isys (sysc%skp%ipath, HPKOT): the end points of its
+  !> segments, breaking where consecutive segments do not join. No
+  !> points if the system has no special k-points.
+  module subroutine kpath_seed(kp,isys)
+    use systems, only: sysc
+    type(rep_kpath), intent(inout) :: kp
+    integer, intent(in) :: isys
+
+    integer :: i, nseg
+
+    kp%npt = 0
+    kp%isel = 0
+    if (allocated(kp%pt)) deallocate(kp%pt)
+    call sysc(isys)%update_skpoints()
+    associate(skp => sysc(isys)%skp)
+      if (.not.allocated(skp%lbl) .or. .not.allocated(skp%ipath)) return
+      nseg = size(skp%ipath,2)
+      allocate(kp%pt(2*nseg))
+      do i = 1, nseg
+         if (i == 1) then
+            call add_point(skp%ipath(1,i),.false.)
+         elseif (skp%ipath(1,i) /= skp%ipath(2,i-1)) then
+            call add_point(skp%ipath(1,i),.true.)
+         end if
+         call add_point(skp%ipath(2,i),.false.)
+      end do
+    end associate
+
+  contains
+    subroutine add_point(j,break)
+      integer, intent(in) :: j
+      logical, intent(in) :: break
+
+      kp%npt = kp%npt + 1
+      kp%pt(kp%npt)%lbl = sysc(isys)%skp%lbl(j)
+      kp%pt(kp%npt)%x = sysc(isys)%skp%xk(:,j)
+      kp%pt(kp%npt)%break = break
+
+    end subroutine add_point
+  end subroutine kpath_seed
+
+  !> Insert point pt in the k-path kp at position ipos (1 to npt+1)
+  !> and select it.
+  module subroutine kpath_insert(kp,pt,ipos)
+    type(rep_kpath), intent(inout) :: kp
+    type(kpath_point), intent(in) :: pt
+    integer, intent(in) :: ipos
+
+    integer :: i
+    type(kpath_point), allocatable :: aux(:)
+
+    i = max(1,min(ipos,kp%npt+1))
+    allocate(aux(kp%npt+1))
+    if (i > 1) aux(1:i-1) = kp%pt(1:i-1)
+    aux(i) = pt
+    if (i <= kp%npt) aux(i+1:kp%npt+1) = kp%pt(i:kp%npt)
+    call move_alloc(aux,kp%pt)
+    kp%npt = kp%npt + 1
+    kp%isel = i
+    kp%pt(1)%break = .false.
+
+  end subroutine kpath_insert
+
+  !> Remove point idel from the k-path kp. The selection stays on the
+  !> point it was on, or is cleared if that was the one removed.
+  module subroutine kpath_delete(kp,idel)
+    type(rep_kpath), intent(inout) :: kp
+    integer, intent(in) :: idel
+
+    if (idel < 1 .or. idel > kp%npt) return
+    kp%pt(idel:kp%npt-1) = kp%pt(idel+1:kp%npt)
+    kp%npt = kp%npt - 1
+    if (kp%isel == idel) then
+       kp%isel = 0
+    elseif (kp%isel > idel) then
+       kp%isel = kp%isel - 1
+    end if
+    if (kp%npt > 0) kp%pt(1)%break = .false.
+
+  end subroutine kpath_delete
+
+  !> Exchange points i and j of the k-path kp (the selection follows
+  !> its point).
+  module subroutine kpath_move(kp,i,j)
+    type(rep_kpath), intent(inout) :: kp
+    integer, intent(in) :: i, j
+
+    type(kpath_point) :: pt
+
+    if (i < 1 .or. i > kp%npt .or. j < 1 .or. j > kp%npt) return
+    pt = kp%pt(i)
+    kp%pt(i) = kp%pt(j)
+    kp%pt(j) = pt
+    if (kp%isel == i) then
+       kp%isel = j
+    elseif (kp%isel == j) then
+       kp%isel = i
+    end if
+    kp%pt(1)%break = .false.
+
+  end subroutine kpath_move
+
+  !> Write the k-path kp of system isys to logical unit lu in its
+  !> export format (kp%fmt): a text table of labels and reciprocal
+  !> crystallographic coordinates, a Quantum ESPRESSO K_POINTS
+  !> crystal_b card (kp%nseg points per segment, 0 across a break), or
+  !> a VASP KPOINTS file in line mode (kp%nseg points per segment).
+  module subroutine kpath_write(kp,isys,lu)
+    use systems, only: sysc
+    use tools_io, only: string, ioj_left
+    type(rep_kpath), intent(in) :: kp
+    integer, intent(in) :: isys
+    integer, intent(in) :: lu
+
+    integer :: i, j, nw
+    character(len=:), allocatable :: lbl
+
+    select case (kp%fmt)
+    case (kpath_fmt_qe)
+       write (lu,'("K_POINTS crystal_b")')
+       write (lu,'(A)') string(kp%npt)
+       do i = 1, kp%npt
+          ! the number of points to the next one; 0 marks a jump (a
+          ! break, or the end of the path)
+          nw = kp%nseg
+          if (i == kp%npt) then
+             nw = 0
+          elseif (kp%pt(i+1)%break) then
+             nw = 0
+          end if
+          write (lu,'(2X,3(A," "),A,"  ! ",A)') (string(kp%pt(i)%x(j),'f',decimal=10),j=1,3),&
+             string(nw), trim(kp%pt(i)%lbl)
+       end do
+    case (kpath_fmt_vasp)
+       write (lu,'("k-path (critic2): ",A)') trim(sysc(isys)%seed%name)
+       write (lu,'(A)') string(kp%nseg)
+       write (lu,'("Line-mode")')
+       write (lu,'("Reciprocal")')
+       do i = 2, kp%npt
+          if (kp%pt(i)%break) cycle
+          write (lu,'(3(A," "),"  ",A)') (string(kp%pt(i-1)%x(j),'f',decimal=10),j=1,3),trim(kp%pt(i-1)%lbl)
+          write (lu,'(3(A," "),"  ",A)') (string(kp%pt(i)%x(j),'f',decimal=10),j=1,3),trim(kp%pt(i)%lbl)
+          write (lu,*)
+       end do
+    case default
+       write (lu,'("# k-path written by critic2")')
+       write (lu,'("# System: ",A)') trim(sysc(isys)%seed%name)
+       write (lu,'("# Coordinates in the reciprocal basis of the crystal (no 2*pi); a blank line is a break")')
+       write (lu,'("# label         k1              k2              k3")')
+       do i = 1, kp%npt
+          if (i > 1 .and. kp%pt(i)%break) write (lu,*)
+          lbl = trim(kp%pt(i)%lbl)
+          if (len(lbl) == 0) lbl = "-"
+          write (lu,'(2X,A,3(" ",A))') string(lbl,length=12,justify=ioj_left),&
+             (string(kp%pt(i)%x(j),'f',length=15,decimal=10,justify=3),j=1,3)
+       end do
+    end select
+
+  end subroutine kpath_write
 
   !> The row of the label style of the labels object r that holds cell
   !> atom iat: its species, non-equivalent atom, cell atom, or molecule,
@@ -2018,6 +2189,9 @@ contains
     elseif (r%type == reptype_skpoints) then
        !!! special k-points !!!
        call append_skpoints()
+    elseif (r%type == reptype_kpath) then
+       !!! k-path !!!
+       call append_kpath()
     elseif (r%type == reptype_reccell) then
        !!! reciprocal cell !!!
        call append_reccell()
@@ -4648,32 +4822,76 @@ contains
               xs = matmul(mframe,skp%xk(:,i))
            end if
 
-           ! the sphere
+           ! the sphere, carrying its identity (point and image) for the pick
            dsk = dl_sphere(x=real(xs,c_float),r=real(rscale * r%skp%rad,c_float),&
               rgb=r%skp%rgb,idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
               border=real(rscale * r%skp%border_size,c_float),rgbborder=r%skp%border_rgb,&
-              alpha=real(r%skp%alpha,c_float))
+              alpha=real(r%skp%alpha,c_float),kpidx=(/j,merge(i,0,r%skp%equiv)/))
            call dl_append(obj%sph,obj%nsph,dsk)
 
            ! the label
-           if (r%skp%showlabels) then
-              dstr%x = real(xs,c_float)
-              dstr%xdelta = cmplx(0._c_float,0._c_float,c_float_complex)
-              dstr%r = real(rscale * r%skp%rad,c_float)
-              dstr%rgb = r%skp%label_rgb
-              if (r%skp%label_const_size) then
-                 dstr%scale = real(r%skp%label_scale,c_float)
-              else
-                 dstr%scale = real(-r%skp%label_scale,c_float)
-              end if
-              dstr%offset = real(r%skp%label_offset,c_float)
-              dstr%str = hpkot_label(skp%lbl(j))
-              call dl_append(obj%string,obj%nstring,dstr)
-           end if
+           if (r%skp%showlabels) &
+              call append_kspace_label(xs,rscale * r%skp%rad,r%skp%label_scale,r%skp%label_const_size,&
+              r%skp%label_rgb,r%skp%label_offset,hpkot_label(skp%lbl(j)))
         end do
       end associate
 
     end subroutine append_skpoints
+
+    !> Append a label with text str at scene position xs, for a
+    !> sphere of radius rad, with the label style scale, const_size
+    !> (does not scale with the zoom), rgb and offset.
+    subroutine append_kspace_label(xs,rad,scale,const_size,rgb,offset,str)
+      real*8, intent(in) :: xs(3), rad, scale, offset(3)
+      logical, intent(in) :: const_size
+      real(c_float), intent(in) :: rgb(3)
+      character(len=*), intent(in) :: str
+
+      dstr%x = real(xs,c_float)
+      dstr%xdelta = cmplx(0._c_float,0._c_float,c_float_complex)
+      dstr%r = real(rad,c_float)
+      dstr%rgb = rgb
+      if (const_size) then
+         dstr%scale = real(scale,c_float)
+      else
+         dstr%scale = real(-scale,c_float)
+      end if
+      dstr%offset = real(offset,c_float)
+      dstr%str = str
+      call dl_append(obj%string,obj%nstring,dstr)
+
+    end subroutine append_kspace_label
+
+    !> The segments of the k-path between consecutive points (none
+    !> into a point where the path breaks), with a sphere and a label
+    !> at each point if asked. Neither is pickable.
+    subroutine append_kpath()
+      integer :: i
+      real*8 :: xs(3), xprev(3), rscale, mframe(3,3)
+      type(dl_sphere) :: dsk
+
+      rscale = recip_scale(c)
+      mframe = rscale * c%m_rx2rc
+      xprev = 0d0
+      associate(kp => r%kpath)
+        do i = 1, kp%npt
+           xs = matmul(mframe,kp%pt(i)%x)
+           if (i > 1 .and. .not.kp%pt(i)%break) &
+              call measure_segment(xprev,xs,kp%rgb,rscale * kp%rad,.false.,0d0)
+           xprev = xs
+           if (kp%showpts) then
+              dsk = dl_sphere(x=real(xs,c_float),r=real(rscale * kp%ptrad,c_float),&
+                 rgb=kp%rgb,idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
+                 border=0._c_float,rgbborder=0._c_float)
+              call dl_append(obj%sph,obj%nsph,dsk)
+           end if
+           if (kp%showlabels .and. len_trim(kp%pt(i)%lbl) > 0) &
+              call append_kspace_label(xs,rscale * kp%ptrad,kp%label_scale,kp%label_const_size,&
+              kp%label_rgb,kp%label_offset,hpkot_label(kp%pt(i)%lbl))
+        end do
+      end associate
+
+    end subroutine append_kpath
 
     !> The twelve edges of the reciprocal cell (spanned by a*, b*, c*)
     !> at its origin, with a*, b*, c* in the axis colors if asked.

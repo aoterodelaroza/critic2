@@ -132,6 +132,7 @@ module systems
      character(len=:), allocatable :: errmsg ! why there are no points (empty = there are)
      character(len=8), allocatable :: lbl(:) ! point labels (HPKOT notation)
      real*8, allocatable :: xk(:,:) ! point coordinates (reciprocal crystallographic, no 2*pi)
+     integer, allocatable :: ipath(:,:) ! suggested band path (pairs of point indices)
      real*8, allocatable :: xkeq(:,:) ! symmetry-equivalent images of the points in the first BZ
      integer, allocatable :: ieq(:) ! the point each image belongs to
   end type skpoints_cache

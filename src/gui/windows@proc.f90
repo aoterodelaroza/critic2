@@ -777,7 +777,7 @@ contains
   module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken,dialog_filter)
     use interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile
-    use representations, only: reptype_slice
+    use representations, only: reptype_slice, reptype_kpath
     use systems, only: always_read_virtuals
     use tools_io, only: ferror, faterr
     use param, only: bohrtoa
@@ -793,7 +793,6 @@ contains
     character(len=*,kind=c_char), intent(in), optional :: dialog_filter
 
     character(kind=c_char,len=:), allocatable, target :: str1
-    logical :: ok
 
     ! initialization of the state
     w%isinit = .true.
@@ -901,13 +900,14 @@ contains
        end if
        ! the export file: the image of the plot of a plane map, or the
        ! traced gradient paths
-       ok = .false.
-       if (associated(w%rep)) ok = (w%rep%type == reptype_slice)
-       if (ok) then
-          w%okfile = okfile_default(isys,"map","png")
-          w%okfile = w%okfile(1:len(w%okfile)-4) // "_plane.png"
-       else
-          w%okfile = okfile_default(isys,"structure","paths.txt")
+       w%okfile = okfile_default(isys,"structure","paths.txt")
+       if (associated(w%rep)) then
+          if (w%rep%type == reptype_slice) then
+             w%okfile = okfile_default(isys,"map","png")
+             w%okfile = w%okfile(1:len(w%okfile)-4) // "_plane.png"
+          elseif (w%rep%type == reptype_kpath) then
+             w%okfile = okfile_default(isys,"structure","kpath.txt")
+          end if
        end if
        ! the plot of a plane map, and its table of values (closed to
        ! begin with)
@@ -1782,6 +1782,13 @@ contains
              w%name = "Export Gradient Paths##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
              str1 = "Text (*.txt) {.txt},All files (*.*){*.*}" // c_null_char
              call dialog_initial_file(w%parent(),"paths.txt",str2,str3)
+             call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
+                1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
+          elseif (w%purpose == wpurp_dialog_savekpathfile) then
+             ! the k-path, as text in its export format
+             w%name = "Export K-Path##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
+             str1 = "Text (*.txt) {.txt},All files (*.*){*.*}" // c_null_char
+             call dialog_initial_file(w%parent(),"kpath.txt",str2,str3)
              call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_savemapfile) then

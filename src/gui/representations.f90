@@ -75,6 +75,10 @@ module representations
   !--> special k-points
   real*8, parameter, public :: skp_rad_def = 1.2d0 * latvec_rad_def ! sphere radius (larger than the lattice points, so Gamma shows over the origin)
   real(c_float), parameter, public :: skp_rgb_def(3) = (/1._c_float,0.55_c_float,0.1_c_float/) ! sphere color (#FF8C1A)
+  !--> k-path
+  real*8, parameter, public :: kpath_rad_def = 0.04d0 / bohrtoa ! segment radius
+  real*8, parameter, public :: kpath_ptrad_def = 0.15d0 / bohrtoa ! point sphere radius
+  real(c_float), parameter, public :: kpath_rgb_def(3) = (/0.75_c_float,0.1_c_float,0.1_c_float/) ! segment and point color
   !--> axes
   real*8, parameter, public :: axes_length_def = 1.0d0 / bohrtoa ! length of each axis
   real*8, parameter, public :: axes_radius_def = 0.06d0 / bohrtoa ! radius of the axis shafts
@@ -452,7 +456,8 @@ module representations
   integer, parameter, public :: reptype_reccell = 23 ! reciprocal cell (a*, b*, c*)
   integer, parameter, public :: reptype_recaxes = 24 ! reciprocal axes gizmo (a*, b*, c*)
   integer, parameter, public :: reptype_skpoints = 25 ! special k-points of the Brillouin zone (HPKOT)
-  integer, parameter, public :: reptype_NUM = 25
+  integer, parameter, public :: reptype_kpath = 26 ! path through k-points (band structure path)
+  integer, parameter, public :: reptype_NUM = 26
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -486,7 +491,8 @@ module representations
   integer, parameter, public :: repflavor_reccell = 28
   integer, parameter, public :: repflavor_recaxes = 29
   integer, parameter, public :: repflavor_skpoints = 30
-  integer, parameter, public :: repflavor_NUM = 30
+  integer, parameter, public :: repflavor_kpath = 31
+  integer, parameter, public :: repflavor_NUM = 31
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -507,7 +513,7 @@ module representations
      reptype_symelem, reptype_text, reptype_measure, reptype_shapes, reptype_isosurface,&
      reptype_cps, reptype_gpaths, reptype_planar, reptype_legend, reptype_scalebar,&
      reptype_colorbar, reptype_slice, reptype_wscell, reptype_latvec, reptype_bz, reptype_reclat,&
-     reptype_reccell, reptype_recaxes, reptype_skpoints/)
+     reptype_reccell, reptype_recaxes, reptype_skpoints, reptype_kpath/)
 
   ! default name of an object, by flavor (each flavor belongs to exactly
   ! one kind, so this is also the name of the kind for its basic flavor)
@@ -542,7 +548,8 @@ module representations
      "Lattice Vectors   ",& ! repflavor_reclat
      "Reciprocal Cell   ",& ! repflavor_reccell
      "Reciprocal Axes   ",& ! repflavor_recaxes
-     "Special Points    "/) ! repflavor_skpoints
+     "Special Points    ",& ! repflavor_skpoints
+     "K-Path            "/) ! repflavor_kpath
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -664,6 +671,42 @@ module representations
      character(len=8), allocatable :: hide(:) ! points not drawn (HPKOT labels)
   end type rep_skpoints
   public :: rep_skpoints
+
+  !> A point of a k-path (rep_kpath)
+  type kpath_point
+     character(len=16) :: lbl = "" ! label (HPKOT notation, or the user's)
+     real*8 :: x(3) = 0d0 ! reciprocal crystallographic coordinates (no 2*pi)
+     logical :: break = .false. ! the path jumps to this point: no segment from the previous one
+  end type kpath_point
+  public :: kpath_point
+
+  !> K-path options (reptype_kpath; accessed as r%kpath%...). The
+  !> path is an ordered list of points, joined by segments except
+  !> where it breaks; a new object takes the band path suggested for
+  !> the system (kpath_seed). Sizes are in bohr^-1.
+  type rep_kpath
+     integer :: npt = 0 ! number of points
+     type(kpath_point), allocatable :: pt(:) ! the points, in order
+     integer :: isel = 0 ! point selected in the editor (0 = none; not saved)
+     real*8 :: rad = kpath_rad_def ! segment radius
+     real(c_float) :: rgb(3) = kpath_rgb_def ! segment and point color
+     logical :: showpts = .true. ! draw a sphere at each point
+     real*8 :: ptrad = kpath_ptrad_def ! point sphere radius
+     logical :: showlabels = .false. ! draw the point labels
+     real*8 :: label_scale = label_scale_def ! label size, relative to the point sphere radius
+     real(c_float) :: label_rgb(3) = 0._c_float ! label color
+     logical :: label_const_size = .false. ! labels have a constant size
+     real*8 :: label_offset(3) = 0d0 ! offset of the labels (Å)
+     integer :: fmt = 0 ! export format (kpath_fmt_*)
+     integer :: nseg = 20 ! export: k-points per segment
+  end type rep_kpath
+  public :: rep_kpath
+
+  ! k-path export formats
+  integer, parameter, public :: kpath_fmt_text = 0 ! text table of labels and coordinates
+  integer, parameter, public :: kpath_fmt_qe = 1 ! Quantum ESPRESSO K_POINTS crystal_b card
+  integer, parameter, public :: kpath_fmt_vasp = 2 ! VASP KPOINTS in line mode
+  integer, parameter, public :: kpath_fmt_NUM = 2
 
   !> Cartesian/crystallographic axes options (reptype_axes; accessed as r%axes%...)
   type rep_axes
@@ -1520,6 +1563,7 @@ module representations
      type(rep_wscell) :: ws ! Wigner-Seitz cell options
      type(rep_latvec) :: lv ! lattice vectors options
      type(rep_skpoints) :: skp ! special k-points options
+     type(rep_kpath) :: kpath ! k-path options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -1557,6 +1601,11 @@ module representations
   public :: reptype_is_recip
   public :: hpkot_label
   public :: skpoints_shown
+  public :: kpath_seed
+  public :: kpath_insert
+  public :: kpath_delete
+  public :: kpath_move
+  public :: kpath_write
   public :: lattice_points
   public :: display_cell_window
   public :: wscell_isdrawn
@@ -1682,6 +1731,28 @@ module representations
        logical, allocatable, intent(inout) :: shown(:)
        logical, allocatable, intent(inout), optional :: shownimg(:)
      end subroutine skpoints_shown
+     module subroutine kpath_seed(kp,isys)
+       type(rep_kpath), intent(inout) :: kp
+       integer, intent(in) :: isys
+     end subroutine kpath_seed
+     module subroutine kpath_insert(kp,pt,ipos)
+       type(rep_kpath), intent(inout) :: kp
+       type(kpath_point), intent(in) :: pt
+       integer, intent(in) :: ipos
+     end subroutine kpath_insert
+     module subroutine kpath_delete(kp,idel)
+       type(rep_kpath), intent(inout) :: kp
+       integer, intent(in) :: idel
+     end subroutine kpath_delete
+     module subroutine kpath_move(kp,i,j)
+       type(rep_kpath), intent(inout) :: kp
+       integer, intent(in) :: i, j
+     end subroutine kpath_move
+     module subroutine kpath_write(kp,isys,lu)
+       type(rep_kpath), intent(in) :: kp
+       integer, intent(in) :: isys
+       integer, intent(in) :: lu
+     end subroutine kpath_write
      module function reptype_is_recip(itype) result(ok)
        integer, intent(in) :: itype
        logical :: ok

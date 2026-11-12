@@ -231,6 +231,40 @@ contains
          end if
          if (n > 0) call io%x(q,'hide',r%skp%hide)
 
+      case (reptype_kpath)
+         call io%obj(p,'kpath',q,found)
+         if (.not.found) return
+         call io%x(q,'rad',r%kpath%rad,lo=0d0)
+         call io%x(q,'rgb',r%kpath%rgb)
+         call io%x(q,'showpts',r%kpath%showpts)
+         call io%x(q,'ptrad',r%kpath%ptrad,lo=0d0)
+         call io%x(q,'showlabels',r%kpath%showlabels)
+         call io%x(q,'label_scale',r%kpath%label_scale,lo=0d0)
+         call io%x(q,'label_rgb',r%kpath%label_rgb)
+         call io%x(q,'label_const_size',r%kpath%label_const_size)
+         call io%x(q,'label_offset',r%kpath%label_offset)
+         call io%x(q,'fmt',r%kpath%fmt,0,kpath_fmt_NUM)
+         call io%x(q,'nseg',r%kpath%nseg,1)
+         ! the points
+         n = r%kpath%npt
+         call io%list(q,'points',a,n)
+         if (.not.associated(a)) return
+         if (io%reading) then
+            if (allocated(r%kpath%pt)) deallocate(r%kpath%pt)
+            allocate(r%kpath%pt(n))
+            r%kpath%npt = n
+            r%kpath%isel = 0
+         end if
+         do i = 1, n
+            call io%item(a,i,b)
+            if (.not.associated(b)) cycle
+            associate(pt => r%kpath%pt(i))
+              call io%x(b,'lbl',pt%lbl)
+              call io%x(b,'x',pt%x)
+              call io%x(b,'break',pt%break)
+            end associate
+         end do
+
       case (reptype_axes, reptype_recaxes)
          if (r%type == reptype_recaxes) then
             call io%obj(p,'recaxes',q,found)

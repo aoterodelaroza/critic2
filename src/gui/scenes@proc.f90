@@ -2251,11 +2251,11 @@ contains
        call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph)
        n = 0
        do i = 1, s%obj%nsph
-          if (onlylat .and. s%obj%sph(i)%latidx(4) <= 0) cycle
-          if (s%obj%sph(i)%cpidx(1) > 0 .or. s%obj%sph(i)%latidx(4) > 0) then
-             ! critical points and lattice points: pickable (hover
-             ! identity), but not when picking only bonds (the bond
-             ! CPs sit on the bonds; neither is a bond)
+          if (onlylat .and. s%obj%sph(i)%latidx(4) <= 0 .and. s%obj%sph(i)%kpidx(1) <= 0) cycle
+          if (s%obj%sph(i)%cpidx(1) > 0 .or. s%obj%sph(i)%latidx(4) > 0 .or. s%obj%sph(i)%kpidx(1) > 0) then
+             ! critical points, lattice points and special k-points:
+             ! pickable (hover identity), but not when picking only
+             ! bonds (the bond CPs sit on the bonds; none is a bond)
              if (onlybonds) cycle
           else
              ! draw the sphere, no gradient paths
@@ -2547,7 +2547,7 @@ contains
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
        reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar, reptype_legend,&
        reptype_scalebar, reptype_colorbar, reptype_slice, reptype_wscell, reptype_latvec, reptype_bz,&
-       reptype_reclat, reptype_reccell, reptype_recaxes, reptype_skpoints
+       reptype_reclat, reptype_reccell, reptype_recaxes, reptype_skpoints, reptype_kpath
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -2717,6 +2717,8 @@ contains
              str3 = "reciprocal axes" // c_null_char
           elseif (s%rep(i)%type == reptype_skpoints) then
              str3 = "special points" // c_null_char
+          elseif (s%rep(i)%type == reptype_kpath) then
+             str3 = "k-path" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then
