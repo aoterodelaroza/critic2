@@ -76,9 +76,13 @@ module representations
   real*8, parameter, public :: skp_rad_def = 1.2d0 * latvec_rad_def ! sphere radius (larger than the lattice points, so Gamma shows over the origin)
   real(c_float), parameter, public :: skp_rgb_def(3) = (/1._c_float,0.55_c_float,0.1_c_float/) ! sphere color (#FF8C1A)
   !--> k-path
-  real*8, parameter, public :: kpath_rad_def = 0.04d0 / bohrtoa ! segment radius
+  real*8, parameter, public :: kpath_rad_def = 0.04d0 / bohrtoa ! arrow shaft radius
   real*8, parameter, public :: kpath_ptrad_def = 0.15d0 / bohrtoa ! point sphere radius
-  real(c_float), parameter, public :: kpath_rgb_def(3) = (/0.75_c_float,0.1_c_float,0.1_c_float/) ! segment and point color
+  real(c_float), parameter, public :: kpath_rgb_def(3) = (/0.75_c_float,0.1_c_float,0.1_c_float/) ! arrow and point color
+  real*8, parameter, public :: kpath_headr = 5d0 ! arrowhead radius, in shaft radii
+  real*8, parameter, public :: kpath_headl = 2.5d0 ! arrowhead length, in arrowhead radii (at most half the arrow)
+  real*8, parameter, public :: kpath_selscale = 1.3d0 ! radius of the highlight of the selected or hovered point, in radii of the sphere drawn there
+  real(c_float), parameter, public :: kpath_selalpha = 0.7_c_float ! largest opacity of that highlight (it never hides the point)
   !--> axes
   real*8, parameter, public :: axes_length_def = 1.0d0 / bohrtoa ! length of each axis
   real*8, parameter, public :: axes_radius_def = 0.06d0 / bohrtoa ! radius of the axis shafts
@@ -681,15 +685,17 @@ module representations
   public :: kpath_point
 
   !> K-path options (reptype_kpath; accessed as r%kpath%...). The
-  !> path is an ordered list of points, joined by segments except
-  !> where it breaks; a new object takes the band path suggested for
-  !> the system (kpath_seed). Sizes are in bohr^-1.
+  !> path is an ordered list of points, joined by segments (drawn as
+  !> arrows, to show the direction) except where it breaks; a new
+  !> object takes the band path suggested for the system
+  !> (kpath_seed). Sizes are in bohr^-1.
   type rep_kpath
      integer :: npt = 0 ! number of points
      type(kpath_point), allocatable :: pt(:) ! the points, in order
-     integer :: isel = 0 ! point selected in the editor (0 = none; not saved)
-     real*8 :: rad = kpath_rad_def ! segment radius
-     real(c_float) :: rgb(3) = kpath_rgb_def ! segment and point color
+     integer :: isel = 0 ! point selected in the editor, drawn highlighted (0 = none; not saved)
+     integer :: ihover = 0 ! point under the mouse in the editor table, drawn highlighted (0 = none; not saved)
+     real*8 :: rad = kpath_rad_def ! arrow shaft radius
+     real(c_float) :: rgb(3) = kpath_rgb_def ! arrow and point color
      logical :: showpts = .true. ! draw a sphere at each point
      real*8 :: ptrad = kpath_ptrad_def ! point sphere radius
      logical :: showlabels = .false. ! draw the point labels

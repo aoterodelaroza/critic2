@@ -1622,7 +1622,8 @@ contains
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane, symop_kind_axis,&
        symop_kind_point, symelem_list, elem_box, elem_maxpt, clip_point_box,&
        clip_line_box, clip_plane_box
-    use gui_main, only: ColorAxes_def, ColorElement, ColorAtomBorder_def, ColorHighlightScene
+    use gui_main, only: ColorAxes_def, ColorElement, ColorAtomBorder_def, ColorHighlightScene,&
+       ColorHighlightSelectScene
     use shapes, only: maxpie, dl_radcap, dl_legend, dl_scalebar, dl_colorbar
     use tools_io, only: string
     use tools_math, only: cross, plane_from_points
@@ -3964,8 +3965,8 @@ contains
       yb = x2
       hl = hl0
       len = norm2(x2 - x1)
-      ra = atom_radius_at(x1)
-      rb = atom_radius_at(x2)
+      ra = sphere_radius_at(x1,atoms=.true.)
+      rb = sphere_radius_at(x2,atoms=.true.)
       if (ra + rb <= 0d0 .or. len - ra - rb < 1d-6) return
       u = (x2 - x1) / len
       ya = x1 + ra * u
@@ -3974,9 +3975,12 @@ contains
 
     end subroutine arrow_to_atoms
 
-    !> Radius of the drawn atom centered at x (zero if there is none).
-    function atom_radius_at(x) result(rr)
+    !> Radius of the largest sphere drawn centered at x (zero if there
+    !> is none): an atom if atoms, an opaque sphere of any object
+    !> otherwise.
+    function sphere_radius_at(x,atoms) result(rr)
       real*8, intent(in) :: x(3)
+      logical, intent(in) :: atoms
       real*8 :: rr
       integer :: j
 
@@ -3984,11 +3988,13 @@ contains
 
       rr = 0d0
       do j = 1, obj%nsph
-         if (obj%sph(j)%ghost .or. obj%sph(j)%idx(1) <= 0) cycle
+         if (obj%sph(j)%ghost) cycle
+         if (atoms .and. obj%sph(j)%idx(1) <= 0) cycle
+         if (.not.atoms .and. obj%sph(j)%alpha < 1._c_float) cycle
          if (norm2(real(obj%sph(j)%x,8) - x) < eps) rr = max(rr,real(obj%sph(j)%r,8))
       end do
 
-    end function atom_radius_at
+    end function sphere_radius_at
 
     !> Append a cone with its base center at x1 and its apex at x2, with base
     !> radius radv and color rgbc.
@@ -4862,31 +4868,74 @@ contains
 
     end subroutine append_kspace_label
 
-    !> The segments of the k-path between consecutive points (none
-    !> into a point where the path breaks), with a sphere and a label
-    !> at each point if asked. Neither is pickable.
+    !> The k-path: an arrow from each point to the next (none into a
+    !> point where the path breaks), with a sphere and a label at each
+    !> point if asked. The arrows end on the surface of the largest
+    !> sphere drawn at the point they go to, of this object or of the
+    !> ones built before it (the special points), so the heads show:
+    !> the k-paths are built after the rest of the scene. The points
+    !> selected and under the mouse in the table of the editor are
+    !> highlighted with a translucent sphere around them, in the
+    !> selection and hover colors. Nothing here is pickable.
     subroutine append_kpath()
       integer :: i
-      real*8 :: xs(3), xprev(3), rscale, mframe(3,3)
+      real*8 :: xs(3), xprev(3), rscale, mframe(3,3), rad, ptrad, headl, rsph, rprev, rsel, len, vis
+      real(c_float) :: rgbahl(4)
       type(dl_sphere) :: dsk
 
       rscale = recip_scale(c)
       mframe = rscale * c%m_rx2rc
       xprev = 0d0
+      rprev = 0d0
       associate(kp => r%kpath)
+        rad = rscale * kp%rad
+        ptrad = rscale * kp%ptrad
         do i = 1, kp%npt
            xs = matmul(mframe,kp%pt(i)%x)
-           if (i > 1 .and. .not.kp%pt(i)%break) &
-              call measure_segment(xprev,xs,kp%rgb,rscale * kp%rad,.false.,0d0)
+
+           ! the radius of the largest opaque sphere at this point (zero
+           ! if none)
+           rsph = sphere_radius_at(xs,atoms=.false.)
+           if (kp%showpts) rsph = max(rsph,ptrad)
+
+           ! the highlight of the point under the mouse in the editor
+           ! table (in the hover color), or else of the selected point
+           ! (in the selection color): never smaller than the point
+           ! sphere (shown or not) or an arrowhead, and always
+           ! translucent: it does not hide the point, and it is not a
+           ! sphere for the arrows of a later visit to end on
+           if (i == kp%ihover .or. i == kp%isel) then
+              rgbahl = merge(ColorHighlightScene,ColorHighlightSelectScene,i == kp%ihover)
+              rsel = kpath_selscale * max(rsph,ptrad,kpath_headr * rad)
+              dsk = dl_sphere(x=real(xs,c_float),r=real(rsel,c_float),&
+                 rgb=rgbahl(1:3),idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
+                 border=0._c_float,rgbborder=0._c_float,alpha=min(rgbahl(4),kpath_selalpha))
+              call dl_append(obj%sph,obj%nsph,dsk)
+           end if
+
+           ! the arrow from the previous point, if any of it shows
+           ! between the two spheres; headl is the head length as a
+           ! fraction of the arrow drawn, which stops at this sphere
+           if (i > 1 .and. .not.kp%pt(i)%break) then
+              len = norm2(xs - xprev)
+              vis = len - rsph - rprev
+              if (vis > 1d-6) then
+                 headl = min(kpath_headl * kpath_headr * rad,0.5d0 * vis) / (len - rsph)
+                 call append_arrow(xprev,xs - (rsph / len) * (xs - xprev),kp%rgb,rad,kpath_headr,&
+                    headl,.false.,0d0)
+              end if
+           end if
            xprev = xs
+           rprev = rsph
+
            if (kp%showpts) then
-              dsk = dl_sphere(x=real(xs,c_float),r=real(rscale * kp%ptrad,c_float),&
+              dsk = dl_sphere(x=real(xs,c_float),r=real(ptrad,c_float),&
                  rgb=kp%rgb,idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
                  border=0._c_float,rgbborder=0._c_float)
               call dl_append(obj%sph,obj%nsph,dsk)
            end if
            if (kp%showlabels .and. len_trim(kp%pt(i)%lbl) > 0) &
-              call append_kspace_label(xs,rscale * kp%ptrad,kp%label_scale,kp%label_const_size,&
+              call append_kspace_label(xs,ptrad,kp%label_scale,kp%label_const_size,&
               kp%label_rgb,kp%label_offset,hpkot_label(kp%pt(i)%lbl))
         end do
       end associate

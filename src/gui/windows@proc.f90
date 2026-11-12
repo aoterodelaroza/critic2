@@ -1155,6 +1155,7 @@ contains
   module subroutine window_end(w)
     use systems, only: ok_system, sysc, sys, sys_init, lastchange_geometry, remove_system
     use gui_main, only: settings_save
+    use representations, only: reptype_kpath
     use interfaces_opengl3
     use tools_io, only: ferror, warning
     class(window), intent(inout), target :: w
@@ -1188,6 +1189,18 @@ contains
        elseif (w%type == wintype_editrep) then
           ! the texture of the plot of a plane map
           call w%plane_free_texture()
+          ! the points selected and under the mouse in the table of a
+          ! k-path editor are no longer highlighted, however the window
+          ! was closed: the object is in the scene of the anchor view,
+          ! or in the reciprocal-space scene the view has left (the
+          ! system's, for the main view only: the objects of an
+          ! alternate view made from it have the same uids)
+          iv = w%anchor_view()
+          if (iv > 0) then
+             if (associated(win(iv)%sc)) call kpath_unselect(win(iv)%sc)
+             if (associated(win(iv)%scother)) call kpath_unselect(win(iv)%scother)
+             if (win(iv)%ismain .and. ok_system(w%isys,sys_init)) call kpath_unselect(sysc(w%isys)%sck)
+          end if
        elseif (w%type == wintype_gpaths) then
           ! the seed CP under the mouse is no longer highlighted
           call w%clear_gpaths_hover()
@@ -1382,6 +1395,25 @@ contains
     ! declaration); the dialog that was given its address is destroyed
     ! above, so it can go now
     if (associated(w%dialog_data)) deallocate(w%dialog_data)
+
+  contains
+    !> Unselect the point of the k-path this editor works on, if it
+    !> is an object of scene sc and has one selected or under the
+    !> mouse.
+    subroutine kpath_unselect(sc)
+      type(scene), intent(inout) :: sc
+
+      integer :: id
+
+      id = w%rref%get(sc)
+      if (id == 0) return
+      if (sc%rep(id)%type /= reptype_kpath) return
+      if (sc%rep(id)%kpath%isel == 0 .and. sc%rep(id)%kpath%ihover == 0) return
+      sc%rep(id)%kpath%isel = 0
+      sc%rep(id)%kpath%ihover = 0
+      sc%forcebuildlists = .true.
+
+    end subroutine kpath_unselect
 
   end subroutine window_end
 

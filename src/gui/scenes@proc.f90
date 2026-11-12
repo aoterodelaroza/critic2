@@ -390,7 +390,7 @@ contains
   module subroutine scene_build_lists(s)
     use representations, only: reptype_atoms, reptype_polyhedra, reptype_axes, reptype_symelem,&
        reptype_shapes, reptype_legend, reptype_colorbar, axes_winfrac_def, axplace_window, colorbar_rep,&
-       reptype_recaxes
+       reptype_recaxes, reptype_kpath
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use systems, only: sys, sys_ready, ok_system, sysc, cp_anchor_resolve
@@ -431,8 +431,8 @@ contains
     end do
 
     ! add the items by representation; defer reps that need the scene
-    ! radius, and the 3D shapes, which look up the drawn atoms (an arrow
-    ! end on an atom goes to its surface).
+    ! radius, and the 3D shapes and k-paths, which look up the drawn
+    ! spheres (an arrow end on an atom or a k-point goes to its surface).
     do i = 1, s%nrep
        ! update to reflect changes in the number of atoms or molecules
        call s%rep(i)%update()
@@ -441,7 +441,7 @@ contains
        if ((s%rep(i)%type == reptype_axes .or. s%rep(i)%type == reptype_recaxes) .and.&
           s%rep(i)%axes%placement == axplace_window) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
-       if (s%rep(i)%type == reptype_shapes) cycle
+       if (s%rep(i)%type == reptype_shapes .or. s%rep(i)%type == reptype_kpath) cycle
        if (s%rep(i)%type == reptype_legend) cycle
        if (s%rep(i)%type == reptype_colorbar) cycle
        call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
@@ -471,8 +471,9 @@ contains
     ! inside them (before the shapes: their arrows end at the atoms)
     call apply_radcaps()
 
+    ! the 3D shapes and the k-paths, after the spheres their arrows end on
     do i = 1, s%nrep
-       if (s%rep(i)%type /= reptype_shapes) cycle
+       if (s%rep(i)%type /= reptype_shapes .and. s%rep(i)%type /= reptype_kpath) cycle
        call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
           noghost=all(atomcells >= s%disp%ncells(s%rep(i)%disp)))
     end do
@@ -2633,6 +2634,8 @@ contains
                 s%icount(0) = s%icount(0) + 1
                 s%rep(id)%iord = s%icount(0)
                 s%rep(id)%uid = new_uid()
+                s%rep(id)%kpath%isel = 0 ! the selection belongs to the editor of the original
+                s%rep(id)%kpath%ihover = 0
                 s%forcesort = .true.
                 changed = .true.
                 call s%undo_note("Duplicate " // trim(s%rep(i)%name))

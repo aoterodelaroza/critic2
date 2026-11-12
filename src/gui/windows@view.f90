@@ -775,6 +775,15 @@ contains
        ! the value copy aliased the source scene's GL handles; detach so the new
        ! view lazily builds its own instance buffers
        call win(idum)%sc%gl%detach()
+       ! the points selected and under the mouse in a k-path editor of
+       ! this view are highlighted in this view only (the copy came
+       ! with the draw lists, so they are built again)
+       do i = 1, win(idum)%sc%nrep
+          if (win(idum)%sc%rep(i)%kpath%isel == 0 .and. win(idum)%sc%rep(i)%kpath%ihover == 0) cycle
+          win(idum)%sc%rep(i)%kpath%isel = 0
+          win(idum)%sc%rep(i)%kpath%ihover = 0
+          win(idum)%sc%forcebuildlists = .true.
+       end do
        win(idum)%isys = w%isys
        call win(idum)%sc%reset_animation()
     end if

@@ -1717,7 +1717,7 @@ contains
     logical :: changed
 
     logical :: ch, ldum, okwrite
-    integer :: i, iview, idel, istat, ipos, lu, idum
+    integer :: i, iview, idel, ihover, istat, ipos, lu, idum
     integer(c_int) :: flags
     integer :: lat(4), kpidx(2)
     real*8 :: x0(3), xc(3), u
@@ -1757,6 +1757,7 @@ contains
     ! and a widget skipped because changed is already true is a widget not drawn
     call iw_separatortext("Path",w%editrep_sec(1))
     idel = 0
+    ihover = 0
     if (w%editrep_sec(1)%open) then
        associate(kp => w%rep%kpath, c => sys(w%isys)%c)
          call iw_text("Points: " // string(kp%npt))
@@ -1791,7 +1792,7 @@ contains
                if (igTableSetColumnIndex(1)) then
                   if (i > 1) then
                      ch = iw_checkbox("##kpathbreak" // string(i),kp%pt(i)%break)
-                     call iw_tooltip("The path jumps to this point: no segment from the previous one",ttshown)
+                     call iw_tooltip("The path jumps to this point: no arrow from the previous one",ttshown)
                      changed = changed .or. ch
                   end if
                end if
@@ -1806,8 +1807,20 @@ contains
                ! coordinates, and the row-spanning selectable
                if (igTableSetColumnIndex(3)) then
                   call iw_text(frac_point_string(kp%pt(i)%x),alignframe=.true.)
-                  ldum = iw_highlight_selectable("##kpathsel" // string(i),clicked=ch,selected=(i == kp%isel))
-                  if (ch) kp%isel = i
+                  if (iw_highlight_selectable("##kpathsel" // string(i),clicked=ch,selected=(i == kp%isel))) &
+                     ihover = i
+                  if (ch) then
+                     ! the selected point is highlighted in the view (a
+                     ! rebuild, not an edit of the object); clicking it
+                     ! again unselects it (with the mouse: keyboard
+                     ! navigation onto the row also reports a click)
+                     if (i == kp%isel .and. igIsMouseReleased(ImGuiMouseButton_Left)) then
+                        kp%isel = 0
+                     else
+                        kp%isel = i
+                     end if
+                     if (iview > 0) win(iview)%sc%forcebuildlists = .true.
+                  end if
                end if
 
                ! distance to the origin
@@ -1850,10 +1863,18 @@ contains
        end associate
     end if
 
-    ! process a deletion
+    ! process a deletion (the rows have moved under the mouse)
     if (idel > 0) then
        call kpath_delete(w%rep%kpath,idel)
+       ihover = 0
        changed = .true.
+    end if
+
+    ! the point under the mouse in the table is highlighted in the view
+    ! (a rebuild, not an edit of the object)
+    if (ihover /= w%rep%kpath%ihover) then
+       w%rep%kpath%ihover = ihover
+       if (iview > 0) win(iview)%sc%forcebuildlists = .true.
     end if
 
     !! the style (bohr^-1 stored, 1/Å shown, in steps fit for the reciprocal cell)
@@ -1864,12 +1885,12 @@ contains
          call iw_text("Radius (1/Å)",alignframe=.true.)
          ch = iw_dragfloat_real8("##kpathrad",x1=kp%rad,speed=2d-3*u,min=0d0,max=5d0*u,&
             scale=1d0/bohrtoa,decimal=5,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Radius of the path segments",ttshown)
+         call iw_tooltip("Radius of the shaft of the path arrows; the arrowheads scale with it",ttshown)
          changed = changed .or. ch
 
          call iw_text("Color",alignframe=.true.,gap=.true.)
          ch = iw_coloredit("##kpathcolor",rgb=kp%rgb,sameline=.true.)
-         call iw_tooltip("Color of the path segments and points",ttshown)
+         call iw_tooltip("Color of the path arrows and points",ttshown)
          changed = changed .or. ch
 
          ch = iw_checkbox("Points",kp%showpts,labelleft=.true.)
