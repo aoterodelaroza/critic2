@@ -1,0 +1,22 @@
+## check: 020_read_forces_axes.dat -a1e-4
+## labels: quick regression
+
+## Urea: READ_FORCES from the AXES dataset of the index-2 supercell (30
+## displaced structures, +-a, +-b, +-c of the supercell for each of the
+## 5 independent atoms). The FHI-aims outputs are synthetic, with the
+## harmonic forces F = -Phi u of urea_fc2_sym.dat (see
+## zz_source/critic2/vibrations-urea/README), so the frequencies must be
+## those of 016_read_forces_fd (phonopy's directions, 24 structures):
+## they agree to 2e-5 cm^-1. The tolerance is 1e-4 cm^-1 for the
+## acoustic zeros at gamma, as in 016.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  read_forces ../zz_source/critic2/vibrations-urea/fd_axes/disp-*/aims.out dataset ../zz_source/critic2/vibrations-urea/fd_axes/disp.txt
+  calcq file 020_read_forces_axes.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+end

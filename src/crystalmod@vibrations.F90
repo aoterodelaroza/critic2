@@ -131,6 +131,7 @@ submodule (crystalmod) vibrationsmod
      integer :: kind = fc2_kind_fd ! kind of displacements (fc2_kind_*)
      integer :: rseed = -1 ! random seed the displacements were generated with (-1 = none given)
      logical :: plusminus = .false. ! random kind: snapshot ndisp/2+i is the negative of snapshot i
+     logical :: axes = .false. ! fd kind: +-DISTANCE along the three supercell axes, not phonopy's directions (AXES)
      integer :: smat(3,3) = 0 ! supercell matrix (rows = supercell lattice vectors)
      real*8 :: dist = 0d0 ! displacement length (bohr)
      character(len=mlen) :: template = "" ! file name template of the displaced structures
@@ -197,7 +198,7 @@ submodule (crystalmod) vibrationsmod
   ! function fc2_is_units_word(word)
   ! function fc2_unit_factor(iunit)
   ! subroutine disp_default_template(c,template,template_,iwf)
-  ! subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,nindep,indep,ndisp,datom,ddir,errmsg,ti,fdlist)
+  ! subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,nindep,indep,ndisp,datom,ddir,errmsg,ti,fdlist,axes)
   ! subroutine fc2_compatible_ops(c,smat,nlat,madj,nkeep,ikeep,rp)
   ! function fc2_dispvec(sc,ddir,dist)
   ! subroutine fc2_random_disps(nsat,nsnap,dist,plusminus,disp)
@@ -226,7 +227,7 @@ submodule (crystalmod) vibrationsmod
   ! subroutine fc2_read_forces(file,nat,f,icalc,errmsg,ti)
   ! subroutine fc2_makedir(fname,errmsg)
   ! subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
-  ! subroutine fc2_site_directions(nsym,irot,nd,dsel)
+  ! subroutine fc2_site_directions(nsym,irot,nd,dsel,axes)
   ! function fc2_xin(c,ia)
   ! function fc2_scpos(x,lv,madj,nlat)
   ! function fc2_ilat(nlat,lkey,madj,lv)
@@ -577,11 +578,14 @@ contains
   !> independent atoms (nindep, indep) and the list of displacements
   !> (ndisp, datom = supercell atom displaced, ddir = direction in
   !> supercell fractional coordinates). dist is the displacement length
-  !> (bohr). If error, return non-zero errmsg.
+  !> (bohr). If axes, every independent atom is displaced by +-dist
+  !> along the three supercell lattice vectors (six displacements, no
+  !> reduction by the site symmetry) instead of along phonopy's
+  !> directions. If error, return non-zero errmsg.
   !>
   !> This routine was adapted from phonopy, by A. Togo.
   subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,&
-     nindep,indep,ndisp,datom,ddir,errmsg,ti,fdlist)
+     nindep,indep,ndisp,datom,ddir,errmsg,ti,fdlist,axes)
     use crystalseedmod, only: crystalseed
     use global, only: symprec
     use tools_io, only: uout, string, ioj_left, ioj_right, ferror, warning
@@ -602,8 +606,9 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
     logical, intent(in), optional :: fdlist
+    logical, intent(in), optional :: axes
 
-    logical :: dolist
+    logical :: dolist, axes_
     character*3 :: pgsymb
     integer :: nopfull, ia, il, is, i, k, nsym, nd, nkeep
     integer :: irot(3,3,48), dsel(3,6), ikeep(48), rp(3,3,48)
@@ -612,6 +617,8 @@ contains
     errmsg = ""
     dolist = .true.
     if (present(fdlist)) dolist = fdlist
+    axes_ = .false.
+    if (present(axes)) axes_ = axes
     if (c%ismolecule) then
        errmsg = "the finite-difference force constants can only be used with crystals"
        return
@@ -720,6 +727,9 @@ contains
     allocate(datom(6*nindep),ddir(3,6*nindep))
     if (.not.dolist) return
     if (verbose) then
+       if (axes_) &
+          write (uout,'("  Displacement directions: +-a, +-b, +-c of the supercell for every independent &
+             &atom (AXES)")')
        write (uout,'("  Number of independent atoms: ",A)') string(nindep)
        write (uout,'("# List of independent atoms")')
        write (uout,'("# id     atom  site symmetry  nsite  ndisp")')
@@ -729,7 +739,7 @@ contains
        pgsymb = sc%sitesymm(sc%atcel(is)%x,max(fc2_epspos,symprec),nsym,rotm)
        irot(:,:,1:nsym) = nint(rotm(:,:,1:nsym))
 
-       call fc2_site_directions(nsym,irot(:,:,1:nsym),nd,dsel)
+       call fc2_site_directions(nsym,irot(:,:,1:nsym),nd,dsel,axes=axes_)
        datom(ndisp+1:ndisp+nd) = is
        ddir(:,ndisp+1:ndisp+nd) = dsel(:,1:nd)
        ndisp = ndisp + nd
@@ -744,16 +754,20 @@ contains
   !> site-symmetry rotations are the nsym integer matrices irot (in
   !> the supercell basis): the nd directions dsel(:,1:nd) (integer,
   !> fractional coordinates of the supercell), including the opposite
-  !> of each direction when no site operation reverses it. Every
-  !> displacement count in critic2 (CREATE_DISPLACEMENTS, NEWCELL NICE)
-  !> goes through this routine. Note that the result depends on the
-  !> supercell basis, not only on the lattice, because the candidate
-  !> directions are fixed integer triples in that basis.
-  pure subroutine fc2_site_directions(nsym,irot,nd,dsel)
+  !> of each direction when no site operation reverses it. If axes
+  !> (CREATE_DISPLACEMENTS AXES), the site operations are ignored,
+  !> which gives the six directions +-a, +-b, +-c of the supercell
+  !> whatever the site. Every displacement count in critic2
+  !> (CREATE_DISPLACEMENTS, NEWCELL NICE) goes through this
+  !> routine. Note that the result depends on the supercell basis, not
+  !> only on the lattice, because the candidate directions are fixed
+  !> integer triples in that basis.
+  pure subroutine fc2_site_directions(nsym,irot,nd,dsel,axes)
     integer, intent(in) :: nsym
     integer, intent(in) :: irot(3,3,nsym)
     integer, intent(out) :: nd
     integer, intent(out) :: dsel(3,6)
+    logical, intent(in), optional :: axes
 
     ! phonopy's directions_diag, tried in this order
     integer, parameter :: ndirs = 13
@@ -761,9 +775,15 @@ contains
        1,0,0, 0,1,0, 0,0,1, 1,1,0, 1,0,1, 0,1,1, 1,-1,0, 1,0,-1, 0,1,-1,&
        1,1,1, 1,1,-1, 1,-1,1, -1,1,1/),(/3,ndirs/))
 
-    integer :: id, jd, k, k1, k2, nsel, isel(3)
+    integer :: id, jd, k, k1, k2, nsel, isel(3), ns
     integer :: rd(3,nsym,ndirs)
     logical :: isminus
+
+    ! the number of site operations used (none with axes)
+    ns = nsym
+    if (present(axes)) then
+       if (axes) ns = 0
+    end if
 
     ! images of all the candidate directions under the site symmetry
     do id = 1, ndirs
@@ -775,7 +795,7 @@ contains
     ! one direction whose images span space (needs two operations
     ! besides the identity)
     nsel = 0
-    if (nsym >= 3) then
+    if (ns >= 3) then
        one: do id = 1, ndirs
           do k1 = 1, nsym-1
              do k2 = k1+1, nsym
@@ -790,7 +810,7 @@ contains
     end if
 
     ! two directions (needs one operation besides the identity)
-    if (nsel == 0 .and. nsym >= 2) then
+    if (nsel == 0 .and. ns >= 2) then
        two: do id = 1, ndirs
           do k1 = 1, nsym
              do jd = 1, ndirs
@@ -818,7 +838,7 @@ contains
        nd = nd + 1
        dsel(:,nd) = dirs(:,id)
        isminus = .true.
-       do k = 1, nsym
+       do k = 1, ns
           if (all(rd(:,k,id) == -dirs(:,id))) then
              isminus = .false.
              exit
@@ -886,7 +906,7 @@ contains
   !>
   !> This routine was adapted from phonopy, by A. Togo.
   module subroutine create_displacements(c,smat0,dist,template,dataset,scfile,verbose,errmsg,ti,rklength,&
-     nrandom,rseed,plusminus)
+     nrandom,rseed,plusminus,axes)
     use crystalseedmod, only: crystalseed
     use global, only: vib_calculator
     use tools_io, only: uout, string, ioj_right
@@ -905,6 +925,7 @@ contains
     integer, intent(in) :: nrandom
     integer, intent(in) :: rseed
     logical, intent(in) :: plusminus
+    logical, intent(in) :: axes
 
     character(len=:), allocatable :: template_, fname, otemplate, errmsg2
     integer :: iwf, nlat, nsat, madj(3,3), is, i, k, nindep, ndisp, npad, nk(3), smat(3,3)
@@ -977,7 +998,7 @@ contains
 
     ! the supercell and the displacement list
     call fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,&
-       nindep,indep,ndisp,datom,ddir,errmsg,ti)
+       nindep,indep,ndisp,datom,ddir,errmsg,ti,axes=axes)
     if (len_trim(errmsg) > 0) return
 
     if (verbose .and. present(rklength)) then
@@ -1086,6 +1107,7 @@ contains
        call move_alloc(disp,ds%disp)
     else
        ds%kind = fc2_kind_fd
+       ds%axes = axes
        ds%datom = datom(1:ndisp)
        ds%ddir = ddir(:,1:ndisp)
     end if
@@ -1308,7 +1330,12 @@ contains
           end do
        end do
     else
-       write (lu,'("KIND FINITE_DIFFERENCE ! one atom per structure, along phonopy''s directions")')
+       if (ds%axes) then
+          write (lu,'("KIND FINITE_DIFFERENCE ! one atom per structure")')
+          write (lu,'("AXES ! every independent atom displaced along +-a, +-b, +-c of the supercell")')
+       else
+          write (lu,'("KIND FINITE_DIFFERENCE ! one atom per structure, along phonopy''s directions")')
+       end if
        write (lu,'("NDISP ",A)') string(ds%ndisp)
        write (lu,'("DISPLACEMENTS")')
        write (lu,'("# id  atom  --direction (frac)--  file")')
@@ -1444,6 +1471,8 @@ contains
           if (.not.isinteger(ds%rseed,line,lp)) goto 999
        elseif (equal(word,"plusminus")) then
           ds%plusminus = .true.
+       elseif (equal(word,"axes")) then
+          ds%axes = .true.
        elseif (equal(word,"ndisp")) then
           if (.not.isinteger(ds%ndisp,line,lp)) goto 999
           if (ds%ndisp < 1) goto 999
@@ -1537,6 +1566,8 @@ contains
        errmsg = "No (or non-positive) DISTANCE in the displacement dataset file: " // trim(file)
     elseif (.not.allocated(ds%fname)) then
        errmsg = "No DISPLACEMENTS in the displacement dataset file: " // trim(file)
+    elseif (ds%axes .and. ds%kind == fc2_kind_random) then
+       errmsg = "AXES does not apply to KIND RANDOM in the displacement dataset file: " // trim(file)
     end if
     return
 
@@ -1623,7 +1654,7 @@ contains
     end if
     if (ds%ndisp /= ndisp) then
        errmsg = "The dataset has " // string(ds%ndisp) // " displacements but " // string(ndisp) //&
-          " were regenerated for this supercell; the symmetry may have changed between the two runs (SYMPREC, SYM, NOSYM?)"
+          " were regenerated for this supercell; the symmetry may have changed between the two runs (SYMPREC, SYM, NOSYM?), or the AXES line of the dataset was edited"
        return
     end if
     do i = 1, ndisp
@@ -1632,7 +1663,7 @@ contains
              ", direction " // string(ds%ddir(1,i)) // " " // string(ds%ddir(2,i)) // " " //&
              string(ds%ddir(3,i)) // ") is not the one regenerated here (atom " // string(datom(i)) //&
              ", direction " // string(ddir(1,i)) // " " // string(ddir(2,i)) // " " //&
-             string(ddir(3,i)) // "); the symmetry may have changed between the two runs (SYMPREC, SYM, NOSYM?)"
+             string(ddir(3,i)) // "); the symmetry may have changed between the two runs (SYMPREC, SYM, NOSYM?), or the AXES line of the dataset was edited"
           return
        end if
     end do
@@ -1913,7 +1944,7 @@ contains
 
     ! the supercell and the displacement list, exactly as create_displacements built them
     call fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,&
-       nindep,indep,ndisp,datom,ddir,errmsg,ti)
+       nindep,indep,ndisp,datom,ddir,errmsg,ti,axes=ds%axes)
     if (len_trim(errmsg) > 0) return
 
     ! the dataset knows the structure and the displacements the forces
@@ -3742,8 +3773,9 @@ contains
   !> What CREATE_DISPLACEMENTS would generate in the supercell smat
   !> (rows = supercell vectors in cell units), without building it: the
   !> number of displacements (ndisp) and of independent atoms
-  !> (nindep).
-  module subroutine disp_count(c,smat,ndisp,nindep,errmsg)
+  !> (nindep). If axes, the count for CREATE_DISPLACEMENTS AXES (six
+  !> per independent atom).
+  module subroutine disp_count(c,smat,ndisp,nindep,errmsg,axes)
     use global, only: symprec
     use tools_math, only: idet3
     use param, only: icrd_crys
@@ -3751,6 +3783,7 @@ contains
     integer, intent(in) :: smat(3,3)
     integer, intent(out) :: ndisp, nindep
     character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(in), optional :: axes
 
     integer :: nlat, madj(3,3), nkeep, k, m, ia, id, nsym, nd
     integer :: ikeep(48), rp(3,3,48), irot(3,3,48), dsel(3,6)
@@ -3796,7 +3829,7 @@ contains
              irot(:,:,nsym) = rp(:,:,k)
           end if
        end do
-       call fc2_site_directions(nsym,irot(:,:,1:nsym),nd,dsel)
+       call fc2_site_directions(nsym,irot(:,:,1:nsym),nd,dsel,axes=axes)
        ndisp = ndisp + nd
     end do
 

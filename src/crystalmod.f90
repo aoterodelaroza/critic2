@@ -1109,7 +1109,7 @@ module crystalmod
        character(len=:), allocatable :: name
      end function vib_calculator_name
      module subroutine create_displacements(c,smat0,dist,template,dataset,scfile,verbose,errmsg,ti,rklength,&
-        nrandom,rseed,plusminus)
+        nrandom,rseed,plusminus,axes)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: smat0(3,3)
        real*8, intent(in) :: dist
@@ -1123,12 +1123,14 @@ module crystalmod
        integer, intent(in) :: nrandom
        integer, intent(in) :: rseed
        logical, intent(in) :: plusminus
+       logical, intent(in) :: axes
      end subroutine create_displacements
-     module subroutine disp_count(c,smat,ndisp,nindep,errmsg)
+     module subroutine disp_count(c,smat,ndisp,nindep,errmsg,axes)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: smat(3,3)
        integer, intent(out) :: ndisp, nindep
        character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(in), optional :: axes
      end subroutine disp_count
      module subroutine create_forces(c,file,dataset,npairs,ridge,verbose,errmsg,ti)
        class(crystal), intent(inout) :: c
@@ -1174,13 +1176,14 @@ module crystalmod
        integer, intent(in), optional :: nmin
        logical, intent(in), optional :: doreach
      end subroutine cell_nice_list
-     module subroutine cell_nice_select(c,cand,icrit,ibest,errmsg,doreach)
+     module subroutine cell_nice_select(c,cand,icrit,ibest,errmsg,doreach,axes)
        class(crystal), intent(inout) :: c
        type(nice_cell), intent(inout) :: cand(:)
        integer, intent(in) :: icrit
        integer, intent(out) :: ibest
        character(len=:), allocatable, intent(out) :: errmsg
        logical, intent(in), optional :: doreach
+       logical, intent(in), optional :: axes
      end subroutine cell_nice_select
      module subroutine reorder_atoms(c,iperm,isnneq,errmsg,ti)
        class(crystal), intent(inout) :: c

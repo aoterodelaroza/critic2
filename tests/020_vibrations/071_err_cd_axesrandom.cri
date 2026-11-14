@@ -1,0 +1,9 @@
+## willfail: 'AXES and RANDOM cannot be combined'
+## labels: quick regression nodata
+
+## CREATE_DISPLACEMENTS AXES with RANDOM.
+crystal library rutile
+vibrations
+  calculator qe
+  create_displacements 2 2 2 random 2 axes
+end

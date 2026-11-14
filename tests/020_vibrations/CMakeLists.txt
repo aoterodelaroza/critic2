@@ -16,6 +16,8 @@ set(TESTS
   016_read_forces_fd         ## read_forces keyword, finite differences, template and list (exact round trip)
   017_read_forces_random     ## read_forces keyword, random displacements, NORIDGE, PAIRS, RIDGE, cross-validation; memory
   018_load_dynmat_skewed     ## load_dynmat keyword, a skewed supercell matrix gives the same frequencies (shortest images in a reduced cell)
+  019_create_displacements_axes ## create_displacements keyword, AXES (special positions), DISTANCE with UNITS ANG, AXES with NICE
+  020_read_forces_axes       ## read_forces keyword, AXES dataset (same frequencies as phonopy's directions)
   050_err_nocalc             ## errors: load_fc2 without a calculator
   051_err_fc2units           ## errors: load_fc2 with a unit word
   052_err_calcname           ## errors: unknown calculator
@@ -37,6 +39,7 @@ set(TESTS
   068_err_unknown            ## errors: unknown vibrations keyword
   069_err_write_units        ## errors: write_fc2 with a unit word
   070_err_thermo_multiq      ## errors: thermo on stored frequencies at several q-points
+  071_err_cd_axesrandom      ## errors: create_displacements AXES and RANDOM
   )
 
 ## the phonopy hdf5 reader needs the HDF5 library

@@ -1124,13 +1124,16 @@ contains
   !> symmetric. Returns the index of the choice (0 if there are no
   !> candidates). If doreach, the reach replaces the niceness in all of
   !> the above (cand must then come from cell_nice_list with doreach).
-  module subroutine cell_nice_select(c,cand,icrit,ibest,errmsg,doreach)
+  !> If axes, the displacements are counted as CREATE_DISPLACEMENTS
+  !> AXES generates them (six per independent atom).
+  module subroutine cell_nice_select(c,cand,icrit,ibest,errmsg,doreach,axes)
     class(crystal), intent(inout) :: c
     type(nice_cell), intent(inout) :: cand(:)
     integer, intent(in) :: icrit
     integer, intent(out) :: ibest
     character(len=:), allocatable, intent(out) :: errmsg
     logical, intent(in), optional :: doreach
+    logical, intent(in), optional :: axes
 
     integer :: k, klast, nopsmax, smat(3,3)
     logical :: rtie
@@ -1163,7 +1166,7 @@ contains
        if (cand(k)%nops < nopsmax) cycle
        if (cand(k)%ndisp < 0) then
           smat = transpose(cand(k)%m)
-          call c%disp_count(smat,cand(k)%ndisp,cand(k)%nindep,errmsg)
+          call c%disp_count(smat,cand(k)%ndisp,cand(k)%nindep,errmsg,axes=axes)
           if (len_trim(errmsg) > 0) return
        end if
        ! the candidates come sorted by decreasing niceness, so the

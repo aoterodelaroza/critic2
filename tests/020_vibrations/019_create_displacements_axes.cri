@@ -1,0 +1,29 @@
+## check: 019_create_displacements_axes.txt -a1e-10
+## check: 019_create_displacements_axes-001.in -a1e-10
+## delete: 019_create_displacements_axes-000.in 019_create_displacements_axes-002.in 019_create_displacements_axes-003.in
+## delete: 019_create_displacements_axes-004.in 019_create_displacements_axes-005.in 019_create_displacements_axes-006.in
+## delete: 019_create_displacements_axes-007.in 019_create_displacements_axes-008.in 019_create_displacements_axes-009.in
+## delete: 019_create_displacements_axes-010.in 019_create_displacements_axes-011.in 019_create_displacements_axes-012.in
+## check: 019_create_displacements_axes_nice.txt -a1e-10
+## delete: 019_create_displacements_axes_nice-000.in 019_create_displacements_axes_nice-001.in 019_create_displacements_axes_nice-002.in
+## delete: 019_create_displacements_axes_nice-003.in 019_create_displacements_axes_nice-004.in 019_create_displacements_axes_nice-005.in
+## delete: 019_create_displacements_axes_nice-006.in 019_create_displacements_axes_nice-007.in 019_create_displacements_axes_nice-008.in
+## delete: 019_create_displacements_axes_nice-009.in 019_create_displacements_axes_nice-010.in 019_create_displacements_axes_nice-011.in
+## delete: 019_create_displacements_axes_nice-012.in
+## labels: quick regression nodata
+
+## Rutile: CREATE_DISPLACEMENTS with AXES in the cell itself (supercell
+## 1, the Born-charge use). Both independent atoms are on special
+## positions (Ti D2h, O C2v), where phonopy's directions would give
+## fewer than three; AXES displaces each by +-a, +-b, +-c instead (12
+## displacements). DISTANCE in angstrom through UNITS ANG; the dataset
+## records it in bohr and carries the AXES line. Then AXES with NICE and
+## MINDISP: the supercell is chosen by, and reported with, the AXES
+## count (12 displacements, not the 3 of phonopy's directions).
+units ang
+crystal library rutile
+vibrations
+  calculator aims
+  create_displacements 1 axes distance 0.01 template 019_create_displacements_axes-*.in dataset 019_create_displacements_axes.txt
+  create_displacements nice 4 mindisp axes distance 0.01 template 019_create_displacements_axes_nice-*.in dataset 019_create_displacements_axes_nice.txt
+end

@@ -3901,7 +3901,7 @@ contains
     real*8, allocatable :: qlist(:,:), tlist(:), tfreq(:,:), tqpt(:,:)
     real*8, allocatable :: fvibl(:), svibl(:), cvl(:), xdfl(:), xdsl(:), xdcvl(:), xdpar(:)
     logical, allocatable :: qprint(:)
-    logical :: flipped, oneline, ok, doappend, domesh, dodos, plusminus, docomm, doreal
+    logical :: flipped, oneline, ok, doappend, domesh, dodos, plusminus, axes, docomm, doreal
     real*8 :: rkthermo
     logical :: ptdo, ptmol
     character(len=:), allocatable :: ptfile
@@ -4086,6 +4086,7 @@ contains
           nrandom = 0
           rseed = -1
           plusminus = .false.
+          axes = .false.
           do while (.true.)
              if (isinteger(idum,line,lp)) then
                 ndim = ndim + 1
@@ -4119,6 +4120,9 @@ contains
                 end if
              elseif (equal(mode,'plusminus')) then
                 plusminus = .true.
+             elseif (equal(mode,'axes')) then
+                ! +-a, +-b, +-c for every independent atom, not phonopy's directions
+                axes = .true.
              elseif (equal(mode,'nice')) then
                 ! choose the supercell of this size as NEWCELL NICE would
                 if (.not.eval_next(inice,line,lp)) &
@@ -4159,6 +4163,9 @@ contains
           if (nrandom == 0 .and. (rseed >= 0 .or. plusminus)) &
              call ferror('struct_vibrations','SEED and PLUSMINUS need RANDOM in CREATE_DISPLACEMENTS',&
                 faterr,line,syntax=.true.)
+          if (nrandom > 0 .and. axes) &
+             call ferror('struct_vibrations','AXES and RANDOM cannot be combined in CREATE_DISPLACEMENTS',&
+                faterr,line,syntax=.true.)
 
           ! NICE: pick the supercell of the requested size, as NEWCELL NICE
           ! would, and continue as if its nine integers had been typed
@@ -4171,7 +4178,7 @@ contains
              call s%c%cell_nice_list(inice,nc,ic0,cand,errmsg,nmin=inice)
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
-             call s%c%cell_nice_select(cand(ic0(inice)+1:ic0(inice)+nc(inice)),icrit,ibest,errmsg)
+             call s%c%cell_nice_select(cand(ic0(inice)+1:ic0(inice)+nc(inice)),icrit,ibest,errmsg,axes=axes)
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
              if (ibest == 0) &
@@ -4209,10 +4216,10 @@ contains
 
           if (rk > 0d0) then
              call s%c%create_displacements(smat,dist,template,dataset,scfile,verbose,errmsg,rklength=rk,&
-                nrandom=nrandom,rseed=rseed,plusminus=plusminus)
+                nrandom=nrandom,rseed=rseed,plusminus=plusminus,axes=axes)
           else
              call s%c%create_displacements(smat,dist,template,dataset,scfile,verbose,errmsg,&
-                nrandom=nrandom,rseed=rseed,plusminus=plusminus)
+                nrandom=nrandom,rseed=rseed,plusminus=plusminus,axes=axes)
           end if
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)
