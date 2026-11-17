@@ -1,51 +1,55 @@
 ## delete: 038_load-numericalderivs_monomer_1.xyz 038_load-numericalderivs_monomer_2.xyz
-## check: 038_load-numericalderivs.cro -a1.5e-1
+## check: 038_load-numericalderivs.cro -a1e-10
 ## labels: regression
 
-# grid
+# Numerical (field 2) against analytical (field 1) derivatives. Every
+# point evaluates a comparison, which is 1 if the two agree to within the
+# tolerance and 0 otherwise, so that the reference output does not
+# contain values at the level of the numerical noise. The tolerances
+# are 10 times the observed error or more.
+
+# grid (the point is off the grid planes: the second derivatives of the
+# tricubic interpolant are discontinuous there)
 crystal ../zz_source/qe-6.1/graphite/rho.cube
 load ../zz_source/qe-6.1/graphite/rho.cube analytical
 load ../zz_source/qe-6.1/graphite/rho.cube numerical
-load as "abs($2:x-$1:x)" ghost id x #3
-load as "abs($2:y-$1:y)" ghost id y #4
-load as "abs($2:z-$1:z)" ghost id z #5
-load as "abs($2:xx-$1:xx)" ghost id xx #6
-load as "abs($2:xy-$1:xy)" ghost id xy #7
-load as "abs($2:xz-$1:xz)" ghost id xz #8
-load as "abs($2:yy-$1:yy)" ghost id yy #9
-load as "abs($2:yz-$1:yz)" ghost id yz #10
-load as "abs($2:zz-$1:zz)" ghost id zz #11
-point 0.1 0.2 0.3 all
+point 0.13 0.27 0.31 field "abs($2:x-$1:x) < 1e-10"
+point 0.13 0.27 0.31 field "abs($2:y-$1:y) < 1e-10"
+point 0.13 0.27 0.31 field "abs($2:z-$1:z) < 1e-10"
+point 0.13 0.27 0.31 field "abs($2:xx-$1:xx) < 1e-7"
+point 0.13 0.27 0.31 field "abs($2:xy-$1:xy) < 1e-7"
+point 0.13 0.27 0.31 field "abs($2:xz-$1:xz) < 1e-7"
+point 0.13 0.27 0.31 field "abs($2:yy-$1:yy) < 1e-7"
+point 0.13 0.27 0.31 field "abs($2:yz-$1:yz) < 1e-7"
+point 0.13 0.27 0.31 field "abs($2:zz-$1:zz) < 1e-7"
 
 # wien2k
 crystal ../zz_source/wien14.2/zno/zno.struct
 load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct analytical notestmt
 load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct numerical notestmt
-load as "abs($2:x-$1:x)" ghost id x #3
-load as "abs($2:y-$1:y)" ghost id y #4
-load as "abs($2:z-$1:z)" ghost id z #5
-load as "abs($2:xx-$1:xx)" ghost id xx #6
-load as "abs($2:xy-$1:xy)" ghost id xy #7
-load as "abs($2:xz-$1:xz)" ghost id xz #8
-load as "abs($2:yy-$1:yy)" ghost id yy #9
-load as "abs($2:yz-$1:yz)" ghost id yz #10
-load as "abs($2:zz-$1:zz)" ghost id zz #11
-point 0.1 0.2 0.3 all
+point 0.1 0.2 0.3 field "abs($2:x-$1:x) < 1e-10"
+point 0.1 0.2 0.3 field "abs($2:y-$1:y) < 1e-10"
+point 0.1 0.2 0.3 field "abs($2:z-$1:z) < 1e-10"
+point 0.1 0.2 0.3 field "abs($2:xx-$1:xx) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:xy-$1:xy) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:xz-$1:xz) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:yy-$1:yy) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:yz-$1:yz) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:zz-$1:zz) < 1e-7"
 
 # elk
 crystal ../zz_source/elk-6.3.02/sbpo4/GEOMETRY.OUT
 load ../zz_source/elk-6.3.02/sbpo4/STATE.OUT ../zz_source/elk-6.3.02/sbpo4/GEOMETRY.OUT analytical notestmt
 load ../zz_source/elk-6.3.02/sbpo4/STATE.OUT ../zz_source/elk-6.3.02/sbpo4/GEOMETRY.OUT numerical notestmt
-load as "abs($2:x-$1:x)" ghost id x #3
-load as "abs($2:y-$1:y)" ghost id y #4
-load as "abs($2:z-$1:z)" ghost id z #5
-load as "abs($2:xx-$1:xx)" ghost id xx #6
-load as "abs($2:xy-$1:xy)" ghost id xy #7
-load as "abs($2:xz-$1:xz)" ghost id xz #8
-load as "abs($2:yy-$1:yy)" ghost id yy #9
-load as "abs($2:yz-$1:yz)" ghost id yz #10
-load as "abs($2:zz-$1:zz)" ghost id zz #11
-point 0.1 0.2 0.3 all
+point 0.1 0.2 0.3 field "abs($2:x-$1:x) < 2e-3"
+point 0.1 0.2 0.3 field "abs($2:y-$1:y) < 2e-3"
+point 0.1 0.2 0.3 field "abs($2:z-$1:z) < 2e-3"
+point 0.1 0.2 0.3 field "abs($2:xx-$1:xx) < 2e-1"
+point 0.1 0.2 0.3 field "abs($2:xy-$1:xy) < 2e-1"
+point 0.1 0.2 0.3 field "abs($2:xz-$1:xz) < 2e-1"
+point 0.1 0.2 0.3 field "abs($2:yy-$1:yy) < 2e-1"
+point 0.1 0.2 0.3 field "abs($2:yz-$1:yz) < 2e-1"
+point 0.1 0.2 0.3 field "abs($2:zz-$1:zz) < 2e-1"
 
 # pi
 crystal
@@ -61,33 +65,34 @@ load ../zz_source/pi7r16/catio3/ca.ion Ca \
 load ../zz_source/pi7r16/catio3/ca.ion Ca \
      ../zz_source/pi7r16/catio3/ti.ion Ti \
      ../zz_source/pi7r16/catio3/o.ion O exact numerical
-load as "abs($2:x-$1:x)" ghost id x #3
-load as "abs($2:y-$1:y)" ghost id y #4
-load as "abs($2:z-$1:z)" ghost id z #5
-load as "abs($2:xx-$1:xx)" ghost id xx #6
-load as "abs($2:xy-$1:xy)" ghost id xy #7
-load as "abs($2:xz-$1:xz)" ghost id xz #8
-load as "abs($2:yy-$1:yy)" ghost id yy #9
-load as "abs($2:yz-$1:yz)" ghost id yz #10
-load as "abs($2:zz-$1:zz)" ghost id zz #11
-point 0.1 0.2 0.3 all
+point 0.1 0.2 0.3 field "abs($2:x-$1:x) < 1e-10"
+point 0.1 0.2 0.3 field "abs($2:y-$1:y) < 1e-10"
+point 0.1 0.2 0.3 field "abs($2:z-$1:z) < 1e-10"
+point 0.1 0.2 0.3 field "abs($2:xx-$1:xx) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:xy-$1:xy) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:xz-$1:xz) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:yy-$1:yy) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:yz-$1:yz) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:zz-$1:zz) < 1e-7"
 
 # wfn
 molecule ../zz_source/g16A.03/benzene/benzene.wfn
 load ../zz_source/g16A.03/benzene/benzene.wfn analytical
 load ../zz_source/g16A.03/benzene/benzene.wfn numerical
-load as "abs($2:x-$1:x)" ghost id x #3
-load as "abs($2:y-$1:y)" ghost id y #4
-load as "abs($2:z-$1:z)" ghost id z #5
-load as "abs($2:xx-$1:xx)" ghost id xx #6
-load as "abs($2:xy-$1:xy)" ghost id xy #7
-load as "abs($2:xz-$1:xz)" ghost id xz #8
-load as "abs($2:yy-$1:yy)" ghost id yy #9
-load as "abs($2:yz-$1:yz)" ghost id yz #10
-load as "abs($2:zz-$1:zz)" ghost id zz #11
-point 0.1 0.2 0.3 all
+point 0.1 0.2 0.3 field "abs($2:x-$1:x) < 1e-10"
+point 0.1 0.2 0.3 field "abs($2:y-$1:y) < 1e-10"
+point 0.1 0.2 0.3 field "abs($2:z-$1:z) < 1e-10"
+point 0.1 0.2 0.3 field "abs($2:xx-$1:xx) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:xy-$1:xy) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:xz-$1:xz) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:yy-$1:yy) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:yz-$1:yz) < 1e-7"
+point 0.1 0.2 0.3 field "abs($2:zz-$1:zz) < 1e-7"
+point 0.1 0.2 0.3 field "abs(kkin(2)-kkin(1)) < 1e-10"
+point 0.1 0.2 0.3 field "abs(elf(2)-elf(1)) < 1e-10"
+point 0.1 0.2 0.3 field "abs(brhole_b(2)-brhole_b(1)) < 1e-10"
 
-# dftp
+# dftb+
 crystal ../zz_source/dftb+-18.1/graphite/graphite.gen
 load ../zz_source/dftb+-18.1/graphite/detailed.xml \
      ../zz_source/dftb+-18.1/graphite/eigenvec.bin \
@@ -95,63 +100,43 @@ load ../zz_source/dftb+-18.1/graphite/detailed.xml \
 load ../zz_source/dftb+-18.1/graphite/detailed.xml \
      ../zz_source/dftb+-18.1/graphite/eigenvec.bin \
      ../zz_source/dftb+-18.1/wfc-3ob-3-1.hsd numerical
-load as "abs($2:x-$1:x)" ghost id x #3
-load as "abs($2:y-$1:y)" ghost id y #4
-load as "abs($2:z-$1:z)" ghost id z #5
-load as "abs($2:xx-$1:xx)" ghost id xx #6
-load as "abs($2:xy-$1:xy)" ghost id xy #7
-load as "abs($2:xz-$1:xz)" ghost id xz #8
-load as "abs($2:yy-$1:yy)" ghost id yy #9
-load as "abs($2:yz-$1:yz)" ghost id yz #10
-load as "abs($2:zz-$1:zz)" ghost id zz #11
-point 0.1 0.2 0.3 all
-
-# dftp
-crystal ../zz_source/dftb+-18.1/graphite/graphite.gen
-load ../zz_source/dftb+-18.1/graphite/detailed.xml \
-     ../zz_source/dftb+-18.1/graphite/eigenvec.bin \
-     ../zz_source/dftb+-18.1/wfc-3ob-3-1.hsd analytical
-load ../zz_source/dftb+-18.1/graphite/detailed.xml \
-     ../zz_source/dftb+-18.1/graphite/eigenvec.bin \
-     ../zz_source/dftb+-18.1/wfc-3ob-3-1.hsd numerical
-load as "abs($2:x-$1:x)" ghost id x #3
-load as "abs($2:y-$1:y)" ghost id y #4
-load as "abs($2:z-$1:z)" ghost id z #5
-load as "abs($2:xx-$1:xx)" ghost id xx #6
-load as "abs($2:xy-$1:xy)" ghost id xy #7
-load as "abs($2:xz-$1:xz)" ghost id xz #8
-load as "abs($2:yy-$1:yy)" ghost id yy #9
-load as "abs($2:yz-$1:yz)" ghost id yz #10
-load as "abs($2:zz-$1:zz)" ghost id zz #11
-point 0.1 0.2 0.3 all
+point 0.1 0.2 0.3 field "abs($2:x-$1:x) < 1e-5"
+point 0.1 0.2 0.3 field "abs($2:y-$1:y) < 1e-5"
+point 0.1 0.2 0.3 field "abs($2:z-$1:z) < 1e-5"
+point 0.1 0.2 0.3 field "abs($2:xx-$1:xx) < 1e-3"
+point 0.1 0.2 0.3 field "abs($2:xy-$1:xy) < 1e-3"
+point 0.1 0.2 0.3 field "abs($2:xz-$1:xz) < 1e-3"
+point 0.1 0.2 0.3 field "abs($2:yy-$1:yy) < 1e-3"
+point 0.1 0.2 0.3 field "abs($2:yz-$1:yz) < 1e-3"
+point 0.1 0.2 0.3 field "abs($2:zz-$1:zz) < 1e-3"
+point 0.1 0.2 0.3 field "abs(kkin(2)-kkin(1)) < 1e-3"
+point 0.1 0.2 0.3 field "abs(elf(2)-elf(1)) < 1e-5"
 
 # promolecular
 crystal library urea
 load promolecular analytical
 load promolecular numerical
-load as "abs($2:x-$1:x)" ghost id x #3
-load as "abs($2:y-$1:y)" ghost id y #4
-load as "abs($2:z-$1:z)" ghost id z #5
-load as "abs($2:xx-$1:xx)" ghost id xx #6
-load as "abs($2:xy-$1:xy)" ghost id xy #7
-load as "abs($2:xz-$1:xz)" ghost id xz #8
-load as "abs($2:yy-$1:yy)" ghost id yy #9
-load as "abs($2:yz-$1:yz)" ghost id yz #10
-load as "abs($2:zz-$1:zz)" ghost id zz #11
-point 0.1 0.2 0.3 all
+point 0.1 0.2 0.3 field "abs($2:x-$1:x) < 1e-6"
+point 0.1 0.2 0.3 field "abs($2:y-$1:y) < 1e-6"
+point 0.1 0.2 0.3 field "abs($2:z-$1:z) < 1e-6"
+point 0.1 0.2 0.3 field "abs($2:xx-$1:xx) < 1e-4"
+point 0.1 0.2 0.3 field "abs($2:xy-$1:xy) < 1e-4"
+point 0.1 0.2 0.3 field "abs($2:xz-$1:xz) < 1e-4"
+point 0.1 0.2 0.3 field "abs($2:yy-$1:yy) < 1e-4"
+point 0.1 0.2 0.3 field "abs($2:yz-$1:yz) < 1e-4"
+point 0.1 0.2 0.3 field "abs($2:zz-$1:zz) < 1e-4"
 
 # promolecular (fragment)
 crystal library urea
 write 038_load-numericalderivs.xyz onemotif nmer 1
 load promolecular fragment 038_load-numericalderivs_monomer_1.xyz analytical
 load promolecular fragment 038_load-numericalderivs_monomer_1.xyz numerical
-load as "abs($2:x-$1:x)" ghost id x #3
-load as "abs($2:y-$1:y)" ghost id y #4
-load as "abs($2:z-$1:z)" ghost id z #5
-load as "abs($2:xx-$1:xx)" ghost id xx #6
-load as "abs($2:xy-$1:xy)" ghost id xy #7
-load as "abs($2:xz-$1:xz)" ghost id xz #8
-load as "abs($2:yy-$1:yy)" ghost id yy #9
-load as "abs($2:yz-$1:yz)" ghost id yz #10
-load as "abs($2:zz-$1:zz)" ghost id zz #11
-point 0.1 0.2 0.3 all
+point 0.1 0.2 0.3 field "abs($2:x-$1:x) < 1e-6"
+point 0.1 0.2 0.3 field "abs($2:y-$1:y) < 1e-6"
+point 0.1 0.2 0.3 field "abs($2:z-$1:z) < 1e-6"
+point 0.1 0.2 0.3 field "abs($2:xx-$1:xx) < 1e-4"
+point 0.1 0.2 0.3 field "abs($2:xy-$1:xy) < 1e-4"
+point 0.1 0.2 0.3 field "abs($2:xz-$1:xz) < 1e-4"
+point 0.1 0.2 0.3 field "abs($2:yy-$1:yy) < 1e-4"
+point 0.1 0.2 0.3 field "abs($2:yz-$1:yz) < 1e-4"
+point 0.1 0.2 0.3 field "abs($2:zz-$1:zz) < 1e-4"
