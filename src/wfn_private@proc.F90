@@ -3076,7 +3076,9 @@ contains
     do imo = 1, f%nmoocc
        gam1 = gam1 + xmop(imo) * xmor(imo)
     end do
-    xh = - (gam1*gam1) / max(rho(2),1d-40)
+    ! valence density: the 1-DM comes from the orbitals only, and the
+    ! core density (EDFs) has none
+    xh = - (gam1*gam1) / max(rhoval(2),1d-40)
     valid = .true.
 
   end subroutine xhole

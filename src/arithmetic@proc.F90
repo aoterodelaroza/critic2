@@ -2476,11 +2476,13 @@ contains
     case (fun_elf)
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
-       if (res%f < 1d-30) then
+       ! The valence density and gradient are used because gkin comes
+       ! from the orbitals only (see fun_kkin).
+       if (res%fval < 1d-30) then
           q = 0d0
        else
-          f0 = max(res%f,1d-30)
-          ds = res%gkin  - 1d0/8d0 * res%gfmod**2 / f0
+          f0 = max(res%fval,1d-30)
+          ds = res%gkin  - 1d0/8d0 * res%gfmodval**2 / f0
           ds0 = ctf * f0**(5d0/3d0)
           q = ds / ds0
           q = 1d0 / (1d0 + q**2)
@@ -2497,7 +2499,8 @@ contains
        ! Localized-orbital locator
        !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
        !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
-       q = ctf * res%f**(5d0/3d0) / max(res%gkin,1d-30)
+       ! Valence density, because gkin is orbital-only (see fun_kkin).
+       q = ctf * res%fval**(5d0/3d0) / max(res%gkin,1d-30)
        q = q / (1d0+q)
     case (fun_lol_kir)
        ! Localized-orbital locator using Kirzhnits k.e.d.

@@ -37,7 +37,7 @@ WARNING (testrmt): Spurious CPs on the muffin tin surface!
   Field value, valence (fval): 2.207543460E-01
   Gradient (grad f): 2.043390119E-01  5.742808455E-01  -6.865040681E-01  
   Gradient norm (|grad f|): 9.180635909E-01
-  Gradient norm, valence: 0.000000000E+00
+  Gradient norm, valence: 9.180635909E-01
   Laplacian (del2 f): 5.502151989E+00
   Laplacian, valence (del2 fval): 5.502151989E+00
   Hessian:

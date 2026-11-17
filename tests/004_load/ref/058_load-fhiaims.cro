@@ -27,7 +27,7 @@
   Field value, valence (fval): 7.030745309E-01
   Gradient (grad f): -2.994912246E-01  -5.942412419E-01  -1.140987991E+00  
   Gradient norm (|grad f|): 1.320860039E+00
-  Gradient norm, valence: 0.000000000E+00
+  Gradient norm, valence: 1.320860039E+00
   Kinetic energy density (G,tau): 1.551086862E+00
   Laplacian (del2 f): -1.961223015E+00
   Laplacian, valence (del2 fval): -1.961223015E+00
@@ -85,7 +85,7 @@
   Field value, valence (fval): 6.898179926E-01
   Gradient (grad f): -3.070243621E-01  -6.140487241E-01  -9.217387982E-01  
   Gradient norm (|grad f|): 1.149313798E+00
-  Gradient norm, valence: 0.000000000E+00
+  Gradient norm, valence: 1.149313798E+00
   Kinetic energy density (G,tau): 1.596204867E+00
   Laplacian (del2 f): -1.674129241E+00
   Laplacian, valence (del2 fval): -1.674129241E+00
@@ -143,7 +143,7 @@
   Field value, valence (fval): 1.185970024E-01
   Gradient (grad f): -2.512803632E-02  1.664032354E-01  3.427823333E-01  
   Gradient norm (|grad f|): 3.818653991E-01
-  Gradient norm, valence: 0.000000000E+00
+  Gradient norm, valence: 3.818653991E-01
   Kinetic energy density (G,tau): 4.619826723E-01
   Laplacian (del2 f): 2.057954985E+00
   Laplacian, valence (del2 fval): 2.057954985E+00

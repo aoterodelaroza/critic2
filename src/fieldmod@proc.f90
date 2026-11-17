@@ -1157,9 +1157,9 @@ contains
           end if
        end if
 
-       ! valence quantities
+       ! valence quantities (gfmod is not calculated until the end)
        res%fval = res%f
-       res%gfmodval = res%gfmod
+       res%gfmodval = norm2(res%gf)
        res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
 
        ! Do not calculate the field and its derivatives analytically
@@ -1382,7 +1382,7 @@ contains
        if (request%avail(fieldeval_category_f)) &
           res%fval = res%f
        if (request%avail(fieldeval_category_fder1)) &
-          res%gfmodval = res%gfmod
+          res%gfmodval = norm2(res%gf) ! gfmod is not calculated until the end
        if (request%avail(fieldeval_category_fder2)) &
           res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
     end if
@@ -1407,7 +1407,10 @@ contains
 
     ! gradient
     if (request%avail(fieldeval_category_fder1)) then
-       if (res%isnuc) res%gf = 0d0
+       if (res%isnuc) then
+          res%gf = 0d0
+          if (.not.skipvalassign) res%gfmodval = 0d0
+       end if
        res%gfmod = norm2(res%gf)
     end if
 

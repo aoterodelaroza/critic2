@@ -47,7 +47,7 @@
   Field value, valence (fval): 2.118999070E-01
   Gradient (grad f): -1.353408131E-02  -9.114307959E-02  -1.873632916E-01  
   Gradient norm (|grad f|): 2.087947206E-01
-  Gradient norm, valence: 0.000000000E+00
+  Gradient norm, valence: 2.087947206E-01
   Kinetic energy density (G,tau): 1.408535607E-01
   Laplacian (del2 f): -5.954857661E-01
   Laplacian, valence (del2 fval): -5.954857661E-01

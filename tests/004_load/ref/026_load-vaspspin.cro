@@ -139,7 +139,7 @@
   Field value, valence (fval): 5.155732505E-02
   Gradient (grad f): -5.001115044E-02  9.941542903E-02  -3.466794159E-02  
   Gradient norm (|grad f|): 1.165607519E-01
-  Gradient norm, valence: 0.000000000E+00
+  Gradient norm, valence: 1.165607519E-01
   Laplacian (del2 f): 1.235501618E-01
   Laplacian, valence (del2 fval): 1.235501618E-01
   Hessian:
