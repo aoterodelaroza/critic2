@@ -2466,8 +2466,10 @@ contains
        ! G-kinetic energy density (sum grho * grho)
        q = res%gkin
     case (fun_kkin)
-       ! K-kinetic energy density (sum rho * laprho)
-       q = res%gkin - 0.25d0 * res%del2f
+       ! K-kinetic energy density (sum rho * laprho). The valence
+       ! Laplacian is used because gkin comes from the orbitals only:
+       ! core densities (EDFs, core augmentation) have no orbitals.
+       q = res%gkin - 0.25d0 * res%del2fval
     case (fun_l)
        ! Lagrangian density (-1/4 * lap)
        q = - 0.25d0 * res%del2f
