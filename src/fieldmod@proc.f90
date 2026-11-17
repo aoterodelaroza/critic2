@@ -1618,7 +1618,7 @@ contains
        f0 = pool(nh+1)
     end if
     fp = f0
-    if (pool(nh+1) == 0d0) then
+    if (pool(-nh-1) == 0d0) then
        f0 = f%grd0(x-dir*hh,periodic)
        pool(-nh-1) = f0
     else
