@@ -1079,7 +1079,7 @@ contains
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
 
     real*8 :: wx(3), wxr(3), wc(3), wcr(3), x(3), rdum
-    integer :: i, nid, idx(3), nder, nderl
+    integer :: i, nid, idx(3), nder, nderl, ndernum
     real*8 :: rho, grad(3), h(3,3), rhox(3), rhov(3), gradx(3,3), gradv(3,3)
     real*8 :: hx(3,3,3), hv(3,3,3), gkinx(3)
     real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero, virx, stressx(3,3)
@@ -1114,58 +1114,14 @@ contains
        per = .true.
     end if
 
-    ! if field or derivatives are requested and numerical is active, calculate them here
+    ! With numerical derivatives, the field and its derivatives are
+    ! calculated by finite differences after the type selector. The
+    ! selector still runs, with nder = -1, for the quantities that
+    ! have no numerical counterpart (kinetic energy density, etc.).
     res%isnuc = .false.
+    ndernum = -1
     if (f%numerical .and. nder >= 0) then
-       wc = v
-       fzero = grd0(f,v,periodic,valid)
-       if (.not.valid) then
-          res%valid = .false.
-          call res%clear()
-          return
-       end if
-       res%f = fzero
-       res%gf = 0d0
-       res%hf = 0d0
-       if (nder > 0) then
-          ! x
-          fval(:,1) = 0d0
-          fval(0,1) = fzero
-          res%gf(1) = f%der1i((/1d0,0d0,0d0/),v,hini,errcnv,fval(:,1),periodic)
-          ! y
-          fval(:,2) = 0d0
-          fval(0,2) = fzero
-          res%gf(2) = f%der1i((/0d0,1d0,0d0/),v,hini,errcnv,fval(:,2),periodic)
-          ! z
-          fval(:,3) = 0d0
-          fval(0,3) = fzero
-          res%gf(3) = f%der1i((/0d0,0d0,1d0/),v,hini,errcnv,fval(:,3),periodic)
-
-          if (nder > 1) then
-             ! xx, yy, zz
-             res%hf(1,1) = f%der2ii((/1d0,0d0,0d0/),v,0.5d0*hini,errcnv,fval(:,1),periodic)
-             res%hf(2,2) = f%der2ii((/0d0,1d0,0d0/),v,0.5d0*hini,errcnv,fval(:,2),periodic)
-             res%hf(3,3) = f%der2ii((/0d0,0d0,1d0/),v,0.5d0*hini,errcnv,fval(:,3),periodic)
-             ! xy, xz, yz
-             res%hf(1,2) = f%der2ij((/1d0,0d0,0d0/),(/0d0,1d0,0d0/),v,hini,hini,errcnv,periodic)
-             res%hf(1,3) = f%der2ij((/1d0,0d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,periodic)
-             res%hf(2,3) = f%der2ij((/0d0,1d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,periodic)
-             ! final
-             res%hf(2,1) = res%hf(1,2)
-             res%hf(3,1) = res%hf(1,3)
-             res%hf(3,2) = res%hf(2,3)
-          end if
-       end if
-
-       ! valence quantities (gfmod is not calculated until the end)
-       res%fval = res%f
-       res%gfmodval = norm2(res%gf)
-       res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
-
-       ! Do not calculate the field and its derivatives analytically
-       res%ev%avail(fieldeval_category_f) = .true.
-       res%ev%avail(fieldeval_category_fder1) = .true.
-       res%ev%avail(fieldeval_category_fder2) = .true.
+       ndernum = nder
        nder = -1
     end if
 
@@ -1258,6 +1214,9 @@ contains
        nderl = nder
        if (request%avail(fieldeval_category_gkin)) nderl = max(nderl,1)
        if (request%avail(fieldeval_category_stress)) nderl = max(nderl,2)
+       ! numerical derivatives: if the wavefunction is evaluated anyway,
+       ! get the valence and spin quantities up to the requested order
+       if (nderl >= 0) nderl = max(nderl,ndernum)
        if (nderl >= 0) then
           call f%wfn%rho2(wcr,nderl,rhox,rhov,gradx,gradv,hx,hv,gkinx,virx,stressx)
           ! transformation of gf and hf to Cartesian not needed
@@ -1320,6 +1279,8 @@ contains
     case(type_dftb,type_fhiaims)
        nderl = nder
        if (request%avail(fieldeval_category_gkin)) nderl = max(nderl,1)
+       ! numerical derivatives: same as in the wfn case
+       if (nderl >= 0) nderl = max(nderl,ndernum)
        if (nderl >= 0) then
           if (f%type == type_dftb) then
              call f%dftb%rho2(wcr,f%exact,nderl,res%f,res%gf,res%hf,res%gkin)
@@ -1376,6 +1337,53 @@ contains
     case default
        call ferror("grd","unknown scalar field type",faterr)
     end select
+
+    ! Numerical derivatives. These replace whatever the type selector
+    ! calculated for the field and its derivatives. grd0 includes the
+    ! core, so there is no core augmentation afterwards (nder = -1).
+    if (ndernum >= 0) then
+       fzero = grd0(f,v,periodic,valid)
+       if (.not.valid) then
+          res%valid = .false.
+          call res%clear()
+          return
+       end if
+       res%f = fzero
+       res%gf = 0d0
+       res%hf = 0d0
+       if (ndernum > 0) then
+          ! x
+          fval(:,1) = 0d0
+          fval(0,1) = fzero
+          res%gf(1) = f%der1i((/1d0,0d0,0d0/),v,hini,errcnv,fval(:,1),periodic)
+          ! y
+          fval(:,2) = 0d0
+          fval(0,2) = fzero
+          res%gf(2) = f%der1i((/0d0,1d0,0d0/),v,hini,errcnv,fval(:,2),periodic)
+          ! z
+          fval(:,3) = 0d0
+          fval(0,3) = fzero
+          res%gf(3) = f%der1i((/0d0,0d0,1d0/),v,hini,errcnv,fval(:,3),periodic)
+
+          if (ndernum > 1) then
+             ! xx, yy, zz
+             res%hf(1,1) = f%der2ii((/1d0,0d0,0d0/),v,0.5d0*hini,errcnv,fval(:,1),periodic)
+             res%hf(2,2) = f%der2ii((/0d0,1d0,0d0/),v,0.5d0*hini,errcnv,fval(:,2),periodic)
+             res%hf(3,3) = f%der2ii((/0d0,0d0,1d0/),v,0.5d0*hini,errcnv,fval(:,3),periodic)
+             ! xy, xz, yz
+             res%hf(1,2) = f%der2ij((/1d0,0d0,0d0/),(/0d0,1d0,0d0/),v,hini,hini,errcnv,periodic)
+             res%hf(1,3) = f%der2ij((/1d0,0d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,periodic)
+             res%hf(2,3) = f%der2ij((/0d0,1d0,0d0/),(/0d0,0d0,1d0/),v,hini,hini,errcnv,periodic)
+             ! final
+             res%hf(2,1) = res%hf(1,2)
+             res%hf(3,1) = res%hf(1,3)
+             res%hf(3,2) = res%hf(2,3)
+          end if
+       end if
+       res%ev%avail(fieldeval_category_f) = .true.
+       res%ev%avail(fieldeval_category_fder1) = .true.
+       res%ev%avail(fieldeval_category_fder2) = .true.
+    end if
 
     ! save the valence-only value
     if (.not.skipvalassign) then
