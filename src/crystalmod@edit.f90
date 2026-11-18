@@ -809,11 +809,11 @@ contains
   !> whose reciprocal basis is Niggli-reduced. All of them are
   !> returned, in one flat list: the nc(n) cells of size n are
   !> cand(ic0(n)+1:ic0(n)+nc(n)), sorted by decreasing niceness (the
-  !> first is the nicest cell of that size), each with the number of
-  !> operations of the crystal compatible with the supercell lattice.
-  !> If doreach, the cells are instead sorted by decreasing reach
-  !> (half the shortest lattice vector), ties by decreasing niceness,
-  !> and each is reported in its Delaunay-reduced basis.
+  !> first is the nicest cell of that size), each with its reach (half
+  !> the shortest lattice vector) and the number of operations of the
+  !> crystal compatible with the supercell lattice. If doreach, the
+  !> cells are instead sorted by decreasing reach, ties by decreasing
+  !> niceness, and each is reported in its Delaunay-reduced basis.
   module subroutine cell_nice_list(c,inice,nc,ic0,cand,errmsg,nmin,doreach)
     use spglib, only: spg_niggli_reduce, spg_delaunay_reduce
     use global, only: symprec
@@ -993,15 +993,22 @@ contains
       if (maxval(abs(rmat - real(mred,8))) > 1d-6) return
       if (idet3(mred) < 0) mred = -mred
 
+      ! The reach is half the shortest lattice vector. spglib returns
+      ! the three shortest independent vectors of the Delaunay set,
+      ! which contains the shortest lattice vector, so it is among
+      ! the small combinations. The cell is reported in the
+      ! Delaunay-reduced basis only when the cells are ranked by reach;
+      ! otherwise the reduction starts from the already reduced x2c
+      ! (same lattice, fewer iterations than the skewed HNF basis).
       dmin = 0d0
       if (reach) then
-         ! Report the cell in the Delaunay-reduced basis. spglib returns
-         ! the three shortest independent vectors of the Delaunay set,
-         ! which contains the shortest lattice vector, so it is among
-         ! the small combinations.
          rmat = transpose(matmul(c%m_x2c,real(mm,8)))
-         ier = spg_delaunay_reduce(rmat,symprec)
-         if (ier == 0) return
+      else
+         rmat = transpose(x2c)
+      end if
+      ier = spg_delaunay_reduce(rmat,symprec)
+      if (ier == 0 .and. reach) return
+      if (ier /= 0) then
          dmin = huge(1d0)
          do i1 = -1, 1
             do i2 = -1, 1
@@ -1012,10 +1019,12 @@ contains
             end do
          end do
 
-         rmat = matmul(c%m_c2x,transpose(rmat))
-         mred = nint(rmat)
-         if (maxval(abs(rmat - real(mred,8))) > 1d-6) return
-         if (idet3(mred) < 0) mred = -mred
+         if (reach) then
+            rmat = matmul(c%m_c2x,transpose(rmat))
+            mred = nint(rmat)
+            if (maxval(abs(rmat - real(mred,8))) > 1d-6) return
+            if (idet3(mred) < 0) mred = -mred
+         end if
       end if
 
       ! append

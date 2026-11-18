@@ -1367,7 +1367,6 @@ contains
     if (allocated(w%edit_fraglv)) deallocate(w%edit_fraglv)
     if (allocated(w%geometry_expression)) deallocate(w%geometry_expression)
     if (allocated(w%geometry_expr_error)) deallocate(w%geometry_expr_error)
-    if (allocated(w%geometry_cell_nice)) deallocate(w%geometry_cell_nice)
     if (allocated(w%geometry_sym_ops)) deallocate(w%geometry_sym_ops)
     if (allocated(w%geometry_sym_hm)) deallocate(w%geometry_sym_hm)
     if (allocated(w%geometry_sym_axes)) deallocate(w%geometry_sym_axes)
@@ -1390,6 +1389,7 @@ contains
     w%vd = voids_state() ! the sampled grid and its labels, one per point of it
     w%cp = cp_state() ! the seed list and the pending job
     w%mt = melting_state() ! the per-atom order and the history of the run
+    w%geometry_cell = cellform_state() ! the supercell search results
 
     ! the side-pane callback data lives on the heap (see the type
     ! declaration); the dialog that was given its address is destroyed
@@ -1989,7 +1989,7 @@ contains
        elseif (w%type == wintype_melting) then
           call init_window("Metal Demonstration",58,32)
        elseif (w%type == wintype_geometry) then
-          call init_window("View/Edit Geometry",70,30)
+          call init_window("View/Edit Geometry",82,30)
        elseif (w%type == wintype_preferences) then
           call init_window("Preferences",81,33)
        elseif (w%type == wintype_treeplot) then

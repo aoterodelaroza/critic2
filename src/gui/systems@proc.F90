@@ -4642,43 +4642,80 @@ contains
   end subroutine transform_cell_matrix
 
   !> Passthrough to crystal%cell_nice_list and cell_nice_select: search
-  !> the supercells of increasing size up to inice times the input cell
-  !> and return, for each size, the chosen cell (best(n)): the nicest,
-  !> or with mindisp the nicest among those with the fewest phonon
-  !> displacements. Sizes with no cell have best(n)%r = 0. On error,
-  !> best is left unallocated and errmsg is set.
-  module subroutine cell_nice_list(sysc,inice,mindisp,best,errmsg)
+  !> the supercells of increasing size up to inice times the input
+  !> cell. All the distinct sublattices found are returned in cand: the
+  !> nc(n) cells of size n are cand(ic0(n)+1:ic0(n)+nc(n)), sorted by
+  !> decreasing niceness, or by decreasing reach if doreach. ibest(n) is
+  !> the index in cand of the cell chosen for size n (0 if there is
+  !> none): the nicest (or the one with the longest reach), or with
+  !> mindisp the best among those with the fewest phonon displacements.
+  !> On error, the arrays are left unallocated and errmsg is set.
+  module subroutine cell_nice_list(sysc,inice,doreach,mindisp,nc,ic0,cand,ibest,errmsg)
     use crystalmod, only: nice_cell
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: inice
-    logical, intent(in) :: mindisp
-    type(nice_cell), allocatable, intent(out) :: best(:)
+    logical, intent(in) :: doreach, mindisp
+    integer, allocatable, intent(out) :: nc(:), ic0(:), ibest(:)
+    type(nice_cell), allocatable, intent(out) :: cand(:)
     character(len=:), allocatable, intent(inout) :: errmsg
 
-    integer :: n, ibest
-    integer, allocatable :: nc(:), ic0(:)
-    type(nice_cell), allocatable :: cand(:)
-
+    integer :: n, ib
     integer :: isys
 
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
     if (sys(isys)%c%ismolecule) return
 
-    call sys(isys)%c%cell_nice_list(inice,nc,ic0,cand,errmsg)
-    if (has_errmsg(errmsg)) return
-    allocate(best(inice))
-    do n = 1, inice
-       if (nc(n) < 1) cycle
-       call sys(isys)%c%cell_nice_select(cand(ic0(n)+1:ic0(n)+nc(n)),merge(1,0,mindisp),ibest,errmsg)
-       if (has_errmsg(errmsg)) then
-          deallocate(best)
-          return
-       end if
-       if (ibest > 0) best(n) = cand(ic0(n)+ibest)
-    end do
+    call sys(isys)%c%cell_nice_list(inice,nc,ic0,cand,errmsg,doreach=doreach)
+    if (.not.has_errmsg(errmsg)) then
+       allocate(ibest(inice))
+       ibest = 0
+       do n = 1, inice
+          if (nc(n) < 1) cycle
+          call sys(isys)%c%cell_nice_select(cand(ic0(n)+1:ic0(n)+nc(n)),merge(1,0,mindisp),ib,errmsg,&
+             doreach=doreach)
+          if (has_errmsg(errmsg)) exit
+          if (ib > 0) ibest(n) = ic0(n) + ib
+       end do
+    end if
+    if (has_errmsg(errmsg)) then
+       if (allocated(nc)) deallocate(nc)
+       if (allocated(ic0)) deallocate(ic0)
+       if (allocated(cand)) deallocate(cand)
+       if (allocated(ibest)) deallocate(ibest)
+    end if
 
   end subroutine cell_nice_list
+
+  !> Fill in the number of phonon displacements and independent atoms
+  !> (crystal%disp_count) of the supercell candidates in cand that do
+  !> not have them yet (ndisp = -1). If the count of a candidate fails,
+  !> its two numbers are set to -2, so that it is not shown or counted
+  !> again, and errmsg is set.
+  module subroutine cell_nice_count(sysc,cand,errmsg)
+    use crystalmod, only: nice_cell
+    class(sysconf), intent(inout) :: sysc
+    type(nice_cell), intent(inout) :: cand(:)
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: k, isys, smat(3,3)
+
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    do k = 1, size(cand,1)
+       if (cand(k)%ndisp /= -1) cycle
+       smat = transpose(cand(k)%m)
+       call sys(isys)%c%disp_count(smat,cand(k)%ndisp,cand(k)%nindep,errmsg)
+       if (has_errmsg(errmsg)) then
+          cand(k)%ndisp = -2
+          cand(k)%nindep = -2
+          return
+       end if
+    end do
+
+  end subroutine cell_nice_count
 
   !> Recalculate the crystal symmetry using the tolerance stored in
   !> sysc%symeps, then post a geometry-change event.

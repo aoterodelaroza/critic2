@@ -47,7 +47,8 @@ contains
        iw_beginmenu, iw_begintabitem, iw_separatortext, iw_separatortext_height
     use types, only: realloc, molsymop_rotation, molsymop_plane, molsymop_imp_rotation
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
-    use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
+    use tools_math, only: det3, matinv, cellpar_from_metric
+    use param, only: newline, bohrtoa, pi, atmcov0, maxzat0, eye
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr, doocc
@@ -93,10 +94,14 @@ contains
     real*8 :: rotdir(3), rotlen ! transient rotation-axis direction and half-length
     type(rep_shape) :: stdshp(3) ! transient std-orientation axes (arrows)
     type(rep_shape) :: rotshp(1) ! transient rotation axis (cylinder)
-    type(rep_shape) :: lvshp(7) ! transient preview of the full transformation (spheres, arrows, box)
+    type(rep_shape) :: lvshp(7) ! transient preview of the new cell (spheres, arrows, box)
     logical :: lvshown ! the transient lattice points were shown this frame
-    real*8 :: fullm(3,3), xb(3)
-    ! preview of the full transformation, in lattice-point sphere radii
+    real*8 :: xb(3)
+    real*8 :: pm(3,3), pt(3) ! cell tab: matrix and origin of the supercell being prepared
+    logical :: pok ! cell tab: whether that transformation is valid
+    real*8 :: xcl(3), xca(3) ! cell tab: lengths and angles of the new cell
+    integer :: ib, nsl, ncan ! cell tab: supercell candidate, selected size, and its number of sublattices
+    ! preview of the new cell, in lattice-point sphere radii
     real*8, parameter :: pv_radfac = 1.5d0 ! the new lattice vectors' spheres
     real*8, parameter :: pv_arrowr = 0.3d0 ! arrow shaft radius
     real*8, parameter :: pv_headr = 2.5d0 ! arrowhead radius (shaft radii)
@@ -164,6 +169,7 @@ contains
     integer, parameter :: itable_symops = 7
     integer, parameter :: itable_symcen = 8
     integer, parameter :: itable_symanal = 9
+    integer, parameter :: itable_cellsub = 10
 
     ! table column IDs
     integer, parameter :: ic_id = 0
@@ -232,14 +238,9 @@ contains
        w%geometry_input_coord = 0d0
        w%geometry_input_species = 1
        call w%geometry_addbond%clear()
-       w%geometry_cell_simple = .true.
-       w%geometry_cell_nrep = 1_c_int
-       w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
-       w%geometry_cell_cen = 1
-       w%geometry_cell_origin = 0d0
-       w%geometry_cell_inice = 10
-       w%geometry_cell_mindisp = .false.
-       call clear_nice_results()
+       w%geometry_cell = cellform_state()
+       ! the table of sublattices is long, and seldom needed
+       w%geometry_sec(geomsec_sublat)%open = .false.
        call clear_sym_cache()
     end if
 
@@ -287,7 +288,7 @@ contains
        end if
     end if
 
-    ! handle a pending lattice-vector pick (full cell transformation): the
+    ! handle a pending lattice-vector pick (matrix cell transformation): the
     ! picked point is the integer part and the centering vector of the
     ! row; with Pick All, the pick moves on to the next rows. The origin
     ! is not a lattice vector: picking it keeps the pick waiting.
@@ -300,8 +301,8 @@ contains
              call lvpick_start(w%geometry_lvpick_row,w%geometry_lvpick_last)
           else
              i = w%geometry_lvpick_row
-             w%geometry_cell_intmat(:,i) = latpick(1:3)
-             w%geometry_cell_cen(i) = latpick(4)
+             w%geometry_cell%intmat(:,i) = latpick(1:3)
+             w%geometry_cell%cen(i) = latpick(4)
              w%errmsg = ""
              if (i < w%geometry_lvpick_last) then
                 call lvpick_start(i+1,w%geometry_lvpick_last)
@@ -334,11 +335,11 @@ contains
        call sysc(isys)%highlight_clear(.false.)
        call clear_highlights_table()
        call clear_empty_rows()
-       ! the symmetry-vs-epsilon analysis and the nice-supercell search
+       ! the symmetry-vs-epsilon analysis and the supercell search
        ! (its symmetry counts depend on the operations and the atoms)
        ! are now stale
        call clear_sym_cache()
-       call clear_nice_results()
+       call clear_search_results()
     end if
 
     ! system combo. The atoms tab opens by default and whenever another
@@ -1002,20 +1003,26 @@ contains
 
                 call iw_text("a/b/c (Å)",alignframe=.true.)
                 ch = .false.
-                ch = ch .or. iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,&
+                lch = iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,&
                    notlive=.true.,sameline=.true.)
-                ch = ch .or. iw_dragfloat_real8("##celllengthsb",x1=x6(2),speed=0.005d0,decimal=6,scale=bohrtoa,&
+                ch = ch .or. lch
+                lch = iw_dragfloat_real8("##celllengthsb",x1=x6(2),speed=0.005d0,decimal=6,scale=bohrtoa,&
                    notlive=.true.,sameline=.true.)
-                ch = ch .or. iw_dragfloat_real8("##celllengthsc",x1=x6(3),speed=0.005d0,decimal=6,scale=bohrtoa,&
+                ch = ch .or. lch
+                lch = iw_dragfloat_real8("##celllengthsc",x1=x6(3),speed=0.005d0,decimal=6,scale=bohrtoa,&
                    notlive=.true.,sameline=.true.)
+                ch = ch .or. lch
 
                 call iw_text("α/β/γ (°)",alignframe=.true.)
-                ch = ch .or. iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.,&
+                lch = iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.,&
                    notlive=.true.)
-                ch = ch .or. iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.,&
+                ch = ch .or. lch
+                lch = iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.,&
                    notlive=.true.)
-                ch = ch .or. iw_dragfloat_real8("##cellanbsc",x1=x6(6),speed=0.01d0,decimal=4,sameline=.true.,&
+                ch = ch .or. lch
+                lch = iw_dragfloat_real8("##cellanbsc",x1=x6(6),speed=0.01d0,decimal=4,sameline=.true.,&
                    notlive=.true.)
+                ch = ch .or. lch
 
                 ! cell volume
                 call iw_text("Volume (Å³)",alignframe=.true.)
@@ -1041,63 +1048,68 @@ contains
              end if
 
              ! standardization and reduction of the cell
-             call iw_separatortext("Cell transformations",w%geometry_sec(geomsec_celltr))
+             call iw_separatortext("Standard cells",w%geometry_sec(geomsec_celltr),hasmore=.true.)
              if (w%geometry_sec(geomsec_celltr)%open) then
                 if (iw_button("Conventional##celltransfstd")) then
                    iaction = iaction_transform_cell
                    iaction_i1 = celltransform_standard
+                   iaction_l = w%geometry_cell%refine
                 end if
                 call iw_tooltip("Transform to the conventional cell",ttshown)
                 if (iw_button("Primitive##celltransfprim",sameline=.true.)) then
                    iaction = iaction_transform_cell
                    iaction_i1 = celltransform_primstd
+                   iaction_l = w%geometry_cell%refine
                 end if
                 call iw_tooltip("Transform to the standard primitive cell",ttshown)
                 if (iw_button("Niggli##celltransfnig",sameline=.true.)) then
                    iaction = iaction_transform_cell
                    iaction_i1 = celltransform_niggli
+                   iaction_l = .false.
                 end if
                 call iw_tooltip("Transform to the primitive Niggli cell",ttshown)
                 if (iw_button("Delaunay##celltransfdel",sameline=.true.)) then
                    iaction = iaction_transform_cell
                    iaction_i1 = celltransform_delaunay
+                   iaction_l = .false.
                 end if
                 call iw_tooltip("Transform to the primitive Delaunay cell",ttshown)
+                ! (an option that is on stays in view when More is closed)
+                if (w%geometry_sec(geomsec_celltr)%more .or. w%geometry_cell%refine) then
+                   ldum = iw_checkbox("Refine positions##cellrefine",w%geometry_cell%refine,labelleft=.true.)
+                   call iw_tooltip("Move the atoms to their ideal symmetry positions when transforming&
+                      & to the conventional or the primitive cell",ttshown)
+                end if
              end if
 
-             ! cell transformation (simple supercell or general matrix)
-             call iw_separatortext("Supercells",w%geometry_sec(geomsec_super))
+             ! the supercell: a simple repetition, a general matrix, or a
+             ! sublattice chosen from the supercell search
+             call iw_separatortext("Supercell",w%geometry_sec(geomsec_super),&
+                hasmore=(w%geometry_cell%mode == cellmode_matrix))
              if (w%geometry_sec(geomsec_super)%open) then
-                call iw_text("Transformation",alignframe=.true.)
-                ldum = iw_radiobutton("Simple",bool=w%geometry_cell_simple,boolval=.true.,sameline=.true.)
+                call iw_text("Mode",alignframe=.true.)
+                ldum = iw_radiobutton("Simple",int=w%geometry_cell%mode,intval=cellmode_simple,sameline=.true.)
                 call iw_tooltip("Build a supercell by repeating the cell an integer number of&
                    & times along each lattice vector",ttshown)
-                ldum = iw_radiobutton("Full",bool=w%geometry_cell_simple,boolval=.false.,sameline=.true.)
+                ldum = iw_radiobutton("Matrix",int=w%geometry_cell%mode,intval=cellmode_matrix,sameline=.true.)
                 call iw_tooltip("General transformation: each row is a lattice vector of the new&
                    & cell, written in crystallographic coordinates of the current cell",ttshown)
+                ldum = iw_radiobutton("Search",int=w%geometry_cell%mode,intval=cellmode_search,sameline=.true.)
+                call iw_tooltip("Search the supercells of each size and choose one of them: the nicest&
+                   & (the closest to a cube) or the one with the longest reach",ttshown)
 
-                if (w%geometry_cell_simple) then
+                if (w%geometry_cell%mode == cellmode_simple) then
                    ! simple transformation: integer multiples of the a, b, c axes
                    call iw_text("na/nb/nc",alignframe=.true.)
                    do jm = 1, 3
-                      ldum = iw_intstepper("cellnrep" // string(jm),w%geometry_cell_nrep(jm),&
+                      ldum = iw_intstepper("cellnrep" // string(jm),w%geometry_cell%nrep(jm),&
                          minval=1_c_int,sameline=.true.,&
                          tooltip="Number of times the cell is repeated along the a, b, and c lattice vectors")
                    end do
-
-                   if (iw_button("Reset##cellresettransf",sameline=.true.)) then
-                      if (w%geometry_cell_simple) then
-                         w%geometry_cell_nrep = 1
-                      else
-                         w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
-                         w%geometry_cell_cen = 1
-                      end if
-                   end if
-                   call iw_tooltip("Reset the supercell transformation",ttshown)
-                else
+                elseif (w%geometry_cell%mode == cellmode_matrix) then
                    ! arbitrary transformation matrix: each row is a lattice vector of the new
                    ! cell = integer triplet + (for centered cells) a centering vector
-                   w%geometry_cell_cen = min(max(w%geometry_cell_cen,1),max(sys(isys)%c%ncv,1))
+                   w%geometry_cell%cen = min(max(w%geometry_cell%cen,1),max(sys(isys)%c%ncv,1))
                    if (sys(isys)%c%ncv > 1) then
                       ! build the centering options once
                       stropt = ""
@@ -1116,164 +1128,220 @@ contains
                          call iw_text("c' ",alignframe=.true.)
                       end if
                       lch = iw_inputint3("##cellmat" // string(im),&
-                         w%geometry_cell_intmat(:,im),width=3*3,sameline=.true.,notlive=.true.)
+                         w%geometry_cell%intmat(:,im),width=3*3,sameline=.true.,notlive=.true.)
                       ch = ch .or. lch
                       if (sys(isys)%c%ncv > 1) then
                          call iw_text(" + ",sameline=.true.)
-                         call iw_combo_simple("##cellcen" // string(im),stropt,w%geometry_cell_cen(im),&
+                         call iw_combo_simple("##cellcen" // string(im),stropt,w%geometry_cell%cen(im),&
                             changed=lch,sameline=.true.,startsatone=.true.)
                          ch = ch .or. lch
                          call iw_tooltip("Centering vector added to this lattice vector",ttshown)
                       end if
+                      ! no picks with the inverse: the points in the view are
+                      ! lattice vectors of the new cell, not rows of its inverse
                       if (iw_button("Pick##cellpick" // string(im),sameline=.true.,&
-                         disabled=(w%geometry_lvpick_row == im))) call lvpick_start(im,im)
+                         disabled=(w%geometry_lvpick_row == im .or. w%geometry_cell%inverse))) &
+                         call lvpick_start(im,im)
                       call iw_tooltip("Pick this lattice vector in the view: click the lattice point &
-                         &it ends at (a click anywhere else cancels)",ttshown)
+                         &it ends at (a click anywhere else cancels). Not available with the inverse&
+                         & matrix",ttshown,whendisabled=.true.)
                    end do
-                   if (iw_button("Pick All##cellpickall",disabled=(w%geometry_lvpick_row > 0))) &
-                      call lvpick_start(1,3)
+                   if (iw_button("Pick All##cellpickall",disabled=(w%geometry_lvpick_row > 0 .or.&
+                      w%geometry_cell%inverse))) call lvpick_start(1,3)
                    call iw_tooltip("Pick the three lattice vectors in the view, one after the other &
-                      &(a click anywhere else than a lattice point cancels)",ttshown)
+                      &(a click anywhere else than a lattice point cancels). Not available with the&
+                      & inverse matrix",ttshown,whendisabled=.true.)
                    call iw_text("Origin",alignframe=.true.)
                    do jm = 1, 3
                       lch = iw_dragfloat_real8("##cellorigin" // string(jm),&
-                         x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
+                         x1=w%geometry_cell%origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
                          notlive=.true.)
                       ch = ch .or. lch
                    end do
+                   call iw_tooltip("Origin of the new cell, in crystallographic coordinates of the&
+                      & current cell",ttshown)
+                   if (w%geometry_sec(geomsec_super)%more .or. w%geometry_cell%inverse) then
+                      lch = iw_checkbox("Inverse##cellinverse",w%geometry_cell%inverse,labelleft=.true.)
+                      ch = ch .or. lch
+                      call iw_tooltip("Use the inverse of the matrix: the rows are then the lattice vectors&
+                         & of the current cell written in crystallographic coordinates of the new cell",ttshown)
+                   end if
                    ! if the user changed the matrix or the origin, clear the error message
                    if (ch) w%errmsg = ""
+                else
+                   ! supercell search: the criterion and the largest size
+                   call iw_text("Criterion",alignframe=.true.)
+                   call iw_combo_simple("##cellsearchcrit","Niceness" // c_null_char // "Reach" // c_null_char,&
+                      w%geometry_cell%crit,changed=lch,sameline=.true.,startsatone=.true.,tooltips=&
+                      "The supercell that contains the largest sphere, which is the closest to a cube" //&
+                      c_null_char //&
+                      "The supercell with the longest shortest lattice vector: two atoms closer than half&
+                      & of it are never periodic images of each other" // c_null_char,ttshown=ttshown)
+                   ! the criterion changed: the results would no longer match it
+                   if (lch) call clear_search_results()
+                   if (iw_checkbox("Fewest displacements##cellsearchmindisp",w%geometry_cell%mindisp,&
+                      labelleft=.true.,gap=.true.)) call clear_search_results()
+                   call iw_tooltip("Choose, for each size, only among the supercells that need the fewest&
+                      & displaced structures in a phonon calculation. They keep the most symmetry, but&
+                      & can be very elongated",ttshown)
+                   call iw_text("Max. size",alignframe=.true.)
+                   ldum = iw_intstepper("cellsearchsize",w%geometry_cell%nmax,minval=1_c_int,sameline=.true.,&
+                      tooltip="Largest supercell size (number of current cells) considered in the search")
+                   if (iw_button("Search##cellsearch",sameline=.true.)) then
+                      w%geometry_cell%nmax = max(w%geometry_cell%nmax,1_c_int)
+                      call clear_search_results()
+                      w%errmsg = ""
+                      call sysc(isys)%cell_nice_list(int(w%geometry_cell%nmax),&
+                         w%geometry_cell%crit == cellcrit_reach,w%geometry_cell%mindisp,&
+                         w%geometry_cell%nc,w%geometry_cell%ic0,w%geometry_cell%cand,&
+                         w%geometry_cell%ibest,w%errmsg)
+                   end if
+                   call iw_tooltip("Search the supercells of every size up to the maximum. The cost&
+                      & grows quickly with the size",ttshown)
 
-                   ! the lattice points around the displayed cells, for the
-                   ! picks, and the preview of the new cell: its lattice
-                   ! vectors (larger spheres in the axis colors over their
-                   ! lattice points, and arrows from the origin ending at
-                   ! their surface) and its outline, at its origin
-                   if (.not.sys(isys)%c%ismolecule .and. associated(win(iview)%sc)) then
-                      call win(iview)%sc%show_transient_latvec(w%uid,1,replat_primitive,1)
-                      fullm = full_matrix()
-                      do im = 1, 3
-                         xb = sys(isys)%c%x2c(fullm(:,im))
-                         lvshp(im) = rep_shape(kind=shapekind_sphere,x1=xb,rad=pv_radfac*latvec_rad_def,&
-                            rgb=ColorAxes_def(:,im))
-                         lvshp(3+im) = rep_shape(kind=shapekind_arrow,shown=(norm2(xb) > 2d0*lvshp(im)%rad),&
-                            rad=pv_arrowr*latvec_rad_def,headr=pv_headr,headl=pv_headl,rgb=ColorAxes_def(:,im))
-                         if (lvshp(3+im)%shown) lvshp(3+im)%v(:,1) = xb * (1d0 - lvshp(im)%rad / norm2(xb))
-                      end do
-                      lvshp(7) = rep_shape(kind=shapekind_box,x1=sys(isys)%c%x2c(w%geometry_cell_origin),&
-                         v=matmul(sys(isys)%c%m_x2c,fullm),rad=pv_edger*latvec_rad_def,rgb=pv_edge_rgb,alpha=0._c_float)
-                      call win(iview)%sc%show_transient_shapes(w%uid,0,lvshp)
-                      lvshown = .true.
+                   ! the supercell chosen for each size: click a row to select it
+                   if (allocated(w%geometry_cell%cand)) then
+                      if (cell_table_begin("##cellsearchtable","n","Size of the supercell: the number of&
+                         & current cells it contains",count(w%geometry_cell%ibest > 0),10)) then
+                         call w%table_write_begin(itable_cellnice,iwrite)
+                         do i = 1, size(w%geometry_cell%ibest,1)
+                            ib = w%geometry_cell%ibest(i)
+                            if (ib == 0) cycle
+                            call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                            if (igTableSetColumnIndex(0)) call iw_text(string(i))
+                            ldum = iw_highlight_selectable("##cellsearchrow" // string(i),clicked=clicked,&
+                               selected=(w%geometry_cell%nsel == i))
+                            if (clicked) call select_candidate(ib,i)
+                            call cell_candidate_columns(ib,i)
+                         end do
+                         if (w%geometry_cell%crit == cellcrit_reach) then
+                            call w%table_write_end(itable_cellnice,table_title("Longest-reach supercells",isys))
+                         else
+                            call w%table_write_end(itable_cellnice,table_title("Nicest supercells",isys))
+                         end if
+                         call igEndTable()
+                      end if
                    end if
-                end if
-                ok = iw_button("Apply##celltransfapply",danger=.true.)
-                call iw_tooltip("Apply the supercell transformation",ttshown)
-                if (ok) then
-                   iaction = iaction_transform_matrix
-                   if (w%geometry_cell_simple) then
-                      iaction_m = 0d0
-                      iaction_m(1,1) = real(w%geometry_cell_nrep(1),8)
-                      iaction_m(2,2) = real(w%geometry_cell_nrep(2),8)
-                      iaction_m(3,3) = real(w%geometry_cell_nrep(3),8)
-                      iaction_x = 0d0
-                   else
-                      iaction_m = full_matrix()
-                      iaction_x = w%geometry_cell_origin
-                   end if
-                   iaction_l = .false.
                 end if
              end if
 
-             ! nice supercell search
-             call iw_separatortext("Nice supercells",w%geometry_sec(geomsec_nice))
-             if (w%geometry_sec(geomsec_nice)%open) then
-                call iw_text("For a given n, search for the supercell containing n current cells that "//&
-                   "fits inside the largest possible sphere (with radius rmax). The niceness is the "//&
-                   "ratio between the radius of the inscribed sphere and the maximum possible "//&
-                   "ratio, equal to that of a cubic cell. Click on a row of the table to apply "//&
-                   "the transformation.",disabled=.true.,wrap=.true.)
-                call iw_text("Max. size",alignframe=.true.)
-                ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,minval=1_c_int,sameline=.true.,&
-                   tooltip="Maximum supercell size (number of times the current cell) to consider in the search")
-                ! the criterion changed: the results (and the columns) would no longer match it
-                if (iw_checkbox("Min. displacements##cellnicemindisp",w%geometry_cell_mindisp,labelleft=.true.,&
-                   gap=.true.)) call clear_nice_results()
-                call iw_tooltip("Choose, for each size, the supercell with the fewest phonon displacements&
-                   & (the nicest if several tie) instead of the nicest supercell",ttshown)
-                if (iw_button("Search##cellnicesearch",sameline=.true.)) then
-                   w%geometry_cell_inice = max(w%geometry_cell_inice,1_c_int)
-                   w%errmsg = ""
-                   call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),w%geometry_cell_mindisp,&
-                      w%geometry_cell_nice,w%errmsg)
+             ! the transformation the supercell section describes now
+             call pending_cell(pm,pt,pok)
+
+             if (w%geometry_sec(geomsec_super)%open) then
+                ! the cell the transformation leads to
+                call iw_text("New cell",alignframe=.true.)
+                if (pok) then
+                   call pending_metrics(pm,s,xcl,xca)
+                   call iw_text(s,sameline=.true.)
+                   call iw_text("a/b/c (Å)",alignframe=.true.)
+                   call iw_text(string(xcl(1)*bohrtoa,'f',decimal=4) // "  " // string(xcl(2)*bohrtoa,'f',decimal=4) //&
+                      "  " // string(xcl(3)*bohrtoa,'f',decimal=4),sameline=.true.)
+                   call iw_text("α/β/γ (°)",alignframe=.true.,gap=.true.)
+                   call iw_text(string(xca(1),'f',decimal=2) // "  " // string(xca(2),'f',decimal=2) //&
+                      "  " // string(xca(3),'f',decimal=2),sameline=.true.)
+                elseif (w%geometry_cell%mode == cellmode_search) then
+                   call iw_text("Select a supercell in the table",disabled=.true.,sameline=.true.)
+                else
+                   call iw_text("The lattice vectors are not valid",disabled=.true.,sameline=.true.)
                 end if
-                call iw_tooltip("Search for the nicest supercells up to the indicated&
-                   & maximum size (can be expensive)",ttshown)
 
-                if (allocated(w%geometry_cell_nice)) then
-                   flags = ImGuiTableFlags_RowBg
-                   flags = ior(flags,ImGuiTableFlags_Borders)
-                   flags = ior(flags,ImGuiTableFlags_ScrollY)
-                   flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-                   str1 = "##cellnicetable" // c_null_char
-                   sz0%x = iw_calcwidth(2,1) + iw_calcwidth(8,1) + iw_calcwidth(8,1) + iw_calcwidth(27,1) +&
-                      g%Style%ScrollbarSize + 4._c_float
-                   ncol = 4
-                   if (w%geometry_cell_mindisp) then
-                      ncol = 6
-                      sz0%x = sz0%x + iw_calcwidth(5,1) + iw_calcwidth(5,1)
+                ok = iw_button("Apply##celltransfapply",danger=.true.,disabled=.not.pok)
+                call iw_tooltip("Transform the crystal to the new cell",ttshown)
+                if (ok) then
+                   iaction = iaction_transform_matrix
+                   iaction_m = pm
+                   iaction_x = pt
+                   iaction_l = .false.
+                end if
+                if (iw_button("Reset##cellresettransf",sameline=.true.)) then
+                   if (w%geometry_cell%mode == cellmode_simple) then
+                      w%geometry_cell%nrep = 1_c_int
+                   elseif (w%geometry_cell%mode == cellmode_matrix) then
+                      w%geometry_cell%intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
+                      w%geometry_cell%cen = 1
+                      w%geometry_cell%origin = 0d0
+                      w%geometry_cell%inverse = .false.
+                   else
+                      w%geometry_cell%isel = 0
+                      w%geometry_cell%nsel = 0
                    end if
-                   sz0%y = igGetFrameHeight() + 11._c_float * (igGetTextLineHeight() + 2._c_float*g%Style%CellPadding%y)
-                   if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
-                      call iw_table_column("n",id=0)
-                      call iw_table_column("Rmax (Å)",id=1)
-                      call iw_table_column("Niceness",id=2)
-                      if (w%geometry_cell_mindisp) then
-                         call iw_table_column("Nops",id=3)
-                         call iw_table_column("Ndisp",id=4)
-                      end if
-                      call iw_table_column("Transformation",id=ncol-1)
-                      call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
-                      call w%table_write_begin(itable_cellnice,iwrite)
+                   w%errmsg = ""
+                end if
+                call iw_tooltip("Reset the supercell transformation",ttshown)
+             end if
 
-                      do i = 1, size(w%geometry_cell_nice,1)
-                         if (w%geometry_cell_nice(i)%r <= 0d0) cycle
-                         call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-
-                         ! clickable row spanning all columns: apply this supercell
-                         if (igTableSetColumnIndex(0)) then
-                            str2 = string(i) // "##cellnicerow" // string(i) // c_null_char
-                            call iw_capture_text(str2,label=.true.)
-                            if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
-                               ImGuiSelectableFlags_SpanAllColumns,szero)) then
-                               iaction = iaction_transform_matrix
-                               iaction_m = real(w%geometry_cell_nice(i)%m,8)
-                               iaction_x = 0d0
-                               iaction_l = .false.
+             ! every sublattice of the size selected in the search, to
+             ! choose another one than the search did
+             if (w%geometry_cell%mode == cellmode_search .and. allocated(w%geometry_cell%cand) .and.&
+                w%geometry_cell%nsel > 0) then
+                nsl = w%geometry_cell%nsel
+                ncan = w%geometry_cell%nc(nsl)
+                call iw_separatortext("Sublattices of size " // string(nsl) // " (" // string(ncan) // ")",&
+                   w%geometry_sec(geomsec_sublat))
+                if (w%geometry_sec(geomsec_sublat)%open) then
+                   if (cell_table_begin("##cellsublattable","#","Distinct sublattices of this size, the best&
+                      & first; the asterisk marks the one chosen by the search",ncan,6)) then
+                      ! start the clipper; if the table is being written as text,
+                      ! its rows are captured as they are drawn (all of them)
+                      clipper = ImGuiListClipper_ImGuiListClipper()
+                      call ImGuiListClipper_Begin(clipper,ncan,-1._c_float)
+                      call w%table_write_begin(itable_cellsub,iwrite,clipper)
+                      do while(ImGuiListClipper_Step(clipper))
+                         call c_f_pointer(clipper,clipper_f)
+                         do ii = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                            ib = w%geometry_cell%ic0(nsl) + ii
+                            ! the displacements are counted when a row is first drawn
+                            if (w%geometry_cell%cand(ib)%ndisp == -1) then
+                               experr = ""
+                               call sysc(isys)%cell_nice_count(w%geometry_cell%cand(ib:ib),experr)
+                               if (len_trim(experr) > 0) w%errmsg = experr
                             end if
-                         end if
-                         if (igTableSetColumnIndex(1)) &
-                            call iw_text(string(w%geometry_cell_nice(i)%r*bohrtoa,'f',7,3))
-                         if (igTableSetColumnIndex(2)) &
-                            call iw_text(string(8d0*w%geometry_cell_nice(i)%r**3/(i*sys(isys)%c%omega),'f',7,5))
-                         if (w%geometry_cell_mindisp) then
-                            if (igTableSetColumnIndex(3)) &
-                               call iw_text(string(w%geometry_cell_nice(i)%nops))
-                            if (igTableSetColumnIndex(4)) &
-                               call iw_text(string(w%geometry_cell_nice(i)%ndisp))
-                         end if
-                         if (igTableSetColumnIndex(ncol-1)) then
-                            s = ""
-                            do im = 1, 3
-                               do jm = 1, 3
-                                  s = s // string(w%geometry_cell_nice(i)%m(jm,im),length=3,justify=ioj_right)
-                               end do
-                            end do
-                            call iw_text(s)
-                         end if
+                            call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                            if (igTableSetColumnIndex(0)) then
+                               if (ib == w%geometry_cell%ibest(nsl)) then
+                                  call iw_text(string(ii) // "*")
+                               else
+                                  call iw_text(string(ii))
+                               end if
+                            end if
+                            ldum = iw_highlight_selectable("##cellsublatrow" // string(ii),clicked=clicked,&
+                               selected=(w%geometry_cell%isel == ib))
+                            if (clicked) call select_candidate(ib,nsl)
+                            call cell_candidate_columns(ib,nsl)
+                         end do
                       end do
-                      call w%table_write_end(itable_cellnice,table_title("Nicest supercells",isys))
+                      call ImGuiListClipper_End(clipper)
+                      call ImGuiListClipper_destroy(clipper)
+                      call w%table_write_end(itable_cellsub,table_title("Sublattices of size " // string(nsl),isys))
                       call igEndTable()
                    end if
+                end if
+             end if
+
+             ! the preview of the new cell in the view: its lattice vectors
+             ! (spheres in the axis colors at their ends, and arrows from
+             ! the origin ending at their surface) and its outline, at its
+             ! origin. In the matrix mode, also the lattice points around
+             ! the displayed cells, for the picks.
+             if (associated(win(iview)%sc)) then
+                if (w%geometry_cell%mode == cellmode_matrix) then
+                   call win(iview)%sc%show_transient_latvec(w%uid,1,replat_primitive,1)
+                   lvshown = .true.
+                end if
+                if (pok .and. (w%geometry_cell%mode == cellmode_matrix .or. any(abs(pm - eye) > 1d-8) .or.&
+                   any(abs(pt) > 1d-8))) then
+                   do im = 1, 3
+                      xb = sys(isys)%c%x2c(pm(:,im))
+                      lvshp(im) = rep_shape(kind=shapekind_sphere,x1=xb,rad=pv_radfac*latvec_rad_def,&
+                         rgb=ColorAxes_def(:,im))
+                      lvshp(3+im) = rep_shape(kind=shapekind_arrow,shown=(norm2(xb) > 2d0*lvshp(im)%rad),&
+                         rad=pv_arrowr*latvec_rad_def,headr=pv_headr,headl=pv_headl,rgb=ColorAxes_def(:,im))
+                      if (lvshp(3+im)%shown) lvshp(3+im)%v(:,1) = xb * (1d0 - lvshp(im)%rad / norm2(xb))
+                   end do
+                   lvshp(7) = rep_shape(kind=shapekind_box,x1=sys(isys)%c%x2c(pt),&
+                      v=matmul(sys(isys)%c%m_x2c,pm),rad=pv_edger*latvec_rad_def,rgb=pv_edge_rgb,alpha=0._c_float)
+                   call win(iview)%sc%show_transient_shapes(w%uid,0,lvshp)
                 end if
              end if
 
@@ -2421,12 +2489,14 @@ contains
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_transform_cell) then
-       call sysc(isys)%transform_cell(iaction_i1,.false.,errmsg=w%errmsg)
+       call sysc(isys)%transform_cell(iaction_i1,iaction_l,errmsg=w%errmsg)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_transform_matrix) then
        call sysc(isys)%transform_cell_matrix(iaction_m,iaction_x,iaction_l,errmsg=w%errmsg)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
+       ! the inputs described a transformation of the cell that was replaced
+       if (len_trim(w%errmsg) == 0) call reset_cell_inputs()
 
     elseif (iaction == iaction_sym_recalc) then
        call sysc(isys)%recalc_symmetry(w%errmsg)
@@ -2525,20 +2595,17 @@ contains
       call w%table_write_cancel()
 
       ! remove the cached cell-transformation data and reorder the table
-      call clear_nice_results()
+      call clear_search_results()
       call clear_sym_cache()
       call reset_sort()
 
       ! clear the cell transformations
-      w%geometry_cell_nrep = 1_c_int
-      w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
-      w%geometry_cell_cen = 1
-      w%geometry_cell_origin = 0d0
+      call reset_cell_inputs()
       w%geometry_lvpick_row = 0
 
     end subroutine reset_for_new_system
 
-    ! Start the pick of the lattice vector in row irow of the full cell
+    ! Start the pick of the lattice vector in row irow of the matrix cell
     ! transformation, in the anchor view; the pick goes on to the next
     ! rows up to ilast. It replaces a pending add-bond pick.
     subroutine lvpick_start(irow,ilast)
@@ -2563,18 +2630,196 @@ contains
 
     end subroutine lvpick_cancel
 
-    ! The matrix of the full cell transformation: the lattice vectors of
-    ! the new cell (columns, fractional), integer part plus centering.
-    function full_matrix() result(m)
-      real*8 :: m(3,3)
+    ! The inputs of the supercell transformation, in the simple and
+    ! matrix modes, back to their defaults (the identity).
+    subroutine reset_cell_inputs()
+
+      w%geometry_cell%nrep = 1_c_int
+      w%geometry_cell%intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
+      w%geometry_cell%cen = 1
+      w%geometry_cell%origin = 0d0
+      w%geometry_cell%inverse = .false.
+
+    end subroutine reset_cell_inputs
+
+    ! The supercell transformation that the supercell section of the
+    ! cell tab describes in its current mode: the lattice vectors of
+    ! the new cell (columns of m, crystallographic coordinates of the
+    ! current cell) and its origin (t), as newcell will use them (a
+    ! left-handed set of vectors is inverted). isok is false if there
+    ! is none (no supercell selected in the search) or the vectors do
+    ! not make a cell.
+    subroutine pending_cell(m,t,isok)
+      real*8, intent(out) :: m(3,3), t(3)
+      logical, intent(out) :: isok
 
       integer :: k
 
-      do k = 1, 3
-         m(:,k) = real(w%geometry_cell_intmat(:,k),8) + sys(isys)%c%cen(:,w%geometry_cell_cen(k))
-      end do
+      m = eye
+      t = 0d0
+      isok = .true.
+      if (w%geometry_cell%mode == cellmode_simple) then
+         do k = 1, 3
+            m(k,k) = real(w%geometry_cell%nrep(k),8)
+         end do
+      elseif (w%geometry_cell%mode == cellmode_matrix) then
+         ! integer part plus centering
+         do k = 1, 3
+            m(:,k) = real(w%geometry_cell%intmat(:,k),8) +&
+               sys(isys)%c%cen(:,min(max(w%geometry_cell%cen(k),1),max(sys(isys)%c%ncv,1)))
+         end do
+         t = w%geometry_cell%origin
+         if (w%geometry_cell%inverse) then
+            isok = (abs(det3(m)) > 1d-8)
+            if (isok) call matinv(m,3)
+         end if
+      else
+         isok = allocated(w%geometry_cell%cand) .and. w%geometry_cell%isel > 0
+         if (isok) isok = (w%geometry_cell%isel <= size(w%geometry_cell%cand,1))
+         if (isok) m = real(w%geometry_cell%cand(w%geometry_cell%isel)%m,8)
+      end if
+      ! the same threshold newcell uses, which also flips a left-handed cell
+      if (isok) isok = (abs(det3(m)) > 1d-2)
+      if (isok) then
+         if (det3(m) < 0d0) m = -m
+      end if
 
-    end function full_matrix
+    end subroutine pending_cell
+
+    ! The cell that the valid supercell transformation m (see
+    ! pending_cell) leads to: its size and number of atoms (str), cell
+    ! lengths (xl, bohr) and angles (xa, degrees).
+    subroutine pending_metrics(m,str,xl,xa)
+      real*8, intent(in) :: m(3,3)
+      character(kind=c_char,len=:), allocatable, intent(inout) :: str
+      real*8, intent(out) :: xl(3), xa(3)
+
+      real*8 :: d, r(3,3)
+
+      d = abs(det3(m))
+      if (abs(d - nint(d)) < 1d-6) then
+         str = string(nint(d))
+      else
+         str = string(d,'f',decimal=4)
+      end if
+      if (abs(d - 1d0) < 1d-6) then
+         str = str // " cell, "
+      else
+         str = str // " cells, "
+      end if
+      str = str // string(nint(d * sys(isys)%c%ncel)) // " atoms"
+
+      r = matmul(sys(isys)%c%m_x2c,m)
+      call cellpar_from_metric(matmul(transpose(r),r),xl,xa)
+
+    end subroutine pending_metrics
+
+    ! Select supercell candidate ic (index in the search results), of
+    ! size nsz: it becomes the transformation of the search mode, and its
+    ! lattice vectors are copied to the matrix mode, where they can be
+    ! modified.
+    subroutine select_candidate(ic,nsz)
+      integer, intent(in) :: ic, nsz
+
+      w%geometry_cell%isel = ic
+      w%geometry_cell%nsel = nsz
+      w%geometry_cell%intmat = w%geometry_cell%cand(ic)%m
+      w%geometry_cell%cen = 1
+      w%geometry_cell%origin = 0d0
+      w%geometry_cell%inverse = .false.
+      w%errmsg = ""
+
+    end subroutine select_candidate
+
+    ! Begin one of the tables of supercells of the cell tab (the search
+    ! results and the sublattices of one size), with nrow rows, at most
+    ! maxrow of them in view: set up the columns and draw the header
+    ! row. first is the header of the first column and ttfirst its
+    ! tooltip. Returns whether the table is open; if it is, the caller
+    ! draws the rows and ends it.
+    function cell_table_begin(strid,first,ttfirst,nrow,maxrow) result(isopen)
+      character(len=*), intent(in) :: strid, first, ttfirst
+      integer, intent(in) :: nrow, maxrow
+      logical :: isopen
+
+      integer(c_int) :: tflags
+      type(ImVec2) :: tsz
+      character(kind=c_char,len=:), allocatable, target :: tid
+
+      tflags = ImGuiTableFlags_RowBg
+      tflags = ior(tflags,ImGuiTableFlags_Borders)
+      tflags = ior(tflags,ImGuiTableFlags_ScrollX)
+      tflags = ior(tflags,ImGuiTableFlags_ScrollY)
+      tflags = ior(tflags,ImGuiTableFlags_SizingFixedFit)
+      tid = strid // c_null_char
+      tsz%x = 0._c_float
+      tsz%y = (min(max(nrow,1),maxrow) + 1) * (igGetTextLineHeight() + 2._c_float * g%Style%CellPadding%y)
+      isopen = igBeginTable(c_loc(tid),8,tflags,tsz,0._c_float)
+      if (.not.isopen) return
+
+      call iw_table_column(first,id=0)
+      call iw_table_column("Rmax (Å)",id=1)
+      call iw_table_column("Niceness",id=2)
+      call iw_table_column("Reach (Å)",id=3)
+      call iw_table_column("Nops",id=4)
+      call iw_table_column("Nindep",id=5)
+      call iw_table_column("Ndisp",id=6)
+      call iw_table_column("Transformation",id=7)
+      call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown,tooltips=&
+         ttfirst // c_null_char //&
+         "Radius of the largest sphere that fits in the supercell" // c_null_char //&
+         "Volume of the cube around that sphere divided by the volume of the supercell: 1 for a&
+         & cube, lower for a skewed or elongated cell" // c_null_char //&
+         "Half the length of the shortest lattice vector of the supercell: two atoms closer than&
+         & this are never periodic images of each other" // c_null_char //&
+         "Symmetry operations of the crystal that the supercell keeps" // c_null_char //&
+         "Independent atoms that a finite-displacement phonon calculation displaces in the&
+         & supercell" // c_null_char //&
+         "Displaced structures that a finite-displacement phonon calculation needs in the&
+         & supercell" // c_null_char //&
+         "Lattice vectors of the supercell in crystallographic coordinates of the current cell&
+         & (the arguments of NEWCELL)" // c_null_char)
+
+    end function cell_table_begin
+
+    ! The columns after the first of supercell candidate ic (index in
+    ! the search results), of size nsz, in the current row of one of the
+    ! tables of supercells of the cell tab.
+    subroutine cell_candidate_columns(ic,nsz)
+      integer, intent(in) :: ic, nsz
+
+      integer :: k1, k2
+      character(kind=c_char,len=:), allocatable :: sm
+
+      if (igTableSetColumnIndex(1)) &
+         call iw_text(string(w%geometry_cell%cand(ic)%r*bohrtoa,'f',7,3))
+      if (igTableSetColumnIndex(2)) &
+         call iw_text(string(8d0*w%geometry_cell%cand(ic)%r**3/(nsz*sys(isys)%c%omega),'f',7,5))
+      if (igTableSetColumnIndex(3)) then
+         if (w%geometry_cell%cand(ic)%reach > 0d0) &
+            call iw_text(string(w%geometry_cell%cand(ic)%reach*bohrtoa,'f',7,3))
+      end if
+      if (igTableSetColumnIndex(4)) &
+         call iw_text(string(w%geometry_cell%cand(ic)%nops))
+      if (igTableSetColumnIndex(5)) then
+         if (w%geometry_cell%cand(ic)%nindep >= 0) &
+            call iw_text(string(w%geometry_cell%cand(ic)%nindep))
+      end if
+      if (igTableSetColumnIndex(6)) then
+         if (w%geometry_cell%cand(ic)%ndisp >= 0) &
+            call iw_text(string(w%geometry_cell%cand(ic)%ndisp))
+      end if
+      if (igTableSetColumnIndex(7)) then
+         sm = ""
+         do k1 = 1, 3
+            do k2 = 1, 3
+               sm = sm // string(w%geometry_cell%cand(ic)%m(k2,k1),length=3,justify=ioj_right)
+            end do
+         end do
+         call iw_text(sm)
+      end if
+
+    end subroutine cell_candidate_columns
 
     ! deallocate the sort array and force a sort of the table
     subroutine reset_sort()
@@ -2769,13 +3014,18 @@ contains
 
     end subroutine symop_buttons
 
-    ! deallocate the results of the nice-supercell search (stale after
-    ! any change of the cell)
-    subroutine clear_nice_results()
+    ! deallocate the results of the supercell search (stale after any
+    ! change of the cell or of the search criterion), and the selection
+    subroutine clear_search_results()
 
-      if (allocated(w%geometry_cell_nice)) deallocate(w%geometry_cell_nice)
+      if (allocated(w%geometry_cell%nc)) deallocate(w%geometry_cell%nc)
+      if (allocated(w%geometry_cell%ic0)) deallocate(w%geometry_cell%ic0)
+      if (allocated(w%geometry_cell%ibest)) deallocate(w%geometry_cell%ibest)
+      if (allocated(w%geometry_cell%cand)) deallocate(w%geometry_cell%cand)
+      w%geometry_cell%isel = 0
+      w%geometry_cell%nsel = 0
 
-    end subroutine clear_nice_results
+    end subroutine clear_search_results
 
     ! deallocate the cached symmetry data (operations table, selection, and the
     ! symmetry-vs-epsilon analysis arrays), so they are rebuilt on next use

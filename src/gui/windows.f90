@@ -186,9 +186,9 @@ module windows
   integer, parameter, public :: geomtab_symmetry = 4
   ! the sections of the geometry window: cell tab, bonds tab, symmetry tab
   integer, parameter :: geomsec_latpar = 1 ! lattice parameters
-  integer, parameter :: geomsec_celltr = 2 ! cell transformations
-  integer, parameter :: geomsec_super = 3 ! supercells
-  integer, parameter :: geomsec_nice = 4 ! nice supercells
+  integer, parameter :: geomsec_celltr = 2 ! standard cells
+  integer, parameter :: geomsec_super = 3 ! supercell
+  integer, parameter :: geomsec_sublat = 4 ! sublattices of the selected size
   integer, parameter :: geomsec_bondops = 5 ! bond operations
   integer, parameter :: geomsec_sysbonds = 6 ! system bonds
   integer, parameter :: geomsec_bondcalc = 7 ! bond calculation
@@ -197,6 +197,13 @@ module windows
   integer, parameter :: geomsec_symcen = 10 ! centering vectors
   integer, parameter :: geomsec_symanal = 11 ! space group analysis
   integer, parameter :: geometry_nsec = 11
+  ! how the supercell transformation of the geometry window is given
+  integer(c_int), parameter :: cellmode_simple = 0 ! integer multiples of a/b/c
+  integer(c_int), parameter :: cellmode_matrix = 1 ! lattice vectors typed or picked
+  integer(c_int), parameter :: cellmode_search = 2 ! chosen from the supercell search
+  ! criteria of the supercell search (the options of its combo)
+  integer, parameter :: cellcrit_nice = 1 ! largest inscribed sphere (NEWCELL NICE)
+  integer, parameter :: cellcrit_reach = 2 ! longest shortest lattice vector (NEWCELL REACH)
 
   character(len=17), parameter, public :: vmnames(vm_lo:vm_NUM) = (/&
      "Edit Object      ",& ! vm_objedit (the combo shows the object type instead)
@@ -1001,6 +1008,31 @@ module windows
   end type help_state
   public :: help_state
 
+  !> State of the cell tab of the geometry window: the supercell
+  !> transformation being prepared, given in one of three ways (simple
+  !> repetition, lattice vectors, or a sublattice chosen from the
+  !> supercell search), and the results of the search.
+  type cellform_state
+     logical :: refine = .false. ! standard cells: idealize the atomic positions (REFINE)
+     integer(c_int) :: mode = cellmode_simple ! how the supercell is given (cellmode_*)
+     integer(c_int) :: nrep(3) = 1_c_int ! simple: a/b/c multiples
+     integer(c_int) :: intmat(3,3) = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/)) ! matrix: integer part of the lattice vectors (columns)
+     integer :: cen(3) = 1 ! matrix: centering vector added to each lattice vector (1 = none)
+     real*8 :: origin(3) = 0d0 ! matrix: origin shift
+     logical :: inverse = .false. ! matrix: use the inverse of the matrix (INV)
+     integer :: crit = cellcrit_reach ! search: criterion (cellcrit_*)
+     logical :: mindisp = .false. ! search: fewest phonon displacements first (MINDISP)
+     integer(c_int) :: nmax = 16_c_int ! search: maximum supercell size
+     ! search results (unallocated = none): every distinct sublattice, the
+     ! nc(n) of size n being cand(ic0(n)+1:ic0(n)+nc(n)); ibest(n) is the
+     ! one chosen for size n (index in cand, 0 = none)
+     integer, allocatable :: nc(:), ic0(:), ibest(:)
+     type(nice_cell), allocatable :: cand(:)
+     integer :: isel = 0 ! search: selected sublattice (index in cand, 0 = none)
+     integer :: nsel = 0 ! search: size of the selected sublattice (0 = none)
+  end type cellform_state
+  public :: cellform_state
+
   !> Per-window state of the k-point grid window (KPOINTS). The table of
   !> rklength ranges is not kept: it is cheap, and calculated every frame.
   type kpoints_state
@@ -1659,17 +1691,10 @@ module windows
      logical :: geometry_expression_ok = .false. ! is the expression ok?
      character(len=:), allocatable :: geometry_expr_error ! error for expression
      real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
-     logical :: geometry_cell_simple = .true. ! simple (integer multiples of a/b/c) vs. full matrix transformation
-     integer(c_int) :: geometry_cell_nrep(3) = (/1_c_int,1_c_int,1_c_int/) ! a/b/c multiples for the simple transformation
-     integer(c_int) :: geometry_cell_intmat(3,3) = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/)) ! integer part of the full transformation matrix
-     integer :: geometry_cell_cen(3) = 1 ! per-row centering index added to the full transformation matrix (1 = zero centering)
-     real*8 :: geometry_cell_origin(3) = 0d0 ! origin shift for the matrix transformation
-     type(pairpick) :: geometry_lvpick ! session stamp of the lattice-vector pick (full transformation)
-     integer :: geometry_lvpick_row = 0 ! row of the full transformation being picked (1-3; 0 = none)
+     type(cellform_state) :: geometry_cell ! cell tab: the supercell transformation and the supercell search
+     type(pairpick) :: geometry_lvpick ! session stamp of the lattice-vector pick (matrix transformation)
+     integer :: geometry_lvpick_row = 0 ! row of the matrix transformation being picked (1-3; 0 = none)
      integer :: geometry_lvpick_last = 0 ! last row of the pick: it goes on to the next rows up to this one (Pick All: 3)
-     integer(c_int) :: geometry_cell_inice = 10 ! maximum supercell size for the nice cell search
-     logical :: geometry_cell_mindisp = .false. ! nice search: fewest phonon displacements first (MINDISP)
-     type(nice_cell), allocatable :: geometry_cell_nice(:) ! nice search results, one cell per size (r = 0: none)
      character(len=mlen), allocatable :: geometry_sym_ops(:) ! cached symmetry operations (crystallographic notation)
      character(len=mlen), allocatable :: geometry_sym_hm(:) ! cached Hermann-Mauguin symbols of the operations
      real*8, allocatable :: geometry_sym_axes(:,:) ! cached rotation axes (crystallographic coordinates)

@@ -327,6 +327,7 @@ module systems
      procedure :: transform_cell
      procedure :: transform_cell_matrix
      procedure :: cell_nice_list
+     procedure :: cell_nice_count
      procedure :: recalc_symmetry
      procedure :: clear_symmetry
      procedure :: reduce_symmetry
@@ -961,14 +962,21 @@ module systems
        logical, intent(in) :: doinv
        character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine transform_cell_matrix
-     module subroutine cell_nice_list(sysc,inice,mindisp,best,errmsg)
+     module subroutine cell_nice_list(sysc,inice,doreach,mindisp,nc,ic0,cand,ibest,errmsg)
        use crystalmod, only: nice_cell
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: inice
-       logical, intent(in) :: mindisp
-       type(nice_cell), allocatable, intent(out) :: best(:)
+       logical, intent(in) :: doreach, mindisp
+       integer, allocatable, intent(out) :: nc(:), ic0(:), ibest(:)
+       type(nice_cell), allocatable, intent(out) :: cand(:)
        character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine cell_nice_list
+     module subroutine cell_nice_count(sysc,cand,errmsg)
+       use crystalmod, only: nice_cell
+       class(sysconf), intent(inout) :: sysc
+       type(nice_cell), intent(inout) :: cand(:)
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine cell_nice_count
      module subroutine recalc_symmetry(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc
        character(len=:), allocatable, intent(inout) :: errmsg

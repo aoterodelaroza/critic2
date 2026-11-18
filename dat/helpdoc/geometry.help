@@ -15,11 +15,18 @@ the bond connectivity when the geometry changes.
   expression at the atomic positions. "All", "None" and "Toggle" change the selection;
   "Add", "Duplicate", "Remove", "Merge" and "Reorder" act on the selected atoms.
 - Cell (crystals only): the lattice parameters (a/b/c, α/β/γ, volume) are editable, with
-  "Keep symmetry" to keep the space group. "Cell transformations" goes to the conventional,
-  primitive, Niggli or Delaunay cell. "Supercells" builds a simple na/nb/nc repetition or
-  a full transformation whose lattice vectors can be typed or picked in the view. "Nice
-  supercells" lists, up to "Max. size", the supercells with the largest inscribed sphere;
-  click a row to apply one.
+  "Keep symmetry" to keep the space group. "Standard cells" goes to the conventional,
+  primitive, Niggli or Delaunay cell; "Refine positions" (under More) also moves the atoms
+  to their ideal symmetry positions. "Supercell" prepares a new cell in one of three modes
+  and shows it in the view, with its size, number of atoms and cell parameters; "Apply"
+  transforms the crystal. "Simple" is a na/nb/nc repetition. "Matrix" takes the lattice
+  vectors of the new cell, typed or picked in the view, and an origin; "Inverse" (under
+  More) uses the inverse of the matrix. "Search" lists, for each size up to "Max. size",
+  the best supercell by the chosen criterion: "Niceness" (the largest inscribed sphere,
+  the closest to a cube) or "Reach" (the longest shortest lattice vector). "Fewest
+  displacements" restricts the choice to the supercells that need the fewest displaced
+  structures in a phonon calculation. Click a row to select it; "Sublattices of size n"
+  then lists every distinct supercell of that size, to choose another one.
 - Molecules: the molecular fragments with their number of atoms, point group and center of
   mass. Selected molecules can be removed or reordered.
 - Bonds: "Bond operations" create, remove or change the order of bonds by clicking in the
