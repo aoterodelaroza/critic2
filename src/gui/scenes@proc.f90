@@ -88,9 +88,10 @@
 ! 1. Zoom (default: mouse wheel). First, transform the scene center
 ! to tworld coordinates. In tworld coordinates, calcualte the vector
 ! from the scene center to the camera and reduce it or extend
-! it by a factor ("ratio"). Clip the resulting vector so it is not
-! shorter than min_zoom or longer than max_zoom. Move the camera to
-! the new position indicated by this vector.
+! it by a factor ("ratio"). Scale the resulting vector so the depth
+! of the scene center in front of the camera is not shorter than
+! min_zoom or longer than max_zoom. Move the camera to the new
+! position indicated by this vector.
 !
 ! 2. Drag (default: right button). The first time the texture is
 ! clicked, save the view coordinates corresponding to the mouse
@@ -2484,7 +2485,7 @@ contains
     class(scene), intent(inout), target :: s
     real(c_float), intent(in) :: ratio
 
-    real(c_float) :: xc(3), pos3(3)
+    real(c_float) :: xc(3), pos3(3), d
 
     ! calculate scene center in tworld coordinates
     call mult(xc,s%world,s%scenecenter)
@@ -2492,10 +2493,14 @@ contains
     ! scale the vector from camera position to scene center
     pos3 = s%campos - xc
     pos3 = pos3 - ratio * pos3
-    if (norm2(pos3) < min_zoom) &
-       pos3 = pos3 / norm2(pos3) * min_zoom
-    if (norm2(pos3) > max_zoom * s%scenerad) &
-       pos3 = pos3 / norm2(pos3) * (max_zoom * s%scenerad)
+
+    ! the limits apply to the depth of the scene center in front of the
+    ! camera, which is what sets the zoom in the projections (see
+    ! camera_depth), and not to the length of the vector, which is
+    ! longer after a pan
+    d = -dot_product(pos3,s%camfront)
+    if (d > 1e-10_c_float) &
+       pos3 = pos3 * (min(max(d,min_zoom),max_zoom * s%scenerad) / d)
 
     ! move the camera
     call s%cam_move(xc + pos3)
@@ -2796,25 +2801,24 @@ contains
   !> Update the projection matrix from the v_pos
   module subroutine update_projection_matrix(s)
     use interfaces_glfw, only: glfwGetTime
-    use utils, only: mult, infiniteperspective
+    use utils, only: infiniteperspective
     use param, only: pi
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: pic, sc(3), znear
+    real(c_float) :: pic, znear
 
     pic = real(pi,c_float)
 
     if (s%isortho) then
-       ! orthographic: the frustum half-width follows the camera distance, so
-       ! moving the camera (zoom) changes the apparent size
+       ! orthographic: the frustum half-width follows the camera depth, so
+       ! moving the camera towards the scene (zoom) changes the apparent size
        call ortho_projection(s,s%projection)
     else
        ! perspective: the field of view is fixed and the apparent size follows
        ! the camera distance. The near plane is placed just in front of the
        ! scene (must be strictly positive); the far plane is at infinity. The
        ! viewport is square, so the aspect ratio is 1.
-       call mult(sc,s%world,s%scenecenter)
-       znear = norm2(s%campos - sc) - s%scenerad
+       znear = camera_depth(s) - s%scenerad
        if (znear < 0.01_c_float * s%scenerad) znear = 0.01_c_float * s%scenerad
        call infiniteperspective(s%projection,s%persp_fov * pic / 180._c_float,1._c_float,znear)
     end if
@@ -2829,20 +2833,35 @@ contains
   !> Ratio between a window-anchored overlay object's on-screen size with "scale
   !> with zoom" off vs on.
   module function scene_overlay_zoom_factor(s) result(f)
-    use utils, only: mult
     use param, only: pi
     class(scene), intent(in) :: s
     real(c_float) :: f
 
-    real(c_float) :: sc(3), hw2, hside
+    real(c_float) :: hw2, hside
 
-    call mult(sc,s%world,s%scenecenter)
-    hw2 = tan(0.5_c_float * s%ortho_fov * real(pi,c_float) / 180._c_float) * norm2(s%campos - sc)
+    hw2 = tan(0.5_c_float * s%ortho_fov * real(pi,c_float) / 180._c_float) * camera_depth(s)
     hw2 = max(hw2,1e-4_c_float)
     hside = reset_zoom_hside(s)
     f = hw2 / hside
 
   end function scene_overlay_zoom_factor
+
+  !> Depth of the scene center in front of the camera: the distance
+  !> between them along the viewing direction. The projections are built
+  !> from this and not from the camera-center distance, which grows when
+  !> the camera pans: the pan would then zoom out the orthographic
+  !> projection and move the near plane of the perspective one.
+  function camera_depth(s) result(d)
+    use utils, only: mult
+    class(scene), intent(in) :: s
+    real(c_float) :: d
+
+    real(c_float) :: sc(3)
+
+    call mult(sc,s%world,s%scenecenter)
+    d = dot_product(sc - s%campos,s%camfront)
+
+  end function camera_depth
 
   !> NDC of the render buffer per bohr in the scene: uniform in the
   !> orthographic projection, and at the depth of the scene center in
@@ -2917,20 +2936,19 @@ contains
   end subroutine overlay_anchor
 
   subroutine ortho_projection(s,proj,symz)
-    use utils, only: ortho, mult
+    use utils, only: ortho
     use param, only: pi
     class(scene), intent(in) :: s
     real(c_float), intent(out) :: proj(4,4)
     logical, intent(in), optional :: symz
 
-    real(c_float) :: sc(3), hw2, zf
+    real(c_float) :: hw2, zf
     logical :: sym
 
     sym = .false.
     if (present(symz)) sym = symz
 
-    call mult(sc,s%world,s%scenecenter)
-    hw2 = tan(0.5_c_float * s%ortho_fov * real(pi,c_float) / 180._c_float) * norm2(s%campos - sc)
+    hw2 = tan(0.5_c_float * s%ortho_fov * real(pi,c_float) / 180._c_float) * camera_depth(s)
     ! guard against a degenerate (zero-width or zero-depth) frustum: if the
     ! camera reaches the scene center (hw2->0) or the scene has no extent
     ! (scenerad->0), the projection matrix becomes singular and its inverse

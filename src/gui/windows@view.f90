@@ -3882,16 +3882,23 @@ contains
       ok0 = (norm2(axisw) > 1e-10_c_float)
     end subroutine axis_eye_to_world
 
-    ! set a translation-drag anchor at the current cursor position on the
-    ! scene-center depth plane: the far plane (z=1) is at infinity in
-    ! perspective and crashes unproject
+    ! set a translation-drag anchor at the current cursor position, at the
+    ! depth of the object under the cursor (from the pick buffer), so
+    ! that what was grabbed stays under the cursor in the perspective
+    ! projection, where the on-screen motion depends on the depth. With
+    ! nothing under the cursor, use the scene-center depth plane: the
+    ! far plane (z=1) is at infinity in perspective and crashes unproject
     subroutine depth_anchor(anchor)
       real(c_float), intent(out) :: anchor(3)
-      real(c_float) :: vc(3)
+      real(c_float) :: vc(3), depth
 
-      vc = w%sc%scenecenter
-      call w%world_to_texpos(vc)
-      anchor = (/texpos%x,texpos%y,vc(3)/)
+      call w%getpixel(texpos,depth=depth)
+      if (.not.(depth > 0._c_float .and. depth < 1._c_float)) then
+         vc = w%sc%scenecenter
+         call w%world_to_texpos(vc)
+         depth = vc(3)
+      end if
+      anchor = (/texpos%x,texpos%y,depth/)
     end subroutine depth_anchor
 
     ! world (bohr) displacement matching the cursor motion from the given
@@ -4551,6 +4558,14 @@ contains
     real(c_float), intent(out), optional :: rgba(4)
 
     real(c_float), target :: depth_, rgba_(4)
+
+    ! outside the texture there is nothing to read (the top and right
+    ! edges of the view map to one past the last pixel): the far plane
+    ! and no object
+    if (present(depth)) depth = 1._c_float
+    if (present(rgba)) rgba = 0._c_float
+    if (.not.(pos%x >= 0._c_float .and. pos%x < real(w%FBOside,c_float) .and.&
+       pos%y >= 0._c_float .and. pos%y < real(w%FBOside,c_float))) return
 
     call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
     if (present(depth)) then
