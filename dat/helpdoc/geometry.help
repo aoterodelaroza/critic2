@@ -17,7 +17,7 @@ the bond connectivity when the geometry changes.
 - Cell (crystals only): the lattice parameters (a/b/c, α/β/γ, volume) are editable, with
   "Keep symmetry" to keep the space group. "Standard cells" goes to the conventional,
   primitive, Niggli or Delaunay cell; "Refine positions" (under More) also moves the atoms
-  to their ideal symmetry positions. "Supercell" prepares a new cell in one of three modes
+  to their ideal symmetry positions. "Supercell" prepares a new cell in one of four modes
   and shows it in the view, with its size, number of atoms and cell parameters; "Apply"
   transforms the crystal. "Simple" is a na/nb/nc repetition. "Matrix" takes the lattice
   vectors of the new cell, typed or picked in the view, and an origin; "Inverse" (under
@@ -29,7 +29,9 @@ the bond connectivity when the geometry changes.
   then lists every distinct supercell of that size, to choose another one. "Orient" finds
   a cell with two axes in a family of lattice planes (hkl) and the third perpendicular to
   them (if the lattice has such a vector), or with one axis along a lattice direction
-  [uvw]; the indices refer to the current cell.
+  [uvw]; the indices refer to the current cell. With "Primitive cell", the third axis of
+  the plane cell goes to the next plane instead, as close to the normal as possible, and
+  the cell is primitive.
 - Molecules: the molecular fragments with their number of atoms, point group and center of
   mass. Selected molecules can be removed or reordered.
 - Bonds: "Bond operations" create, remove or change the order of bonds by clicking in the

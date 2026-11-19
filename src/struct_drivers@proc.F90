@@ -3650,7 +3650,7 @@ contains
     dotyp = 0
     isdir = .false.
     ivec = 0
-    iaxis = 3
+    iaxis = 0
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,"standard")) then
@@ -3686,8 +3686,8 @@ contains
        elseif ((donice.or.doreach) .and. equal(word,"mindisp")) then
           icrit = 1
        elseif (equal(word,"orient")) then
-          ! ORIENT {HKL h.i k.i l.i|UVW u.i v.i w.i} [A|B|C] [ORIGIN x0.r y0.r z0.r]
-          ! (the origin is read below, with the options of the lattice vectors)
+          ! ORIENT {HKL h.i k.i l.i|UVW u.i v.i w.i} [A|B|C] [PRIMITIVE] [ORIGIN x0.r y0.r z0.r]
+          ! (the options are read below, with those of the lattice vectors)
           if (dotyp /= 0 .or. donice .or. doreach .or. dorefine) then
              call ferror("struct_newcell","ORIENT cannot be combined with other cell transformations",&
                 faterr,line,syntax=.true.)
@@ -3709,16 +3709,6 @@ contains
           if (.not.ok) then
              call ferror("struct_newcell","Wrong indices in NEWCELL ORIENT",faterr,line,syntax=.true.)
              return
-          end if
-          ! the axis, if given (the default is c)
-          lp2 = lp
-          word = lgetword(line,lp)
-          i = 0
-          if (len_trim(word) == 1) i = index("abc",trim(word))
-          if (i > 0) then
-             iaxis = i
-          else
-             lp = lp2
           end if
           exit
        else
@@ -3816,10 +3806,7 @@ contains
     elseif (dotyp == 3) then
        x0 = s%c%cell_delaunay(errmsg=errmsg)
        changed = any(abs(x0) > 1d-5)
-    elseif (dotyp == 4) then
-       ! orient the cell along a direction or perpendicular to a plane
-       call s%c%cell_orient(ivec,isdir,iaxis,x0,errmsg)
-    else
+    elseif (dotyp == 0) then
        ! read the vectors from the input
        ok = eval_next(rdum(1),line,lp)
        ok = ok .and. eval_next(rdum(2),line,lp)
@@ -3852,10 +3839,12 @@ contains
     end if
 
     ! the options of the lattice vectors, given or from ORIENT
-    if ((dotyp == 0 .or. dotyp == 4) .and. len_trim(errmsg) == 0) then
+    if (dotyp == 0 .or. dotyp == 4) then
        doinv = .false.
        do while (.true.)
           word = lgetword(line,lp)
+          i = 0
+          if (dotyp == 4 .and. len_trim(word) == 1) i = index("abc",trim(word))
           if (equal(word,"origin")) then
              ok = eval_next(t0(1),line,lp)
              ok = ok .and. eval_next(t0(2),line,lp)
@@ -3866,6 +3855,13 @@ contains
              end if
           elseif (dotyp == 0 .and. (equal(word,"inv").or.equal(word,"inverse"))) then
              doinv = .true.
+          elseif (i > 0 .and. iaxis == 0) then
+             ! orient: the axis, once
+             iaxis = i
+          elseif (dotyp == 4 .and. equal(word,"primitive") .and. .not.doprim) then
+             ! orient: the primitive cell, once (doprim is false on
+             ! entry: orient does not combine with the standard cells)
+             doprim = .true.
           elseif (len_trim(word) > 0) then
              call ferror('struct_newcell','Unknown extra keyword',faterr,line,syntax=.true.)
              return
@@ -3875,9 +3871,18 @@ contains
        end do
        if (doinv) call matinv(x0,3)
 
+       ! orient the cell along a direction or perpendicular to a plane
+       ! (the default axis is c)
+       if (dotyp == 4) then
+          if (iaxis == 0) iaxis = 3
+          call s%c%cell_orient(ivec,isdir,iaxis,doprim,x0,errmsg)
+       end if
+
        ! transform to the new crystal
-       call s%c%newcell(x0,t0,errmsg=errmsg)
-       changed = .true.
+       if (len_trim(errmsg) == 0) then
+          call s%c%newcell(x0,t0,errmsg=errmsg)
+          changed = .true.
+       end if
     end if
 
     ! report any error from the cell transformation

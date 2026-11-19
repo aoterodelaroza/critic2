@@ -1,5 +1,7 @@
 ## check: 052_newcell_orient_hkl111.incritic -a1e-10
 ## check: 052_newcell_orient_hkl110a.incritic -a1e-10
+## check: 052_newcell_orient_hkl111p.incritic -a1e-10
+## check: 052_newcell_orient_hkl110pa.incritic -a1e-10
 ## check: 052_newcell_orient_rcen.incritic -a1e-10
 ## check: 052_newcell_orient_uvw110.incritic -a1e-10
 ## check: 052_newcell_orient_uvw111b.incritic -a1e-10
@@ -17,6 +19,16 @@ write 052_newcell_orient_hkl111.incritic
 crystal library mgo
 newcell orient hkl 1 1 0 a
 write 052_newcell_orient_hkl110a.incritic
+
+# a and b in the (111) plane, c to the next plane: a primitive cell
+crystal library mgo
+newcell orient hkl 1 1 1 primitive
+write 052_newcell_orient_hkl111p.incritic
+
+# the options of orient in any order
+crystal library mgo
+newcell orient hkl 1 1 0 origin 0 0 1/2 primitive a
+write 052_newcell_orient_hkl110pa.incritic
 
 # a plane in a rhombohedral lattice with hexagonal axes: no lattice
 # vector is perpendicular to it, and c goes to the next plane

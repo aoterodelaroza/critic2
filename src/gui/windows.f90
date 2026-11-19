@@ -1033,7 +1033,8 @@ module windows
      integer :: nsel = 0 ! search: size of the selected sublattice (0 = none)
      logical :: orient_dir = .false. ! orient: the indices are a direction [uvw] (false = a plane (hkl))
      integer(c_int) :: orient_ivec(3) = (/0_c_int,0_c_int,1_c_int/) ! orient: indices of the plane or direction
-     integer :: orient_axis = 3 ! orient: axis of the new cell perpendicular to the plane or along the direction (1-3)
+     integer :: orient_axis = 3 ! orient: axis of the new cell out of the plane or along the direction (1-3)
+     logical :: orient_prim = .false. ! orient: primitive cell (plane: the axis goes to the next plane, not perpendicular)
   end type cellform_state
   public :: cellform_state
 

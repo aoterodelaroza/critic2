@@ -2599,24 +2599,24 @@ contains
   !> lattice. If isdir, the axis iaxis (1, 2 or 3) of the new cell is
   !> the shortest lattice vector along the direction ivec = [uvw], and
   !> the other two are the shortest lattice vectors that complete the
-  !> cell (the shortest that can be an axis next to the first, then
-  !> the shortest that goes with both; among vectors of the same
-  !> length, the one that allows the shortest third axis and then the
-  !> closest to perpendicular to the direction). Otherwise,
-  !> ivec = (hkl) are the Miller indices of a family of lattice planes:
-  !> the other two axes of the new cell are the shortest lattice
-  !> vectors in the plane and the axis iaxis is the shortest lattice
-  !> vector perpendicular to the plane, on the side the (hkl) normal
-  !> points to. If the lattice has no vector perpendicular to the
-  !> plane, or it crosses too many planes (nplmax), it is the lattice
-  !> vector that goes from one plane to the next, as close to the
-  !> normal as possible. ivec is referred to the current cell. The
-  !> search uses the whole lattice (centering vectors included), so
-  !> the new cell is primitive, except if the axis perpendicular to a
-  !> plane crosses several planes. On output, x0 has the lattice vectors of the new cell in the columns,
-  !> in crystallographic coordinates of the current cell, ready to be
-  !> passed to newcell.
-  module subroutine cell_orient(c,ivec,isdir,iaxis,x0,errmsg)
+  !> cell (the shortest that can be an axis next to the first, then the
+  !> shortest that goes with both; among vectors of the same length, the
+  !> one that allows the shortest third axis and then the closest to
+  !> perpendicular to the direction). Otherwise, ivec = (hkl) are the
+  !> Miller indices of a family of lattice planes: the other two axes of
+  !> the new cell are the shortest lattice vectors in the plane and the
+  !> axis iaxis is the shortest lattice vector perpendicular to the
+  !> plane, on the side the (hkl) normal points to. If the lattice has
+  !> no vector perpendicular to the plane, it crosses too many planes
+  !> (nplmax) or a primitive cell is requested (prim), it is the lattice
+  !> vector that goes from one plane to the next, as close to the normal
+  !> as possible. ivec is referred to the current cell. The search uses
+  !> the whole lattice (centering vectors included), so the new cell is
+  !> primitive, except if the axis perpendicular to a plane crosses
+  !> several planes (never, if prim). On output, x0 has the lattice
+  !> vectors of the new cell in the columns, in crystallographic
+  !> coordinates of the current cell, ready to be passed to newcell.
+  module subroutine cell_orient(c,ivec,isdir,iaxis,prim,x0,errmsg)
     use tools, only: primitive_lattice
     use tools_math, only: matinv, gcd, det3, iadj3
     use param, only: eye
@@ -2624,6 +2624,7 @@ contains
     integer, intent(in) :: ivec(3)
     logical, intent(in) :: isdir
     integer, intent(in) :: iaxis
+    logical, intent(in) :: prim
     real*8, intent(out) :: x0(3,3)
     character(len=:), allocatable, intent(out) :: errmsg
 
@@ -2784,13 +2785,16 @@ contains
        beta = beta - jbest
 
        ! the shortest lattice vector perpendicular to the plane, if a
-       ! multiple of the perpendicular vector is in the lattice
-       do i = 1, nplmax
-          if (abs(i * alpha - nint(i * alpha)) < epsint .and. abs(i * beta - nint(i * beta)) < epsint) then
-             u(:,3) = i * u(:,3) + nint(i * alpha) * u(:,1) + nint(i * beta) * u(:,2)
-             exit
-          end if
-       end do
+       ! multiple of the perpendicular vector is in the lattice and
+       ! the cell does not have to be primitive
+       if (.not.prim) then
+          do i = 1, nplmax
+             if (abs(i * alpha - nint(i * alpha)) < epsint .and. abs(i * beta - nint(i * beta)) < epsint) then
+                u(:,3) = i * u(:,3) + nint(i * alpha) * u(:,1) + nint(i * beta) * u(:,2)
+                exit
+             end if
+          end do
+       end if
     end if
 
     ! the three vectors in crystallographic coordinates of the current

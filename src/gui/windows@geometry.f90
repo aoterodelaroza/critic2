@@ -1194,8 +1194,15 @@ contains
                    call iw_combo_simple("##cellorientaxis","a" // c_null_char // "b" // c_null_char // "c" //&
                       c_null_char,w%geometry_cell%orient_axis,changed=lch,sameline=.true.,startsatone=.true.)
                    ch = ch .or. lch
-                   call iw_tooltip("Axis of the new cell that is perpendicular to the plane, or along&
-                      & the direction",ttshown)
+                   call iw_tooltip("Axis of the new cell that goes out of the plane, or along the&
+                      & direction",ttshown)
+                   if (.not.w%geometry_cell%orient_dir) then
+                      lch = iw_checkbox("Primitive cell",w%geometry_cell%orient_prim,labelleft=.true.,gap=.true.)
+                      ch = ch .or. lch
+                      call iw_tooltip("Make the new cell primitive: the third axis goes to the next plane,&
+                         & as close to the normal as possible, even if the lattice has a vector&
+                         & perpendicular to the plane",ttshown)
+                   end if
                    if (ch) w%errmsg = ""
                 else
                    ! supercell search: the criterion and the largest size
@@ -2679,6 +2686,7 @@ contains
       w%geometry_cell%orient_dir = .false.
       w%geometry_cell%orient_ivec = (/0_c_int,0_c_int,1_c_int/)
       w%geometry_cell%orient_axis = 3
+      w%geometry_cell%orient_prim = .false.
 
     end subroutine reset_orient_inputs
 
@@ -2717,7 +2725,7 @@ contains
          end if
       elseif (w%geometry_cell%mode == cellmode_orient) then
          call sys(isys)%c%cell_orient(int(w%geometry_cell%orient_ivec),w%geometry_cell%orient_dir,&
-            w%geometry_cell%orient_axis,m,msg)
+            w%geometry_cell%orient_axis,w%geometry_cell%orient_prim,m,msg)
          isok = (len_trim(msg) == 0)
       else
          isok = allocated(w%geometry_cell%cand) .and. w%geometry_cell%isel > 0

@@ -1357,11 +1357,12 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine move_cell_all
-     module subroutine cell_orient(c,ivec,isdir,iaxis,x0,errmsg)
+     module subroutine cell_orient(c,ivec,isdir,iaxis,prim,x0,errmsg)
        class(crystal), intent(in) :: c
        integer, intent(in) :: ivec(3)
        logical, intent(in) :: isdir
        integer, intent(in) :: iaxis
+       logical, intent(in) :: prim
        real*8, intent(out) :: x0(3,3)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine cell_orient
