@@ -2811,6 +2811,101 @@ contains
 
   end subroutine cell_orient
 
+  !> Find the translation of the origin of the cell given by itype:
+  !> origin_atom (the cell atom id), origin_cm (the center of mass),
+  !> origin_center (the point that puts the atoms in the middle of the
+  !> cell, along the axes that have vacuum) or origin_inversion (the
+  !> inversion center closest to the current origin). Along the axes
+  !> that have vacuum, the center of mass uses the atoms gathered on
+  !> one side of it, so it does not depend on whether the atoms
+  !> straddle the cell boundary; along the other axes, it uses the
+  !> atoms as they are in the cell. Returns the new origin (t0) in
+  !> crystallographic coordinates, to be passed to newcell.
+  module subroutine cell_origin(c,itype,id,t0,errmsg)
+    use param, only: atmass, eye
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: itype
+    integer, intent(in) :: id
+    real*8, intent(out) :: t0(3)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, j, ia, l1, l2, l3
+    real*8 :: mass, mtot, x(3), xc(3), xs(3), d, dbest
+
+    real*8, parameter :: eps = 1d-5 ! comparison of rotation matrices
+    real*8, parameter :: epsvac = 1d-6 ! an atom on the cell face, as in calc_vacuum_lengths (bohr)
+
+    errmsg = ""
+    t0 = 0d0
+    if (c%ismolecule) then
+       errmsg = "The origin of a molecule cannot be moved"
+       return
+    end if
+
+    if (itype == origin_atom) then
+       if (id < 1 .or. id > c%ncel) then
+          errmsg = "Atom not found"
+          return
+       end if
+       t0 = c%atcel(id)%x
+    elseif (itype == origin_center) then
+       if (.not.any(c%vaclength > iperiod_vacthr)) then
+          errmsg = "There is no vacuum along any of the axes"
+          return
+       end if
+       ! with the origin in the middle of the vacuum, the atoms are in
+       ! the middle of the cell
+       where (c%vaclength > iperiod_vacthr) t0 = 0.5d0 * (c%vacbot + c%vactop)
+    elseif (itype == origin_cm) then
+       mtot = 0d0
+       do i = 1, c%ncel
+          ! along the axes with vacuum, the atom in the period that
+          ! starts at the top of the vacuum
+          x = c%atcel(i)%x
+          do ia = 1, 3
+             if (c%vaclength(ia) > iperiod_vacthr) &
+                x(ia) = x(ia) - floor(x(ia) - c%vactop(ia) + epsvac / c%aa(ia))
+          end do
+          mass = atmass(c%spc(c%atcel(i)%is)%z)
+          mtot = mtot + mass
+          t0 = t0 + mass * x
+       end do
+       t0 = t0 / max(mtot,1d-40)
+    elseif (itype == origin_inversion) then
+       ! an operation -x + t has inversion centers at (t + lattice vector)/2
+       if (c%havesym < 1) then
+          errmsg = "The symmetry of the crystal is not available"
+          return
+       end if
+       dbest = huge(1d0)
+       do i = 1, c%neqv
+          if (any(abs(c%rotm(1:3,1:3,i) + eye) > eps)) cycle
+          do j = 1, c%ncv
+             x = c%rotm(1:3,4,i) + c%cen(:,j)
+             do l1 = 0, 1
+                do l2 = 0, 1
+                   do l3 = 0, 1
+                      ! the image of the center closest to the origin
+                      xc = 0.5d0 * (x + real((/l1,l2,l3/),8))
+                      xs = xc
+                      call c%shortest(xs,d)
+                      if (d < dbest - eps) then
+                         dbest = d
+                         t0 = xc + nint(c%c2x(xs) - xc)
+                      end if
+                   end do
+                end do
+             end do
+          end do
+          exit
+       end do
+       if (dbest == huge(1d0)) errmsg = "The space group has no inversion center"
+    else
+       errmsg = "Unknown origin type"
+    end if
+
+  end subroutine cell_origin
+
   !> Add atom with species is and position x in units of iunit_l (see
   !> global). If is <= 0, add a new species with Z = abs(is) to the
   !> system. If isnneq, replicate the atom by symmetry.

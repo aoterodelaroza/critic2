@@ -4607,13 +4607,15 @@ contains
   !> Transform the unit cell using an arbitrary 3x3 transformation matrix
   !> x0 (lattice vectors of the new cell in the old setting, crystallographic
   !> coordinates) and origin shift t0 (fractional). If doinv, use the inverse
-  !> of x0 as the transformation matrix.
-  module subroutine transform_cell_matrix(sysc,x0,t0,doinv,errmsg)
+  !> of x0 as the transformation matrix. label is the name of the edit
+  !> in the undo history (default: Transform cell).
+  module subroutine transform_cell_matrix(sysc,x0,t0,doinv,errmsg,label)
     use tools_math, only: matinv
     class(sysconf), intent(inout) :: sysc
     real*8, intent(in) :: x0(3,3), t0(3)
     logical, intent(in) :: doinv
     character(len=:), allocatable, intent(inout) :: errmsg
+    character(len=*), intent(in), optional :: label
 
     integer :: isys
     real*8 :: x0_(3,3)
@@ -4637,9 +4639,47 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry,label="Transform cell")
+    if (present(label)) then
+       call sysc%post_event(lastchange_geometry,label=label)
+    else
+       call sysc%post_event(lastchange_geometry,label="Transform cell")
+    end if
 
   end subroutine transform_cell_matrix
+
+  !> Move the origin of the cell. itype is one of the origin_*
+  !> constants of crystalmod (the cell atom id, the center of mass, the
+  !> centering of the atoms, the closest inversion center). The bonding
+  !> is kept. See crystal%cell_origin.
+  module subroutine shift_origin(sysc,itype,id,errmsg)
+    use crystalmod, only: origin_inversion
+    use param, only: eye
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: itype
+    integer, intent(in) :: id
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: isys
+    real*8 :: t(3)
+
+    real*8, parameter :: epsnull = 1d-10 ! no translation
+
+    errmsg = ""
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! the translation; nothing to do if it is a lattice vector
+    call sys(isys)%c%cell_origin(itype,id,t,errmsg)
+    if (has_errmsg(errmsg)) return
+    if (all(abs(t - nint(t)) < epsnull)) then
+       if (itype == origin_inversion) errmsg = "The origin is already at an inversion center"
+       return
+    end if
+    call sysc%transform_cell_matrix(eye,t,.false.,errmsg,label="Move origin")
+
+  end subroutine shift_origin
 
   !> Passthrough to crystal%cell_nice_list and cell_nice_select: search
   !> the supercells of increasing size up to inice times the input

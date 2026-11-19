@@ -326,6 +326,7 @@ module systems
      procedure :: move_cell
      procedure :: transform_cell
      procedure :: transform_cell_matrix
+     procedure :: shift_origin
      procedure :: cell_nice_list
      procedure :: cell_nice_count
      procedure :: recalc_symmetry
@@ -956,12 +957,19 @@ module systems
        character(len=:), allocatable, intent(inout) :: errmsg
        logical, intent(in), optional :: keepcell
      end subroutine transform_cell
-     module subroutine transform_cell_matrix(sysc,x0,t0,doinv,errmsg)
+     module subroutine transform_cell_matrix(sysc,x0,t0,doinv,errmsg,label)
        class(sysconf), intent(inout) :: sysc
        real*8, intent(in) :: x0(3,3), t0(3)
        logical, intent(in) :: doinv
        character(len=:), allocatable, intent(inout) :: errmsg
+       character(len=*), intent(in), optional :: label
      end subroutine transform_cell_matrix
+     module subroutine shift_origin(sysc,itype,id,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: itype
+       integer, intent(in) :: id
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine shift_origin
      module subroutine cell_nice_list(sysc,inice,doreach,mindisp,nc,ic0,cand,ibest,errmsg)
        use crystalmod, only: nice_cell
        class(sysconf), intent(inout) :: sysc

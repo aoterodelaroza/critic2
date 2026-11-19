@@ -27,7 +27,7 @@ contains
        shapekind_cylinder, axes_length_def, axes_radius_def, axes_conelength_def,&
        axes_coneradius_def, rotaxis_radius_def, replat_primitive, shapekind_sphere, shapekind_box,&
        latvec_rad_def
-    use crystalmod, only: symelem_type_mask
+    use crystalmod, only: symelem_type_mask, origin_atom, origin_cm, origin_center, origin_inversion
     use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, laue_string, pointgroup_info
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_OK_FOCUSED_DIALOG,&
@@ -95,7 +95,7 @@ contains
     type(rep_shape) :: stdshp(3) ! transient std-orientation axes (arrows)
     type(rep_shape) :: rotshp(1) ! transient rotation axis (cylinder)
     type(rep_shape) :: lvshp(7) ! transient preview of the new cell (spheres, arrows, box)
-    logical :: lvshown ! the transient lattice points were shown this frame
+    logical :: lvshown ! what the cell tab pick needs was shown this frame (lattice points; the tab, for the origin)
     real*8 :: xb(3)
     real*8 :: pm(3,3), pt(3) ! cell tab: matrix and origin of the supercell being prepared
     logical :: pok ! cell tab: whether that transformation is valid
@@ -111,6 +111,7 @@ contains
     real(c_float), parameter :: pv_edge_rgb(3) = (/1._c_float,0.6_c_float,0._c_float/) ! outline color
     character(len=*), parameter :: errorigin = "The origin is not a lattice vector: pick another lattice point"
     integer :: istat, latpick(4) ! lattice-vector pick: status and the picked point
+    integer :: atpick(4) ! origin pick: the picked atom
     real*8 :: xpick(3)
     type(ImVec4) :: col4
     character(len=3) :: schpg
@@ -154,6 +155,7 @@ contains
     integer, parameter :: iaction_sym_analyze = 23
     integer, parameter :: iaction_set_atom_occupancy = 24
     integer, parameter :: iaction_sym_deleteops = 25
+    integer, parameter :: iaction_shift_origin = 26
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_remove = 1
@@ -294,7 +296,16 @@ contains
     ! row; with Pick All, the pick moves on to the next rows. The origin
     ! is not a lattice vector: picking it keeps the pick waiting.
     lvshown = .false.
-    if (w%geometry_lvpick_row > 0) then
+    if (w%geometry_lvpick_row == lvpick_origin) then
+       ! the atom at the new origin
+       call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,atidx=atpick)
+       if (istat == ipick_point .and. atpick(1) > 0) then
+          iaction = iaction_shift_origin
+          iaction_i1 = origin_atom
+          iaction_i2 = atpick(1)
+       end if
+       if (istat /= ipick_pending) w%geometry_lvpick_row = 0
+    elseif (w%geometry_lvpick_row > 0) then
        call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,latidx=latpick)
        if (istat == ipick_point .and. latpick(4) > 0 .and. latpick(4) <= sys(isys)%c%ncv) then
           if (all(abs(latpick(1:3) + sys(isys)%c%cen(:,latpick(4))) < 1d-5)) then
@@ -1150,7 +1161,8 @@ contains
                          &it ends at (a click anywhere else cancels). Not available with the inverse&
                          & matrix",ttshown,whendisabled=.true.)
                    end do
-                   if (iw_button("Pick All##cellpickall",disabled=(w%geometry_lvpick_row > 0 .or.&
+                   if (iw_button("Pick All##cellpickall",disabled=((w%geometry_lvpick_row > 0 .and.&
+                      w%geometry_lvpick_row /= lvpick_origin) .or.&
                       w%geometry_cell%inverse))) call lvpick_start(1,3)
                    call iw_tooltip("Pick the three lattice vectors in the view, one after the other &
                       &(a click anywhere else than a lattice point cancels). Not available with the&
@@ -1355,13 +1367,46 @@ contains
                 end if
              end if
 
+             ! the origin of the cell: at a picked atom, or at a point
+             ! calculated from the structure
+             call iw_separatortext("Origin",w%geometry_sec(geomsec_origin))
+             if (w%geometry_sec(geomsec_origin)%open) then
+                if (iw_button("Pick Atom##celloriginpick",disabled=(iview == 0 .or.&
+                   w%geometry_lvpick_row == lvpick_origin))) call lvpick_start(lvpick_origin,lvpick_origin)
+                call iw_tooltip("Move the origin of the cell to an atom: click it in the view (a click&
+                   & anywhere else cancels)",ttshown,whendisabled=.true.)
+                if (iw_button("Center of Mass##cellorigincm",sameline=.true.)) then
+                   iaction = iaction_shift_origin
+                   iaction_i1 = origin_cm
+                   iaction_i2 = 0
+                end if
+                call iw_tooltip("Move the origin of the cell to the center of mass of the atoms",ttshown)
+                if (iw_button("Center Slab##cellorigincenter",sameline=.true.)) then
+                   iaction = iaction_shift_origin
+                   iaction_i1 = origin_center
+                   iaction_i2 = 0
+                end if
+                call iw_tooltip("Move the origin so that the atoms are in the middle of the cell, along&
+                   & the axes that have vacuum",ttshown)
+                if (iw_button("Inversion##celloriginiinv",sameline=.true.)) then
+                   iaction = iaction_shift_origin
+                   iaction_i1 = origin_inversion
+                   iaction_i2 = 0
+                end if
+                call iw_tooltip("Move the origin of the cell to the closest inversion center of the&
+                   & space group",ttshown)
+             end if
+             ! the pick of the new origin lasts while this tab is shown
+             if (w%geometry_lvpick_row == lvpick_origin) lvshown = .true.
+
              ! the preview of the new cell in the view: its lattice vectors
              ! (spheres in the axis colors at their ends, and arrows from
              ! the origin ending at their surface) and its outline, at its
              ! origin. In the matrix mode, also the lattice points around
-             ! the displayed cells, for the picks.
+             ! the displayed cells, for the picks (not during the pick of
+             ! the atom at the new origin: they would hide the atoms).
              if (associated(win(iview)%sc)) then
-                if (w%geometry_cell%mode == cellmode_matrix) then
+                if (w%geometry_cell%mode == cellmode_matrix .and. w%geometry_lvpick_row /= lvpick_origin) then
                    call win(iview)%sc%show_transient_latvec(w%uid,1,replat_primitive,1)
                    lvshown = .true.
                 end if
@@ -2285,7 +2330,8 @@ contains
 
     call igEndGroup()
 
-    ! the lattice-vector pick ends with the lattice points it picks from
+    ! the lattice-vector pick ends with the lattice points it picks
+    ! from, and the pick of the origin with the cell tab
     if (.not.lvshown .and. w%geometry_lvpick_row > 0) call lvpick_cancel()
 
     ! hover highlight, plus the atom awaiting an add-bond pick (transient
@@ -2534,6 +2580,10 @@ contains
        ! the inputs described a transformation of the cell that was replaced
        if (len_trim(w%errmsg) == 0) call reset_cell_inputs()
 
+    elseif (iaction == iaction_shift_origin) then
+       call sysc(isys)%shift_origin(iaction_i1,iaction_i2,w%errmsg)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
     elseif (iaction == iaction_sym_recalc) then
        call sysc(isys)%recalc_symmetry(w%errmsg)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
@@ -2641,9 +2691,11 @@ contains
 
     end subroutine reset_for_new_system
 
-    ! Start the pick of the lattice vector in row irow of the matrix cell
-    ! transformation, in the anchor view; the pick goes on to the next
-    ! rows up to ilast. It replaces a pending add-bond pick.
+    ! Start a pick of the cell tab in the anchor view: the lattice
+    ! vector in row irow of the matrix cell transformation (the pick
+    ! goes on to the next rows up to ilast), or the atom at the new
+    ! origin of the cell (irow = lvpick_origin). It replaces a pending
+    ! add-bond pick and the other pick of the cell tab.
     subroutine lvpick_start(irow,ilast)
       integer, intent(in) :: irow, ilast
 
@@ -2653,12 +2705,17 @@ contains
       w%geometry_lvpick_row = irow
       w%geometry_lvpick_last = ilast
       call w%geometry_lvpick%arm()
-      call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the lattice point of " // trim(lbl(irow)),&
-         w%id,latonly=.true.)
+      if (irow == lvpick_origin) then
+         if (w%errmsg == errorigin) w%errmsg = ""
+         call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the atom at the new origin",w%id)
+      else
+         call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the lattice point of " // trim(lbl(irow)),&
+            w%id,latonly=.true.)
+      end if
 
     end subroutine lvpick_start
 
-    ! Cancel a pending lattice-vector pick and release the view.
+    ! Cancel a pending lattice-vector or origin pick and release the view.
     subroutine lvpick_cancel()
 
       call win(iview)%viewmode_release_forced(w%id)

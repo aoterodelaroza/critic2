@@ -4781,11 +4781,11 @@ contains
   !> cpidx is the clicked critical point (as dl_sphere%cpidx; zero if
   !> none), and latidx the clicked lattice point (as dl_sphere%latidx:
   !> cell and centering vector; zero if none), delivered with
-  !> acceptempty or latonly. Releases the forced mode and resets the
-  !> view's pick data as needed; the caller keeps only its own pending
-  !> marker and the destination of the
-  !> point.
-  module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx,kpidx)
+  !> acceptempty or latonly, and atidx the clicked atom (cell index
+  !> and lattice vector; zero if none). Releases the forced mode and
+  !> resets the view's pick data as needed; the caller keeps only its
+  !> own pending marker and the destination of the point.
+  module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx,kpidx,atidx)
     use systems, only: sysc
     integer, intent(in) :: iview
     integer, intent(in) :: idcaller
@@ -4796,6 +4796,7 @@ contains
     integer, intent(out), optional :: cpidx(5)
     integer, intent(out), optional :: latidx(4)
     integer, intent(out), optional :: kpidx(2)
+    integer, intent(out), optional :: atidx(4)
 
     logical :: okp
 
@@ -4804,6 +4805,7 @@ contains
     if (present(cpidx)) cpidx = 0
     if (present(latidx)) latidx = 0
     if (present(kpidx)) kpidx = 0
+    if (present(atidx)) atidx = 0
     associate(v => win(iview))
       if (.not.v%viewmode_owner_is(idcaller)) then
          ! the pick was taken over by another window
@@ -4820,6 +4822,7 @@ contains
          if (present(cpidx) .and. okp) cpidx = v%vmdata%cpidx
          if (present(latidx) .and. okp) latidx = v%vmdata%latidx
          if (present(kpidx) .and. okp) kpidx = v%vmdata%kpidx
+         if (present(atidx) .and. okp) atidx = v%vmdata%idx
          v%vmdata%idx = 0
          v%vmdata%bidx = 0
          v%vmdata%cpidx = 0

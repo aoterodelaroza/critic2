@@ -46,6 +46,7 @@ set(TESTS
   050_newcell_reach          ## newcell reach keyword
   051_bz_special             ## bz keyword, special k-points
   052_newcell_orient         ## newcell orient keyword (planes and directions)
+  053_newcell_origin         ## newcell origin keyword (atom, cm, center, inversion)
   )
 
 ## these tests use the variable-cell comparison (COMPAREVC/vcgpwdf) and XRPD

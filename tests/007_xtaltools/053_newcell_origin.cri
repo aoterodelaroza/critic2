@@ -1,0 +1,47 @@
+## check: 053_newcell_origin_atom.incritic -a1e-10
+## check: 053_newcell_origin_inv.incritic -a1e-10
+## check: 053_newcell_origin_cm.incritic -a1e-10
+## check: 053_newcell_origin_center.incritic -a1e-10
+## check: 053_newcell_origin_slabcm.incritic -a1e-10
+## check: 053_newcell_origin_matrix.incritic -a1e-10
+## delete: 053_newcell_origin.cro
+## labels: regression quick nodata
+
+# origin at an atom
+crystal library urea
+newcell origin atom 3
+write 053_newcell_origin_atom.incritic
+
+# origin at the closest inversion center, after moving away from it
+crystal
+ spg P -1
+ cell 5.1 6.2 7.3 81 86 97 ang
+ neq 0.13 0.21 0.34 C
+endcrystal
+newcell origin 0.1 0.2 0.3
+newcell origin inversion
+write 053_newcell_origin_inv.incritic
+
+# origin at the center of mass
+crystal library urea
+newcell origin cm
+write 053_newcell_origin_cm.incritic
+
+# origin at the center of mass of a slab that straddles the cell
+# face, then the slab centered in its cell
+crystal
+  cell 2.978 2.978 30 90 90 90 ang
+  neq 0 0 0.96 mg
+  neq 1/2 1/2 0.96 o
+  neq 1/2 1/2 0.03 mg
+  neq 0 0 0.03 o
+endcrystal
+newcell origin cm
+write 053_newcell_origin_slabcm.incritic
+newcell origin center
+write 053_newcell_origin_center.incritic
+
+# origin keyword after a cell transformation
+crystal library mgo
+newcell 1/2 1/2 0   1/2 0 1/2   0 1/2 1/2 origin atom 5
+write 053_newcell_origin_matrix.incritic

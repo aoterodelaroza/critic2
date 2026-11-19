@@ -40,6 +40,12 @@ module crystalmod
   integer, parameter, public :: iperiod_mol_cluster = 8  ! a molecular cluster
   real*8,  parameter, public :: iperiod_vacthr = 15d0    ! threshold for vacuum detection
 
+  ! origin translations (cell_origin)
+  integer, parameter, public :: origin_atom = 1 ! at an atom
+  integer, parameter, public :: origin_cm = 2 ! at the center of mass
+  integer, parameter, public :: origin_center = 3 ! atoms in the middle of the cell
+  integer, parameter, public :: origin_inversion = 4 ! at the closest inversion center
+
   ! rklength scan of the table of k-point grids (get_kpoints_ranges, bohr)
   real*8, parameter, public :: kpoints_rkstep = 0.1d0 ! step
   real*8, parameter, public :: kpoints_rkmax_def = 100d0 ! default end of the scan
@@ -461,6 +467,7 @@ module crystalmod
      procedure :: move_cell !< Move the unit cell
      procedure :: move_cell_all !< Move the unit cell, specifying all lengths and angles
      procedure :: cell_orient !< Find a cell with an axis along a direction or perpendicular to a plane
+     procedure :: cell_origin !< Find an origin translation (atom, center of mass, centering, inversion)
      procedure :: add_atom !< Add an atom
      procedure :: add_fragment !< Add several atoms at once (single rebuild)
      procedure :: replace_fragment !< Delete and add several atoms at once (single rebuild)
@@ -1366,6 +1373,13 @@ module crystalmod
        real*8, intent(out) :: x0(3,3)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine cell_orient
+     module subroutine cell_origin(c,itype,id,t0,errmsg)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: itype
+       integer, intent(in) :: id
+       real*8, intent(out) :: t0(3)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine cell_origin
      module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,bondto,bondx,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: is

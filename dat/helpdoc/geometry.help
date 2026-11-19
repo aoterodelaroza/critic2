@@ -31,7 +31,9 @@ the bond connectivity when the geometry changes.
   them (if the lattice has such a vector), or with one axis along a lattice direction
   [uvw]; the indices refer to the current cell. With "Primitive cell", the third axis of
   the plane cell goes to the next plane instead, as close to the normal as possible, and
-  the cell is primitive.
+  the cell is primitive. "Origin" moves the origin of the cell, with the same lattice
+  vectors, to an atom picked in the view, to the center of mass, to the closest inversion
+  center, or to the point that centers the atoms along the axes that have vacuum.
 - Molecules: the molecular fragments with their number of atoms, point group and center of
   mass. Selected molecules can be removed or reordered.
 - Bonds: "Bond operations" create, remove or change the order of bonds by clicking in the

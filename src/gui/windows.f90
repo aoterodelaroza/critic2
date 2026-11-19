@@ -196,12 +196,16 @@ module windows
   integer, parameter :: geomsec_symops = 9 ! symmetry operations
   integer, parameter :: geomsec_symcen = 10 ! centering vectors
   integer, parameter :: geomsec_symanal = 11 ! space group analysis
-  integer, parameter :: geometry_nsec = 11
+  integer, parameter :: geomsec_origin = 12 ! origin
+  integer, parameter :: geometry_nsec = 12
   ! how the supercell transformation of the geometry window is given
   integer(c_int), parameter :: cellmode_simple = 0 ! integer multiples of a/b/c
   integer(c_int), parameter :: cellmode_matrix = 1 ! lattice vectors typed or picked
   integer(c_int), parameter :: cellmode_search = 2 ! chosen from the supercell search
   integer(c_int), parameter :: cellmode_orient = 3 ! an axis along a direction or perpendicular to a plane
+  ! value of window%geometry_lvpick_row while the atom at the new
+  ! origin is being picked (the lattice vectors are rows 1 to 3)
+  integer, parameter :: lvpick_origin = 4
   ! criteria of the supercell search (the options of its combo)
   integer, parameter :: cellcrit_nice = 1 ! largest inscribed sphere (NEWCELL NICE)
   integer, parameter :: cellcrit_reach = 2 ! longest shortest lattice vector (NEWCELL REACH)
@@ -1698,7 +1702,7 @@ module windows
      real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
      type(cellform_state) :: geometry_cell ! cell tab: the supercell transformation and the supercell search
      type(pairpick) :: geometry_lvpick ! session stamp of the lattice-vector pick (matrix transformation)
-     integer :: geometry_lvpick_row = 0 ! row of the matrix transformation being picked (1-3; 0 = none)
+     integer :: geometry_lvpick_row = 0 ! row of the matrix transformation being picked (1-3; lvpick_origin = the atom at the new origin; 0 = none)
      integer :: geometry_lvpick_last = 0 ! last row of the pick: it goes on to the next rows up to this one (Pick All: 3)
      character(len=mlen), allocatable :: geometry_sym_ops(:) ! cached symmetry operations (crystallographic notation)
      character(len=mlen), allocatable :: geometry_sym_hm(:) ! cached Hermann-Mauguin symbols of the operations
@@ -2422,7 +2426,7 @@ module windows
        real*8, intent(out) :: xc(3)
        logical, intent(out) :: ok
      end subroutine view_pick_point
-     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx,kpidx)
+     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx,kpidx,atidx)
        integer, intent(in) :: iview
        integer, intent(in) :: idcaller
        integer, intent(in) :: isys
@@ -2432,6 +2436,7 @@ module windows
        integer, intent(out), optional :: cpidx(5)
        integer, intent(out), optional :: latidx(4)
        integer, intent(out), optional :: kpidx(2)
+       integer, intent(out), optional :: atidx(4)
      end subroutine view_pick_result
      module function skp_point(isys,kpidx,x,lbl) result(ok)
        integer, intent(in) :: isys

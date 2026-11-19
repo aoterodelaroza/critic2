@@ -3608,12 +3608,13 @@ contains
   !> Build a new crystal from the current crystal by cell transformation
   module subroutine struct_newcell(s,line,verbose)
     use systemmod, only: system
-    use crystalmod, only: nice_cell
+    use crystalmod, only: nice_cell, origin_atom, origin_cm, origin_center, origin_inversion
     use tools_math, only: matinv
     use global, only: iunitname0, dunit0, iunit, eval_next
     use tools_io, only: uout, ferror, faterr, lgetword, equal, string, isinteger, ioj_left,&
        ioj_right
     use tools, only: delaunay_reduction
+    use param, only: eye
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
@@ -3626,7 +3627,7 @@ contains
     type(nice_cell), allocatable :: cand(:)
     real*8 :: x0(3,3), t0(3), rdum(4)
     logical :: doinv, dorefine, isdir
-    integer :: ivec(3), iaxis
+    integer :: ivec(3), iaxis, iorig, idorig
 
     integer, parameter :: inice_def = 64
 
@@ -3710,6 +3711,18 @@ contains
              call ferror("struct_newcell","Wrong indices in NEWCELL ORIENT",faterr,line,syntax=.true.)
              return
           end if
+          exit
+       elseif (equal(word,"origin")) then
+          ! ORIGIN {x0.r y0.r z0.r|ATOM id.i|CM|CENTER|INVERSION}: move
+          ! the origin of the cell, with the same lattice vectors
+          ! (the origin is read below, with the options of the lattice vectors)
+          if (dotyp /= 0 .or. donice .or. doreach .or. dorefine) then
+             call ferror("struct_newcell","ORIGIN can only be used alone, with ORIENT or with the lattice"//&
+                " vectors of the new cell",faterr,line,syntax=.true.)
+             return
+          end if
+          dotyp = 5
+          lp = 1
           exit
        else
           lp = 1
@@ -3806,6 +3819,9 @@ contains
     elseif (dotyp == 3) then
        x0 = s%c%cell_delaunay(errmsg=errmsg)
        changed = any(abs(x0) > 1d-5)
+    elseif (dotyp == 5) then
+       ! only the origin moves
+       x0 = eye
     elseif (dotyp == 0) then
        ! read the vectors from the input
        ok = eval_next(rdum(1),line,lp)
@@ -3838,20 +3854,57 @@ contains
        end if
     end if
 
-    ! the options of the lattice vectors, given or from ORIENT
-    if (dotyp == 0 .or. dotyp == 4) then
+    ! the options of the lattice vectors: given, from ORIENT, or those
+    ! of the current cell (ORIGIN)
+    if (dotyp == 0 .or. dotyp >= 4) then
        doinv = .false.
        do while (.true.)
           word = lgetword(line,lp)
           i = 0
           if (dotyp == 4 .and. len_trim(word) == 1) i = index("abc",trim(word))
           if (equal(word,"origin")) then
-             ok = eval_next(t0(1),line,lp)
-             ok = ok .and. eval_next(t0(2),line,lp)
-             ok = ok .and. eval_next(t0(3),line,lp)
-             if (.not.ok) then
-                call ferror("struct_newcell","Wrong ORIGIN syntax in NEWCELL",faterr,line,syntax=.true.)
-                return
+             ! the new origin: calculated from the current structure, or
+             ! a point in crystallographic coordinates of the current cell
+             lp2 = lp
+             word = lgetword(line,lp)
+             iorig = 0
+             idorig = 0
+             if (equal(word,"atom")) then
+                iorig = origin_atom
+             elseif (equal(word,"cm")) then
+                iorig = origin_cm
+             elseif (equal(word,"center")) then
+                iorig = origin_center
+             elseif (equal(word,"inversion")) then
+                iorig = origin_inversion
+             end if
+             if (iorig == 0) then
+                lp = lp2
+                ok = eval_next(t0(1),line,lp)
+                ok = ok .and. eval_next(t0(2),line,lp)
+                ok = ok .and. eval_next(t0(3),line,lp)
+                if (.not.ok) then
+                   call ferror("struct_newcell","Wrong ORIGIN syntax in NEWCELL",faterr,line,syntax=.true.)
+                   return
+                end if
+             else
+                if (iorig == origin_atom) then
+                   if (.not.isinteger(idorig,line,lp)) then
+                      call ferror("struct_newcell","Wrong atom in NEWCELL ORIGIN ATOM",faterr,line,syntax=.true.)
+                      return
+                   end if
+                elseif ((iorig == origin_cm .or. iorig == origin_center) .and. dotyp /= 5) then
+                   ! they depend on the contents of the cell, and the
+                   ! new cell does not exist yet
+                   call ferror("struct_newcell","ORIGIN CM and ORIGIN CENTER cannot be combined with a cell"//&
+                      " transformation: use a separate NEWCELL ORIGIN",faterr,line,syntax=.true.)
+                   return
+                end if
+                call s%c%cell_origin(iorig,idorig,t0,errmsg)
+                if (len_trim(errmsg) > 0) then
+                   call ferror("struct_newcell",errmsg,faterr,line,syntax=.true.)
+                   return
+                end if
              end if
           elseif (dotyp == 0 .and. (equal(word,"inv").or.equal(word,"inverse"))) then
              doinv = .true.
@@ -3878,11 +3931,10 @@ contains
           call s%c%cell_orient(ivec,isdir,iaxis,doprim,x0,errmsg)
        end if
 
-       ! transform to the new crystal
-       if (len_trim(errmsg) == 0) then
-          call s%c%newcell(x0,t0,errmsg=errmsg)
-          changed = .true.
-       end if
+       ! transform to the new crystal; nothing to do if only the origin
+       ! moves and it moves by a lattice vector
+       changed = (dotyp /= 5 .or. any(abs(t0 - nint(t0)) > 1d-10))
+       if (changed .and. len_trim(errmsg) == 0) call s%c%newcell(x0,t0,errmsg=errmsg)
     end if
 
     ! report any error from the cell transformation
