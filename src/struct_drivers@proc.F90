@@ -3625,7 +3625,8 @@ contains
     integer, allocatable :: nc(:), ic0(:)
     type(nice_cell), allocatable :: cand(:)
     real*8 :: x0(3,3), t0(3), rdum(4)
-    logical :: doinv, dorefine
+    logical :: doinv, dorefine, isdir
+    integer :: ivec(3), iaxis
 
     integer, parameter :: inice_def = 64
 
@@ -3647,6 +3648,9 @@ contains
     inice = inice_def
     icrit = 0 ! the nicest cell by default
     dotyp = 0
+    isdir = .false.
+    ivec = 0
+    iaxis = 3
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,"standard")) then
@@ -3681,6 +3685,42 @@ contains
           inice = max(inice,1)
        elseif ((donice.or.doreach) .and. equal(word,"mindisp")) then
           icrit = 1
+       elseif (equal(word,"orient")) then
+          ! ORIENT {HKL h.i k.i l.i|UVW u.i v.i w.i} [A|B|C] [ORIGIN x0.r y0.r z0.r]
+          ! (the origin is read below, with the options of the lattice vectors)
+          if (dotyp /= 0 .or. donice .or. doreach .or. dorefine) then
+             call ferror("struct_newcell","ORIENT cannot be combined with other cell transformations",&
+                faterr,line,syntax=.true.)
+             return
+          end if
+          dotyp = 4
+          word = lgetword(line,lp)
+          if (equal(word,"hkl")) then
+             isdir = .false.
+          elseif (equal(word,"uvw")) then
+             isdir = .true.
+          else
+             call ferror("struct_newcell","Expected HKL or UVW after ORIENT",faterr,line,syntax=.true.)
+             return
+          end if
+          ok = isinteger(ivec(1),line,lp)
+          ok = ok .and. isinteger(ivec(2),line,lp)
+          ok = ok .and. isinteger(ivec(3),line,lp)
+          if (.not.ok) then
+             call ferror("struct_newcell","Wrong indices in NEWCELL ORIENT",faterr,line,syntax=.true.)
+             return
+          end if
+          ! the axis, if given (the default is c)
+          lp2 = lp
+          word = lgetword(line,lp)
+          i = 0
+          if (len_trim(word) == 1) i = index("abc",trim(word))
+          if (i > 0) then
+             iaxis = i
+          else
+             lp = lp2
+          end if
+          exit
        else
           lp = 1
           exit
@@ -3776,6 +3816,9 @@ contains
     elseif (dotyp == 3) then
        x0 = s%c%cell_delaunay(errmsg=errmsg)
        changed = any(abs(x0) > 1d-5)
+    elseif (dotyp == 4) then
+       ! orient the cell along a direction or perpendicular to a plane
+       call s%c%cell_orient(ivec,isdir,iaxis,x0,errmsg)
     else
        ! read the vectors from the input
        ok = eval_next(rdum(1),line,lp)
@@ -3806,7 +3849,10 @@ contains
              x0(i,i) = rdum(i)
           end do
        end if
+    end if
 
+    ! the options of the lattice vectors, given or from ORIENT
+    if ((dotyp == 0 .or. dotyp == 4) .and. len_trim(errmsg) == 0) then
        doinv = .false.
        do while (.true.)
           word = lgetword(line,lp)
@@ -3818,7 +3864,7 @@ contains
                 call ferror("struct_newcell","Wrong ORIGIN syntax in NEWCELL",faterr,line,syntax=.true.)
                 return
              end if
-          elseif (equal(word,"inv").or.equal(word,"inverse")) then
+          elseif (dotyp == 0 .and. (equal(word,"inv").or.equal(word,"inverse"))) then
              doinv = .true.
           elseif (len_trim(word) > 0) then
              call ferror('struct_newcell','Unknown extra keyword',faterr,line,syntax=.true.)

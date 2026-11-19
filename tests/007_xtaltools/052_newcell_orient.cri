@@ -1,0 +1,41 @@
+## check: 052_newcell_orient_hkl111.incritic -a1e-10
+## check: 052_newcell_orient_hkl110a.incritic -a1e-10
+## check: 052_newcell_orient_rcen.incritic -a1e-10
+## check: 052_newcell_orient_uvw110.incritic -a1e-10
+## check: 052_newcell_orient_uvw111b.incritic -a1e-10
+## check: 052_newcell_orient_bcc110.incritic -a1e-10
+## delete: 052_newcell_orient.cro
+## labels: regression quick nodata
+
+# a and b in the (111) plane of a face-centered cubic lattice, c
+# perpendicular to it
+crystal library mgo
+newcell orient hkl 1 1 1
+write 052_newcell_orient_hkl111.incritic
+
+# b and c in the (110) plane, a perpendicular to it
+crystal library mgo
+newcell orient hkl 1 1 0 a
+write 052_newcell_orient_hkl110a.incritic
+
+# a plane in a rhombohedral lattice with hexagonal axes: no lattice
+# vector is perpendicular to it, and c goes to the next plane
+crystal library arsenic
+newcell orient hkl 1 0 4
+write 052_newcell_orient_rcen.incritic
+
+# c along the [110] direction of a molecular crystal
+crystal library urea
+newcell orient uvw 1 1 0
+write 052_newcell_orient_uvw110.incritic
+
+# b along [111], with an origin translation
+crystal library mgo
+newcell orient uvw 1 1 1 b origin 1/2 1/2 1/2
+write 052_newcell_orient_uvw111b.incritic
+
+# c along [110] in a body-centered cubic lattice: the two shortest
+# lattice vectors that complete the cell
+crystal library li
+newcell orient uvw 1 1 0
+write 052_newcell_orient_bcc110.incritic

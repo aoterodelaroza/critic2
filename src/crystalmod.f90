@@ -460,6 +460,7 @@ module crystalmod
      procedure :: rotate_molecule !< Rotate a molecular fragment (rigid rotation about its COM)
      procedure :: move_cell !< Move the unit cell
      procedure :: move_cell_all !< Move the unit cell, specifying all lengths and angles
+     procedure :: cell_orient !< Find a cell with an axis along a direction or perpendicular to a plane
      procedure :: add_atom !< Add an atom
      procedure :: add_fragment !< Add several atoms at once (single rebuild)
      procedure :: replace_fragment !< Delete and add several atoms at once (single rebuild)
@@ -1356,6 +1357,14 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine move_cell_all
+     module subroutine cell_orient(c,ivec,isdir,iaxis,x0,errmsg)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: ivec(3)
+       logical, intent(in) :: isdir
+       integer, intent(in) :: iaxis
+       real*8, intent(out) :: x0(3,3)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine cell_orient
      module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,bondto,bondx,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: is

@@ -285,12 +285,12 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: ncseed
-    logical :: ok, found, atgiven, issimple, copybonding_
+    logical :: ok, atgiven, issimple, copybonding_
     real*8 :: x0(3,3), x0inv(3,3), fvol, dmax0
-    real*8 :: x(3), dx(3), dd, t(3), xshift(3)
+    real*8 :: dd, t(3), xshift(3)
     integer :: i, j, k, m
     integer :: nn
-    integer :: nlat, nlat2, nlatnew, nvec(3), ntot
+    integer :: nlat, nlat2, nvec(3), ntot
     integer, allocatable :: lvec(:,:), isrc(:)
     real*8, allocatable :: xlat(:,:)
     character(len=:), allocatable :: errmsg_
@@ -318,7 +318,7 @@ contains
     copybonding_ = copybonding_ .and. allocated(c%nstar) .and. .not.atgiven
 
     ! check the new lattice vectors are sane
-    if (abs(dd) < eps) then
+    if (abs(dd) * max(c%ncv,1) < eps) then
        errmsg_ = 'Invalid input vectors'
        goto 999
     elseif (dd < 0d0) then
@@ -435,82 +435,45 @@ contains
           dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,0,1/),transpose(x0)))))
           dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,1,1/),transpose(x0)))))
           dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,1,1/),transpose(x0)))))
-          call c%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nlat2,&
-             lvec=lvec,up2d=dmax0*2.0d0,nozero=.true.)
 
-          ! make lattice vector list
-          nlatnew = max(nint(dd),1)
-          allocate(xlat(3,nlatnew))
-          nlat = 1
-          xlat(:,1) = 0d0
-          do i = 1, nlat2
-             if (nlat == nlatnew) exit
-             x = real(lvec(:,i),8)
-             x = matmul(x,x0inv)
-             x = x - floor(x)
-
-             found = .false.
-             do j = 1, nlat
-                dx = xlat(:,j) - x
-                dx = dx - nint(dx)
-                if (all(abs(dx) < eps)) then
-                   found = .true.
-                   exit
-                end if
-             end do
-             if (.not.found) then
-                nlat = nlat + 1
-                xlat(:,nlat) = x
-             end if
-          end do
-
-          ! build the new atom list
-          ncseed%nat = 0
+          ! number of atoms in the new cell
           fvol = abs(det3(x0))
           nn = nint(c%ncel * fvol)
           if (abs(nn - (c%ncel*fvol)) > eps) then
              errmsg_ = 'Inconsistent number of atoms in newcell'
              goto 999
           end if
-          allocate(ncseed%x(3,nn),ncseed%is(nn),ncseed%atname(nn))
+          allocate(ncseed%x(3,nn),ncseed%is(nn),ncseed%atname(nn),isrc(nn))
           if (c%haveocc) allocate(ncseed%occ(nn))
           if (c%haveocc) allocate(ncseed%mix(nn))
-          if (copybonding_) allocate(isrc(nn))
-          do i = 1, nlat
-             do j = 1, c%ncel
-                ! candidate atom
-                x = matmul(c%atcel(j)%x-t,x0inv) + xlat(:,i)
-                x = x - floor(x)
 
-                ! check if we have it already
-                ok = .true.
-                do m = 1, ncseed%nat
-                   dx = x - ncseed%x(:,m)
-                   dx = matmul(ncseed%m_x2c,dx - nint(dx))
-                   if (dot_product(dx,dx) < eps2) then
-                      ok = .false.
-                      exit
-                   end if
-                end do
-                if (ok) then
-                   ! add it to the list
-                   ncseed%nat = ncseed%nat + 1
-                   if (ncseed%nat > size(ncseed%x,2)) then
-                      call realloc(ncseed%x,3,2*ncseed%nat)
-                      call realloc(ncseed%is,2*ncseed%nat)
-                      call realloc(ncseed%atname,2*ncseed%nat)
-                      if (c%haveocc) call realloc(ncseed%occ,2*ncseed%nat)
-                      if (c%haveocc) call realloc(ncseed%mix,2*ncseed%nat)
-                      if (copybonding_) call realloc(isrc,2*ncseed%nat)
-                   end if
-                   ncseed%x(:,ncseed%nat) = x
-                   ncseed%is(ncseed%nat) = c%atcel(j)%is
-                   ncseed%atname(ncseed%nat) = c%at(c%atcel(j)%idx)%name
-                   if (c%haveocc) ncseed%occ(ncseed%nat) = c%at(c%atcel(j)%idx)%occ
-                   if (c%haveocc) &
-                      ncseed%mix(ncseed%nat) = c%at(c%atcel(j)%idx)%mix
-                   if (copybonding_) isrc(ncseed%nat) = j
-                end if
+          ! build the new atom list from the atoms of the current cell
+          ! moved by its lattice translations, until the new cell is
+          ! full. First the translations closest to the origin, which
+          ! are all that is needed in a supercell.
+          ncseed%nat = 0
+          nlat = 0
+          allocate(xlat(3,max(nint(dd),1)))
+          call add_translation((/0d0,0d0,0d0/))
+          if (ncseed%nat < nn) then
+             call c%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nlat2,&
+                lvec=lvec,up2d=dmax0*2.0d0,nozero=.true.)
+             do i = 1, nlat2
+                if (ncseed%nat >= nn) exit
+                call add_translation(matmul(real(lvec(:,i),8),x0inv))
+             end do
+          end if
+
+          ! Then the rest, by adding the current cell vectors to the
+          ! translations found until there are no new ones. This is
+          ! for a cell that is neither a supercell of the current cell
+          ! nor a primitive cell of the lattice (the hexagonal cell of
+          ! a cubic F lattice), which can need translations far away.
+          i = 0
+          do while (ncseed%nat < nn .and. i < nlat)
+             i = i + 1
+             do j = 1, 3
+                call add_translation(xlat(:,i) + x0inv(j,:))
              end do
           end do
           call realloc(ncseed%x,3,ncseed%nat)
@@ -519,6 +482,12 @@ contains
           if (c%haveocc) call realloc(ncseed%occ,ncseed%nat)
           if (c%haveocc) call realloc(ncseed%mix,ncseed%nat)
           deallocate(xlat)
+
+          ! the new cell must have all its atoms
+          if (ncseed%nat /= nn) then
+             errmsg_ = 'Could not find all the atoms of the new cell'
+             goto 999
+          end if
 
           ! a folding transformation (repeated atoms were skipped) does
           ! not preserve the bonds: fall back to recomputing them
@@ -549,6 +518,67 @@ contains
     errmsg = errmsg_
 
   contains
+    ! Add the atoms of the current cell moved by the lattice
+    ! translation xl0 (crystallographic coordinates of the new cell)
+    ! to the new atom list, unless the translation is equivalent to
+    ! one that was already used.
+    subroutine add_translation(xl0)
+      real*8, intent(in) :: xl0(3)
+
+      real*8 :: xl(3), xa(3), dxa(3)
+      integer :: ia, ja
+      logical :: isnew
+
+      ! check if we have this translation already
+      xl = xl0 - floor(xl0)
+      do ia = 1, nlat
+         dxa = xlat(:,ia) - xl
+         dxa = dxa - nint(dxa)
+         if (all(abs(dxa) < eps)) return
+      end do
+      nlat = nlat + 1
+      if (nlat > size(xlat,2)) call realloc(xlat,3,2*nlat)
+      xlat(:,nlat) = xl
+
+      do ia = 1, c%ncel
+         ! candidate atom
+         xa = matmul(c%atcel(ia)%x-t,x0inv) + xl
+         xa = xa - floor(xa)
+
+         ! check if we have it already: a copy of the same atom by a
+         ! centering vector that is a translation of the new cell
+         isnew = .true.
+         do ja = 1, ncseed%nat
+            if (c%atcel(isrc(ja))%idx /= c%atcel(ia)%idx) cycle
+            dxa = xa - ncseed%x(:,ja)
+            dxa = matmul(ncseed%m_x2c,dxa - nint(dxa))
+            if (dot_product(dxa,dxa) < eps2) then
+               isnew = .false.
+               exit
+            end if
+         end do
+         if (.not.isnew) cycle
+
+         ! add it to the list
+         ncseed%nat = ncseed%nat + 1
+         if (ncseed%nat > size(ncseed%x,2)) then
+            call realloc(ncseed%x,3,2*ncseed%nat)
+            call realloc(ncseed%is,2*ncseed%nat)
+            call realloc(ncseed%atname,2*ncseed%nat)
+            if (c%haveocc) call realloc(ncseed%occ,2*ncseed%nat)
+            if (c%haveocc) call realloc(ncseed%mix,2*ncseed%nat)
+            call realloc(isrc,2*ncseed%nat)
+         end if
+         ncseed%x(:,ncseed%nat) = xa
+         ncseed%is(ncseed%nat) = c%atcel(ia)%is
+         ncseed%atname(ncseed%nat) = c%at(c%atcel(ia)%idx)%name
+         if (c%haveocc) ncseed%occ(ncseed%nat) = c%at(c%atcel(ia)%idx)%occ
+         if (c%haveocc) ncseed%mix(ncseed%nat) = c%at(c%atcel(ia)%idx)%mix
+         isrc(ncseed%nat) = ia
+      end do
+
+    end subroutine add_translation
+
     ! Build ncseed%nstar from c%nstar
     subroutine map_bonds()
       use types, only: neighstar
@@ -2565,6 +2595,218 @@ contains
 
   end subroutine move_cell_all
 
+  !> Find a unit cell with one of its axes oriented relative to the
+  !> lattice. If isdir, the axis iaxis (1, 2 or 3) of the new cell is
+  !> the shortest lattice vector along the direction ivec = [uvw], and
+  !> the other two are the shortest lattice vectors that complete the
+  !> cell (the shortest that can be an axis next to the first, then
+  !> the shortest that goes with both; among vectors of the same
+  !> length, the one that allows the shortest third axis and then the
+  !> closest to perpendicular to the direction). Otherwise,
+  !> ivec = (hkl) are the Miller indices of a family of lattice planes:
+  !> the other two axes of the new cell are the shortest lattice
+  !> vectors in the plane and the axis iaxis is the shortest lattice
+  !> vector perpendicular to the plane, on the side the (hkl) normal
+  !> points to. If the lattice has no vector perpendicular to the
+  !> plane, or it crosses too many planes (nplmax), it is the lattice
+  !> vector that goes from one plane to the next, as close to the
+  !> normal as possible. ivec is referred to the current cell. The
+  !> search uses the whole lattice (centering vectors included), so
+  !> the new cell is primitive, except if the axis perpendicular to a
+  !> plane crosses several planes. On output, x0 has the lattice vectors of the new cell in the columns,
+  !> in crystallographic coordinates of the current cell, ready to be
+  !> passed to newcell.
+  module subroutine cell_orient(c,ivec,isdir,iaxis,x0,errmsg)
+    use tools, only: primitive_lattice
+    use tools_math, only: matinv, gcd, det3, iadj3
+    use param, only: eye
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: ivec(3)
+    logical, intent(in) :: isdir
+    integer, intent(in) :: iaxis
+    real*8, intent(out) :: x0(3,3)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    real*8, parameter :: epsint = 1d-4 ! integer threshold
+    real*8, parameter :: epslen = 1d-10 ! relative threshold for vector lengths
+    ! largest index in the primitive basis: the integer products of
+    ! three of them must not overflow
+    integer, parameter :: ivmax = 500
+    ! most planes crossed by the axis perpendicular to a plane
+    integer, parameter :: nplmax = 100
+    ! most lattice vectors of the same length considered for an axis
+    integer, parameter :: mtie = 12
+
+    real*8 :: mp(3,3), p(3,3), pinv(3,3), g(3,3), gp(3,3), ga(3), aga
+    real*8 :: w(3), ru(3,3), det2, alpha, beta, q, qbest, q1, q2
+    integer :: iv(3), u(3,3), ub(3,2), iw(3), ig, i, j, i0, j0, ibest, jbest
+    integer :: nv, nw, xv(3,mtie), xw(3,mtie)
+    logical :: ok
+
+    errmsg = ""
+    x0 = eye
+    if (c%ismolecule) then
+       errmsg = "The cell of a molecule cannot be transformed"
+       return
+    end if
+    if (iaxis < 1 .or. iaxis > 3) then
+       errmsg = "Invalid axis"
+       return
+    end if
+    if (all(ivec == 0)) then
+       errmsg = "The indices cannot all be zero"
+       return
+    end if
+
+    ! a primitive basis of the lattice: Cartesian (mp) and in
+    ! crystallographic coordinates of the current cell (p), and its
+    ! metric tensor (g)
+    call primitive_lattice(c%m_x2c,c%ncv,c%cen,mp,ok)
+    if (.not.ok) mp = c%m_x2c
+    p = matmul(c%m_c2x,mp)
+    pinv = p
+    call matinv(pinv,3)
+    g = matmul(transpose(mp),mp)
+
+    ! the direction or the plane, as a primitive integer vector in
+    ! the primitive basis (direct or reciprocal). The current lattice
+    ! vectors are integer combinations of the primitive ones; the
+    ! products of hkl with the primitive vectors are multiples of 1/ncv
+    if (isdir) then
+       w = matmul(pinv,real(ivec,8))
+    else
+       w = matmul(transpose(p),real(ivec,8)) * real(c%ncv,8)
+    end if
+    if (any(abs(w) > 0.5d0 * real(huge(1),8))) then
+       errmsg = "The indices are too large"
+       return
+    end if
+    if (any(abs(w - nint(w)) > epsint)) then
+       errmsg = "Inconsistent centering vectors: recalculate the symmetry"
+       return
+    end if
+    iv = nint(w)
+    ig = gcd(abs(iv),3)
+    iv = iv / ig
+    if (any(abs(iv) > ivmax)) then
+       errmsg = "The indices are too large"
+       return
+    end if
+
+    ! integer matrix with determinant +1 and the last column equal to
+    ! iv: the last axis is the direction
+    call complete_basis(iv,u)
+
+    if (isdir) then
+       ! metric of the lattice projected on the plane perpendicular to the direction
+       ga = matmul(g,real(u(:,3),8))
+       aga = dot_product(real(u(:,3),8),ga)
+       do i = 1, 3
+          do j = 1, 3
+             gp(i,j) = g(i,j) - ga(i) * ga(j) / aga
+          end do
+       end do
+
+       ! a first pair: the shortest projections, each as close to
+       ! perpendicular to the direction as possible
+       call gauss_reduce(u(:,1),u(:,2),gp)
+       do i = 1, 2
+          u(:,i) = u(:,i) - nint(dot_product(real(u(:,i),8),ga) / aga) * u(:,3)
+       end do
+
+       ! The shortest lattice vectors that complete the cell are not
+       ! longer than those. Of the shortest vectors that can be the
+       ! first, take the one with the shortest partner; if no partner
+       ! is within reach, look farther. The first pair stays if the
+       ! search is too long (very large indices).
+       ub = u(:,1:2)
+       q1 = qform(u(:,1),u(:,1),g)
+       q2 = qform(u(:,2),u(:,2),g)
+       call shortest_basis_vectors(u,1,g,min(q1,q2),nv,xv)
+       ok = .false.
+       q = max(q1,q2)
+       do j = 1, 4
+          qbest = q
+          do i = 1, nv
+             u(:,1) = xv(:,i)
+             call shortest_basis_vectors(u,2,g,qbest,nw,xw)
+             if (nw == 0) cycle
+             q2 = qform(xw(:,1),xw(:,1),g)
+             if (ok .and. q2 > qbest * (1d0 - epslen)) cycle
+             ok = .true.
+             qbest = q2
+             ub(:,1) = xv(:,i)
+             ub(:,2) = xw(:,1)
+          end do
+          if (ok .or. nv == 0) exit
+          q = 4d0 * q
+       end do
+       u(:,1:2) = ub
+
+       ! the two at an obtuse angle, and at acute angles with the
+       ! direction if possible
+       if (qform(u(:,1),u(:,2),g) > epslen * aga) u(:,2) = -u(:,2)
+       if (dot_product(real(u(:,1) + u(:,2),8),ga) < -epslen * aga) u(:,1:2) = -u(:,1:2)
+    else
+       ! the first two axes are in the plane and the last goes to the
+       ! next plane, for now: the transpose of the inverse
+       u = transpose(iadj3(u))
+
+       ! shortest vectors in the plane, at an obtuse angle
+       call gauss_reduce(u(:,1),u(:,2),g)
+
+       ! shortest vector to the next plane, from the metric of the
+       ! three vectors (the third plus alpha and beta times the first
+       ! two is perpendicular to the plane)
+       ru = real(u,8)
+       gp = matmul(transpose(ru),matmul(g,ru))
+       det2 = gp(1,1) * gp(2,2) - gp(1,2) * gp(1,2)
+       alpha = -(gp(1,3) * gp(2,2) - gp(2,3) * gp(1,2)) / det2
+       beta = -(gp(2,3) * gp(1,1) - gp(1,3) * gp(1,2)) / det2
+       i0 = nint(alpha)
+       j0 = nint(beta)
+       qbest = huge(1d0)
+       ibest = i0
+       jbest = j0
+       do i = i0-1, i0+1
+          do j = j0-1, j0+1
+             iw = u(:,3) + i * u(:,1) + j * u(:,2)
+             q = qform(iw,iw,g)
+             if (q < qbest * (1d0 - epslen)) then
+                qbest = q
+                ibest = i
+                jbest = j
+             end if
+          end do
+       end do
+       u(:,3) = u(:,3) + ibest * u(:,1) + jbest * u(:,2)
+       alpha = alpha - ibest
+       beta = beta - jbest
+
+       ! the shortest lattice vector perpendicular to the plane, if a
+       ! multiple of the perpendicular vector is in the lattice
+       do i = 1, nplmax
+          if (abs(i * alpha - nint(i * alpha)) < epsint .and. abs(i * beta - nint(i * beta)) < epsint) then
+             u(:,3) = i * u(:,3) + nint(i * alpha) * u(:,1) + nint(i * beta) * u(:,2)
+             exit
+          end if
+       end do
+    end if
+
+    ! the three vectors in crystallographic coordinates of the current
+    ! cell; exchange the first two if they are left-handed (the
+    ! primitive basis can be)
+    ru = matmul(p,real(u,8))
+    if (det3(ru) < 0d0) ru(:,1:2) = ru(:,2:1:-1)
+
+    ! the axes of the new cell, with the last vector in iaxis
+    do i = 1, 3
+       j = mod(iaxis + i - 1,3) + 1
+       x0(:,j) = ru(:,i)
+    end do
+
+  end subroutine cell_orient
+
   !> Add atom with species is and position x in units of iunit_l (see
   !> global). If is <= 0, add a new species with Z = abs(is) to the
   !> system. If isnneq, replicate the atom by symmetry.
@@ -3189,6 +3431,210 @@ contains
     end if
 
   end function edit_seed_coords
+
+  !> Given an integer vector v whose components have no common
+  !> divisor, find an integer matrix m with determinant +1 whose last
+  !> column is v.
+  subroutine complete_basis(v,m)
+    use tools_math, only: idet3
+    integer, intent(in) :: v(3)
+    integer, intent(out) :: m(3,3)
+
+    integer :: g, p, q, r, s, g2, w(3), wp(3)
+
+    ! w = (v1,v2,0)/g and wp complete a basis of the xy plane
+    call egcd(v(1),v(2),g,p,q)
+    if (g == 0) then
+       w = (/1,0,0/)
+       wp = (/0,1,0/)
+    else
+       w = (/v(1)/g,v(2)/g,0/)
+       wp = (/-q,p,0/)
+    end if
+
+    ! v = g*w + v3*z; t = -s*w + r*z completes the basis of the plane (w,z)
+    call egcd(g,v(3),g2,r,s)
+    m(:,1) = wp
+    m(:,2) = -s * w
+    m(3,2) = m(3,2) + r
+    m(:,3) = v
+
+    if (idet3(m) < 0) m(:,1) = -m(:,1)
+
+  end subroutine complete_basis
+
+  !> Extended Euclidean algorithm: the greatest common divisor g >= 0
+  !> of a and b, and two integers p and q such that p*a + q*b = g.
+  subroutine egcd(a,b,g,p,q)
+    integer, intent(in) :: a, b
+    integer, intent(out) :: g, p, q
+
+    integer :: r0, r1, s0, s1, t0, t1, iq, iaux
+
+    r0 = a
+    r1 = b
+    s0 = 1
+    s1 = 0
+    t0 = 0
+    t1 = 1
+    do while (r1 /= 0)
+       iq = r0 / r1
+       iaux = r0 - iq * r1
+       r0 = r1
+       r1 = iaux
+       iaux = s0 - iq * s1
+       s0 = s1
+       s1 = iaux
+       iaux = t0 - iq * t1
+       t0 = t1
+       t1 = iaux
+    end do
+    g = r0
+    p = s0
+    q = t0
+    if (g < 0) then
+       g = -g
+       p = -p
+       q = -q
+    end if
+
+  end subroutine egcd
+
+  !> Gauss (Lagrange) reduction of the two-dimensional lattice spanned
+  !> by the integer vectors a and b, with the scalar product given by
+  !> the metric g: on output, a and b are the two shortest vectors that
+  !> span the same lattice, a not longer than b and at an obtuse angle.
+  subroutine gauss_reduce(a,b,g)
+    integer, intent(inout) :: a(3), b(3)
+    real*8, intent(in) :: g(3,3)
+
+    integer :: iaux(3), it
+    real*8 :: qa, qb, ab, ratio
+
+    real*8, parameter :: eps = 1d-10
+    integer, parameter :: maxit = 10000
+
+    do it = 1, maxit
+       qa = qform(a,a,g)
+       qb = qform(b,b,g)
+       if (qb < qa * (1d0 - eps)) then
+          iaux = a
+          a = b
+          b = iaux
+          qa = qb
+       end if
+       ab = qform(a,b,g)
+       ratio = ab / qa
+       if (abs(ratio) < 0.5d0 + eps) exit
+       b = b - nint(ratio) * a
+    end do
+    if (qform(a,b,g) > eps * qform(a,a,g)) b = -b
+
+  end subroutine gauss_reduce
+
+  !> Find the shortest lattice vectors that can replace the column k
+  !> (1 or 2) of the integer matrix u, whose columns are a basis of a
+  !> lattice with metric g, and still give a basis. With k = 1, they
+  !> are the shortest vectors that are part of a basis together with
+  !> u(:,3); with k = 2, the shortest vectors that complete the basis
+  !> started by u(:,1) and u(:,3). On output, xv(:,1:nv) are the
+  !> vectors found, all of the same length, from the closest to
+  !> perpendicular to u(:,3) to the farthest (at most size(xv,2), and
+  !> one of each pair of opposite vectors). Only the vectors with
+  !> squared length up to r2 are examined. nv is zero if there is none
+  !> or there are too many to examine.
+  subroutine shortest_basis_vectors(u,k,g,r2,nv,xv)
+    use tools_math, only: matinv, gcd
+    integer, intent(in) :: u(3,3)
+    integer, intent(in) :: k
+    real*8, intent(in) :: g(3,3), r2
+    integer, intent(out) :: nv
+    integer, intent(inout) :: xv(:,:)
+
+    integer :: nx(3), x(3), ic(3), i1, i2, i3, i2lo, i3lo, j, l
+    real*8 :: ginv(3,3), rn(3), ga(3), aga, q, qbest, cs, csv(size(xv,2))
+
+    real*8, parameter :: eps = 1d-10
+    real*8, parameter :: nmax = 2d5 ! most vectors to examine
+
+    nv = 0
+
+    ! the components of a vector of length r are at most r times the
+    ! lengths of the reciprocal lattice vectors
+    ginv = g
+    call matinv(ginv,3)
+    do i1 = 1, 3
+       rn(i1) = sqrt(r2 * ginv(i1,i1)) * (1d0 + eps)
+    end do
+    if (product(2d0 * rn + 1d0) > nmax) return
+    nx = floor(rn)
+
+    ! one of each pair of opposite vectors: the first component that
+    ! is not zero is positive
+    ga = matmul(g,real(u(:,3),8))
+    aga = dot_product(real(u(:,3),8),ga)
+    qbest = r2
+    do i1 = nx(1), 0, -1
+       i2lo = -nx(2)
+       if (i1 == 0) i2lo = 0
+       do i2 = nx(2), i2lo, -1
+          i3lo = -nx(3)
+          if (i1 == 0 .and. i2 == 0) i3lo = 1
+          do i3 = nx(3), i3lo, -1
+             x = (/i1,i2,i3/)
+             q = qform(x,x,g)
+             if (q > qbest * (1d0 + eps)) cycle
+
+             ! x and u(:,3) are part of a basis if the components of
+             ! their vector product have no common divisor; with
+             ! u(:,1), the three are a basis if the determinant is 1
+             ic(1) = x(2) * u(3,3) - x(3) * u(2,3)
+             ic(2) = x(3) * u(1,3) - x(1) * u(3,3)
+             ic(3) = x(1) * u(2,3) - x(2) * u(1,3)
+             if (k == 1) then
+                if (gcd(abs(ic),3) /= 1) cycle
+             else
+                if (abs(dot_product(int(u(:,1),8),int(ic,8))) /= 1) cycle
+             end if
+
+             ! shorter: forget the ones found so far
+             if (q < qbest * (1d0 - eps)) then
+                nv = 0
+                qbest = q
+             end if
+
+             ! its place in the list, by the angle with u(:,3)
+             cs = abs(dot_product(real(x,8),ga))
+             j = nv + 1
+             do l = 1, nv
+                if (cs < csv(l) - eps * aga) then
+                   j = l
+                   exit
+                end if
+             end do
+             if (j > size(xv,2)) cycle
+             nv = min(nv + 1,size(xv,2))
+             do l = nv, j+1, -1
+                xv(:,l) = xv(:,l-1)
+                csv(l) = csv(l-1)
+             end do
+             xv(:,j) = x
+             csv(j) = cs
+          end do
+       end do
+    end do
+
+  end subroutine shortest_basis_vectors
+
+  !> Scalar product of the integer vectors a and b with the metric g.
+  pure function qform(a,b,g)
+    integer, intent(in) :: a(3), b(3)
+    real*8, intent(in) :: g(3,3)
+    real*8 :: qform
+
+    qform = dot_product(real(a,8),matmul(g,real(b,8)))
+
+  end function qform
 
   !> Append the entry (id, lattice vector lv, bond order ord) to the
   !> neighbor star ns, growing its arrays as needed.

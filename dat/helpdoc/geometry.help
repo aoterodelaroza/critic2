@@ -26,7 +26,10 @@ the bond connectivity when the geometry changes.
   the closest to a cube) or "Reach" (the longest shortest lattice vector). "Fewest
   displacements" restricts the choice to the supercells that need the fewest displaced
   structures in a phonon calculation. Click a row to select it; "Sublattices of size n"
-  then lists every distinct supercell of that size, to choose another one.
+  then lists every distinct supercell of that size, to choose another one. "Orient" finds
+  a cell with two axes in a family of lattice planes (hkl) and the third perpendicular to
+  them (if the lattice has such a vector), or with one axis along a lattice direction
+  [uvw]; the indices refer to the current cell.
 - Molecules: the molecular fragments with their number of atoms, point group and center of
   mass. Selected molecules can be removed or reordered.
 - Bonds: "Bond operations" create, remove or change the order of bonds by clicking in the

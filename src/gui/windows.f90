@@ -201,6 +201,7 @@ module windows
   integer(c_int), parameter :: cellmode_simple = 0 ! integer multiples of a/b/c
   integer(c_int), parameter :: cellmode_matrix = 1 ! lattice vectors typed or picked
   integer(c_int), parameter :: cellmode_search = 2 ! chosen from the supercell search
+  integer(c_int), parameter :: cellmode_orient = 3 ! an axis along a direction or perpendicular to a plane
   ! criteria of the supercell search (the options of its combo)
   integer, parameter :: cellcrit_nice = 1 ! largest inscribed sphere (NEWCELL NICE)
   integer, parameter :: cellcrit_reach = 2 ! longest shortest lattice vector (NEWCELL REACH)
@@ -1030,6 +1031,9 @@ module windows
      type(nice_cell), allocatable :: cand(:)
      integer :: isel = 0 ! search: selected sublattice (index in cand, 0 = none)
      integer :: nsel = 0 ! search: size of the selected sublattice (0 = none)
+     logical :: orient_dir = .false. ! orient: the indices are a direction [uvw] (false = a plane (hkl))
+     integer(c_int) :: orient_ivec(3) = (/0_c_int,0_c_int,1_c_int/) ! orient: indices of the plane or direction
+     integer :: orient_axis = 3 ! orient: axis of the new cell perpendicular to the plane or along the direction (1-3)
   end type cellform_state
   public :: cellform_state
 

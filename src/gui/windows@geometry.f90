@@ -99,6 +99,7 @@ contains
     real*8 :: xb(3)
     real*8 :: pm(3,3), pt(3) ! cell tab: matrix and origin of the supercell being prepared
     logical :: pok ! cell tab: whether that transformation is valid
+    character(len=:), allocatable :: pmsg ! cell tab: why it is not
     real*8 :: xcl(3), xca(3) ! cell tab: lengths and angles of the new cell
     integer :: ib, nsl, ncan ! cell tab: supercell candidate, selected size, and its number of sublattices
     ! preview of the new cell, in lattice-point sphere radii
@@ -1097,6 +1098,9 @@ contains
                 ldum = iw_radiobutton("Search",int=w%geometry_cell%mode,intval=cellmode_search,sameline=.true.)
                 call iw_tooltip("Search the supercells of each size and choose one of them: the nicest&
                    & (the closest to a cube) or the one with the longest reach",ttshown)
+                ldum = iw_radiobutton("Orient",int=w%geometry_cell%mode,intval=cellmode_orient,sameline=.true.)
+                call iw_tooltip("Find a cell with two axes in a family of lattice planes and the third&
+                   & perpendicular to them, or with one axis along a lattice direction",ttshown)
 
                 if (w%geometry_cell%mode == cellmode_simple) then
                    ! simple transformation: integer multiples of the a, b, c axes
@@ -1168,6 +1172,31 @@ contains
                    end if
                    ! if the user changed the matrix or the origin, clear the error message
                    if (ch) w%errmsg = ""
+                elseif (w%geometry_cell%mode == cellmode_orient) then
+                   ! a plane or a direction, and the axis of the new cell that goes with it
+                   call iw_text("Type",alignframe=.true.)
+                   ch = iw_radiobutton("Plane (hkl)",bool=w%geometry_cell%orient_dir,boolval=.false.,sameline=.true.)
+                   call iw_tooltip("The indices are the Miller indices of a family of lattice planes. Two&
+                      & axes of the new cell are the shortest lattice vectors in the plane, and the third&
+                      & is the shortest lattice vector perpendicular to it. If the lattice has none, the&
+                      & third axis goes to the next plane, as close to the normal as possible",ttshown)
+                   lch = iw_radiobutton("Direction [uvw]",bool=w%geometry_cell%orient_dir,boolval=.true.,&
+                      sameline=.true.)
+                   ch = ch .or. lch
+                   call iw_tooltip("The indices are a lattice direction. One axis of the new cell is the&
+                      & shortest lattice vector along it, and the other two are the shortest lattice&
+                      & vectors that complete the cell",ttshown)
+                   call iw_text("Indices",alignframe=.true.)
+                   lch = iw_inputint3("##cellorientidx",w%geometry_cell%orient_ivec,width=3*3,sameline=.true.)
+                   ch = ch .or. lch
+                   call iw_tooltip("Indices of the plane or the direction, referred to the current cell",ttshown)
+                   call iw_text("Axis",alignframe=.true.,gap=.true.)
+                   call iw_combo_simple("##cellorientaxis","a" // c_null_char // "b" // c_null_char // "c" //&
+                      c_null_char,w%geometry_cell%orient_axis,changed=lch,sameline=.true.,startsatone=.true.)
+                   ch = ch .or. lch
+                   call iw_tooltip("Axis of the new cell that is perpendicular to the plane, or along&
+                      & the direction",ttshown)
+                   if (ch) w%errmsg = ""
                 else
                    ! supercell search: the criterion and the largest size
                    call iw_text("Criterion",alignframe=.true.)
@@ -1226,24 +1255,22 @@ contains
              end if
 
              ! the transformation the supercell section describes now
-             call pending_cell(pm,pt,pok)
+             call pending_cell(pm,pt,pok,pmsg)
 
              if (w%geometry_sec(geomsec_super)%open) then
                 ! the cell the transformation leads to
-                call iw_text("New cell",alignframe=.true.)
+                call iw_text("New cell:",alignframe=.true.)
                 if (pok) then
                    call pending_metrics(pm,s,xcl,xca)
                    call iw_text(s,sameline=.true.)
-                   call iw_text("a/b/c (Å)",alignframe=.true.)
+                   call iw_text("a/b/c (Å):",alignframe=.true.)
                    call iw_text(string(xcl(1)*bohrtoa,'f',decimal=4) // "  " // string(xcl(2)*bohrtoa,'f',decimal=4) //&
                       "  " // string(xcl(3)*bohrtoa,'f',decimal=4),sameline=.true.)
-                   call iw_text("α/β/γ (°)",alignframe=.true.,gap=.true.)
+                   call iw_text("α/β/γ (°):",alignframe=.true.,gap=.true.)
                    call iw_text(string(xca(1),'f',decimal=2) // "  " // string(xca(2),'f',decimal=2) //&
                       "  " // string(xca(3),'f',decimal=2),sameline=.true.)
-                elseif (w%geometry_cell%mode == cellmode_search) then
-                   call iw_text("Select a supercell in the table",disabled=.true.,sameline=.true.)
                 else
-                   call iw_text("The lattice vectors are not valid",disabled=.true.,sameline=.true.)
+                   call iw_text(pmsg,disabled=.true.,sameline=.true.)
                 end if
 
                 ok = iw_button("Apply##celltransfapply",danger=.true.,disabled=.not.pok)
@@ -1262,6 +1289,8 @@ contains
                       w%geometry_cell%cen = 1
                       w%geometry_cell%origin = 0d0
                       w%geometry_cell%inverse = .false.
+                   elseif (w%geometry_cell%mode == cellmode_orient) then
+                      call reset_orient_inputs()
                    else
                       w%geometry_cell%isel = 0
                       w%geometry_cell%nsel = 0
@@ -2630,8 +2659,8 @@ contains
 
     end subroutine lvpick_cancel
 
-    ! The inputs of the supercell transformation, in the simple and
-    ! matrix modes, back to their defaults (the identity).
+    ! The inputs of the supercell transformation, in the simple,
+    ! matrix and orient modes, back to their defaults.
     subroutine reset_cell_inputs()
 
       w%geometry_cell%nrep = 1_c_int
@@ -2639,8 +2668,19 @@ contains
       w%geometry_cell%cen = 1
       w%geometry_cell%origin = 0d0
       w%geometry_cell%inverse = .false.
+      call reset_orient_inputs()
 
     end subroutine reset_cell_inputs
+
+    ! The inputs of the orient mode of the supercell transformation back
+    ! to their defaults.
+    subroutine reset_orient_inputs()
+
+      w%geometry_cell%orient_dir = .false.
+      w%geometry_cell%orient_ivec = (/0_c_int,0_c_int,1_c_int/)
+      w%geometry_cell%orient_axis = 3
+
+    end subroutine reset_orient_inputs
 
     ! The supercell transformation that the supercell section of the
     ! cell tab describes in its current mode: the lattice vectors of
@@ -2648,16 +2688,18 @@ contains
     ! current cell) and its origin (t), as newcell will use them (a
     ! left-handed set of vectors is inverted). isok is false if there
     ! is none (no supercell selected in the search) or the vectors do
-    ! not make a cell.
-    subroutine pending_cell(m,t,isok)
+    ! not make a cell, and msg says why.
+    subroutine pending_cell(m,t,isok,msg)
       real*8, intent(out) :: m(3,3), t(3)
       logical, intent(out) :: isok
+      character(len=:), allocatable, intent(out) :: msg
 
       integer :: k
 
       m = eye
       t = 0d0
       isok = .true.
+      msg = ""
       if (w%geometry_cell%mode == cellmode_simple) then
          do k = 1, 3
             m(k,k) = real(w%geometry_cell%nrep(k),8)
@@ -2673,15 +2715,22 @@ contains
             isok = (abs(det3(m)) > 1d-8)
             if (isok) call matinv(m,3)
          end if
+      elseif (w%geometry_cell%mode == cellmode_orient) then
+         call sys(isys)%c%cell_orient(int(w%geometry_cell%orient_ivec),w%geometry_cell%orient_dir,&
+            w%geometry_cell%orient_axis,m,msg)
+         isok = (len_trim(msg) == 0)
       else
          isok = allocated(w%geometry_cell%cand) .and. w%geometry_cell%isel > 0
          if (isok) isok = (w%geometry_cell%isel <= size(w%geometry_cell%cand,1))
          if (isok) m = real(w%geometry_cell%cand(w%geometry_cell%isel)%m,8)
+         if (.not.isok) msg = "Select a supercell in the table"
       end if
       ! the same threshold newcell uses, which also flips a left-handed cell
-      if (isok) isok = (abs(det3(m)) > 1d-2)
+      if (isok) isok = (abs(det3(m)) * max(sys(isys)%c%ncv,1) > 1d-2)
       if (isok) then
          if (det3(m) < 0d0) m = -m
+      elseif (len_trim(msg) == 0) then
+         msg = "The lattice vectors are not valid"
       end if
 
     end subroutine pending_cell
@@ -2690,19 +2739,27 @@ contains
     ! pending_cell) leads to: its size and number of atoms (str), cell
     ! lengths (xl, bohr) and angles (xa, degrees).
     subroutine pending_metrics(m,str,xl,xa)
+      use tools_math, only: gcd
       real*8, intent(in) :: m(3,3)
       character(kind=c_char,len=:), allocatable, intent(inout) :: str
       real*8, intent(out) :: xl(3), xa(3)
 
       real*8 :: d, r(3,3)
+      integer :: num, den, ig
 
+      ! the size of the new cell, a fraction of the current one if it
+      ! is smaller than a cell of a centered lattice
       d = abs(det3(m))
-      if (abs(d - nint(d)) < 1d-6) then
-         str = string(nint(d))
+      den = max(sys(isys)%c%ncv,1)
+      if (abs(d * den - nint(d * den)) < 1d-6) then
+         num = nint(d * den)
+         ig = gcd(num,den)
+         str = string(num / ig)
+         if (den / ig > 1) str = str // "/" // string(den / ig)
       else
          str = string(d,'f',decimal=4)
       end if
-      if (abs(d - 1d0) < 1d-6) then
+      if (d < 1d0 + 1d-6) then
          str = str // " cell, "
       else
          str = str // " cells, "
