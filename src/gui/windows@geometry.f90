@@ -111,8 +111,8 @@ contains
     real*8, parameter :: pv_headl = 0.15d0 ! arrowhead length (fraction of the arrow)
     real*8, parameter :: pv_edger = 0.25d0 ! outline radius
     real(c_float), parameter :: pv_edge_rgb(3) = (/1._c_float,0.6_c_float,0._c_float/) ! outline color
-    real*8, parameter :: pv_molfac = 2d0 ! the spheres at the centers of the molecules (larger than most atoms)
-    real(c_float), parameter :: pv_mol_alpha = 0.6_c_float ! their opacity (a center can be on an atom)
+    real*8, parameter :: pv_molfac = 1d0 ! the spheres at the centers of the molecules
+    real(c_float), parameter :: pv_mol_rgb(3) = (/0.70_c_float,0.93_c_float,0.55_c_float/) ! their color (bordered, as the lattice points)
     character(len=*), parameter :: errorigin = "The origin is not a lattice vector: pick another lattice point"
     ! preview of the plane where the cell is cut to set the vacuum
     type(rep_shape) :: cutshp(2) ! transient plane of the cut (a flat box) and outline of the new cell
@@ -1613,7 +1613,11 @@ contains
                end if
 
                ! the centers of the molecules, while they are kept whole
-               if (gc%vac_keepmol .and. gc%vac_axis > 0 .and. associated(win(iview)%sc)) &
+               ! (not with the lattice points of the matrix mode, which
+               ! they would hide where both coincide, nor during the pick
+               ! of the atom at the new origin: they would hide atoms)
+               if (gc%vac_keepmol .and. gc%vac_axis > 0 .and. associated(win(iview)%sc) .and.&
+                  gc%mode /= cellmode_matrix .and. w%geometry_lvpick_row /= lvpick_origin) &
                   call vacuum_show_molcenters()
              end associate
 
@@ -3110,7 +3114,7 @@ contains
            where (isvac .or. .not.asdrawn) xc = xc - floor(xc - xwin + 1d-6)
            n = n + 1
            shp(n) = rep_shape(kind=shapekind_sphere,x1=c%x2c(xc),rad=pv_molfac*latvec_rad_def,&
-              rgb=pv_edge_rgb,alpha=pv_mol_alpha)
+              rgb=pv_mol_rgb,rim=.true.)
         end do
         if (n > 0) call win(iview)%sc%show_transient_shapes(w%uid,tag_vacmol,shp(1:n))
       end associate

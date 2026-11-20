@@ -772,7 +772,8 @@ module representations
      real(c_float) :: rgb(3) = 0._c_float ! color
      real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
      logical :: rim = .false. ! sphere: outlined, and if translucent drawn as a volume (the opacity
-                              ! growing toward the rim); set for the shapes the user creates
+                              ! growing toward the rim); set for the shapes the user creates and
+                              ! for the transient ones that mark points
   end type rep_shape
   public :: rep_shape
 
