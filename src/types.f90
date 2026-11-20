@@ -583,12 +583,13 @@ module types
   end interface
 
   interface
-     module subroutine nstar_subset(nsin,imap,nsout,lshift,droppbc)
+     module subroutine nstar_subset(nsin,imap,nsout,lshift,droppbc,dropaxis)
        type(neighstar), intent(in) :: nsin(:)
        integer, intent(in) :: imap(:)
        type(neighstar), allocatable, intent(out) :: nsout(:)
        integer, intent(in), optional :: lshift(:,:)
        logical, intent(in), optional :: droppbc
+       integer, intent(in), optional :: dropaxis
      end subroutine nstar_subset
      pure module function star_find(ns,id,lvec)
        type(neighstar), intent(in) :: ns

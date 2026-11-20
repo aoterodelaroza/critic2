@@ -4647,6 +4647,44 @@ contains
 
   end subroutine transform_cell_matrix
 
+  !> Set the vacuum along the crystallographic axis iaxis to vac
+  !> (bohr), with the slab at position ipos (vacpos_*) in the new
+  !> cell. orthogonal = make the axis perpendicular to the other two;
+  !> keepmol = keep the molecules whole; docut = cut the cell at the
+  !> fractional coordinate cut along the axis (otherwise, at the
+  !> largest gap); copybonding = keep the bonds that do not cross the
+  !> cut. See crystal%set_vacuum.
+  module subroutine set_vacuum(sysc,iaxis,vac,ipos,orthogonal,keepmol,docut,cut,copybonding,errmsg)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: iaxis
+    real*8, intent(in) :: vac
+    integer, intent(in) :: ipos
+    logical, intent(in) :: orthogonal, keepmol, docut
+    real*8, intent(in) :: cut
+    logical, intent(in) :: copybonding
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: isys
+
+    errmsg = ""
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    if (docut) then
+       call sys(isys)%c%set_vacuum(iaxis,vac,ipos,orthogonal,keepmol,cut=cut,copybonding=copybonding,&
+          errmsg=errmsg)
+    else
+       call sys(isys)%c%set_vacuum(iaxis,vac,ipos,orthogonal,keepmol,copybonding=copybonding,errmsg=errmsg)
+    end if
+
+    ! if it failed, no geometry change is recorded
+    if (has_errmsg(errmsg)) return
+    call sysc%post_event(lastchange_geometry,label="Set vacuum")
+
+  end subroutine set_vacuum
+
   !> Move the origin of the cell. itype is one of the origin_*
   !> constants of crystalmod (the cell atom id, the center of mass, the
   !> centering of the atoms, the closest inversion center). The bonding

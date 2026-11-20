@@ -858,19 +858,26 @@ contains
   !> vector lshift(:,i) and the bond lattice vectors are corrected
   !> accordingly. With droppbc, bonds whose (corrected) lattice vector
   !> is nonzero are dropped as well (their reciprocal entries carry the
-  !> opposite vector, so the filtered stars stay symmetric).
-  module subroutine nstar_subset(nsin,imap,nsout,lshift,droppbc)
+  !> opposite vector, so the filtered stars stay symmetric). With
+  !> dropaxis (1-3; any other value is ignored), only the bonds whose
+  !> lattice vector is nonzero along that axis are dropped.
+  module subroutine nstar_subset(nsin,imap,nsout,lshift,droppbc,dropaxis)
     type(neighstar), intent(in) :: nsin(:)
     integer, intent(in) :: imap(:)
     type(neighstar), allocatable, intent(out) :: nsout(:)
     integer, intent(in), optional :: lshift(:,:)
     logical, intent(in), optional :: droppbc
+    integer, intent(in), optional :: dropaxis
 
     integer :: i, in, k, n, lv(3)
-    logical :: droppbc_
+    logical :: dropmask(3)
 
-    droppbc_ = .false.
-    if (present(droppbc)) droppbc_ = droppbc
+    ! the axes along which a bond to another cell is dropped
+    dropmask = .false.
+    if (present(droppbc)) dropmask = droppbc
+    if (present(dropaxis)) then
+       if (dropaxis >= 1 .and. dropaxis <= 3) dropmask(dropaxis) = .true.
+    end if
 
     allocate(nsout(count(imap(1:size(nsin,1)) > 0)))
     do i = 1, size(nsin,1)
@@ -883,7 +890,7 @@ contains
           if (imap(nsin(i)%idcon(k)) == 0) cycle
           lv = nsin(i)%lcon(:,k)
           if (present(lshift)) lv = lv + lshift(:,i) - lshift(:,nsin(i)%idcon(k))
-          if (droppbc_ .and. any(lv /= 0)) cycle
+          if (any(dropmask .and. lv /= 0)) cycle
           n = n + 1
        end do
        nsout(in)%isaromatic = nsin(i)%isaromatic
@@ -897,7 +904,7 @@ contains
           if (imap(nsin(i)%idcon(k)) == 0) cycle
           lv = nsin(i)%lcon(:,k)
           if (present(lshift)) lv = lv + lshift(:,i) - lshift(:,nsin(i)%idcon(k))
-          if (droppbc_ .and. any(lv /= 0)) cycle
+          if (any(dropmask .and. lv /= 0)) cycle
           n = n + 1
           nsout(in)%idcon(n) = imap(nsin(i)%idcon(k))
           nsout(in)%lcon(:,n) = lv

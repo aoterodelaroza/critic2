@@ -1,0 +1,58 @@
+## check: 004_edit_vacuum_center.incritic -a1e-10
+## check: 004_edit_vacuum_keepmol.incritic -a1e-10
+## check: 004_edit_vacuum_layer.incritic -a1e-10
+## check: 004_edit_vacuum_bottom.incritic -a1e-10
+## check: 004_edit_vacuum_cut.incritic -a1e-10
+## check: 004_edit_vacuum_slab.incritic -a1e-10
+## check: 004_edit_vacuum_shrink.incritic -a1e-10
+## delete: 004_edit_vacuum.cro
+## labels: regression quick nodata
+
+# vacuum along c in a molecular crystal, cut at the largest gap between atoms
+crystal library urea
+edit
+ vacuum c 10 ang
+end
+write 004_edit_vacuum_center.incritic
+
+# the same, without cutting the molecules
+crystal library urea
+edit vacuum c 10 ang keepmol
+write 004_edit_vacuum_keepmol.incritic
+
+# a bonded layer that straddles the cell face is one piece with keepmol
+crystal
+ cell 6.02 6.02 30 90 90 120
+ neq 0 0 0 mo
+ neq 1/3 2/3 0.05 s
+ neq 1/3 2/3 0.95 s
+endcrystal
+edit vacuum c 20 keepmol
+write 004_edit_vacuum_layer.incritic
+
+# a graphite bilayer at the bottom of the cell
+crystal library graphite
+edit vacuum c 25 bottom
+write 004_edit_vacuum_bottom.incritic
+
+# the cut at a given position: the atomic plane at the cut is the
+# bottom of the slab
+crystal library mgo
+edit vacuum c 10 ang cut 0.5 bottom
+write 004_edit_vacuum_cut.incritic
+
+# a three-layer (111) slab from the primitive cell, with c made
+# perpendicular to the surface (the origin is moved first so that no
+# atom is on a cell face)
+crystal library mgo
+newcell orient hkl 1 1 1 primitive
+newcell 1 1 3
+newcell origin 0.13 0.27 0.05
+edit vacuum c 12 ang orthogonal
+write 004_edit_vacuum_slab.incritic
+
+# remove most of the vacuum again, along a
+crystal library urea
+edit vacuum a 15
+edit vacuum a 2 bottom
+write 004_edit_vacuum_shrink.incritic

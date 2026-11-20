@@ -23,6 +23,8 @@ contains
 
   !> Draw the geometry window.
   module subroutine draw_geometry(w)
+    use representations, only: display_cell_window
+    use display, only: rep_display
     use representations, only: reptype_symelem, repflavor_symelem, rep_shape, shapekind_arrow,&
        shapekind_cylinder, axes_length_def, axes_radius_def, axes_conelength_def,&
        axes_coneradius_def, rotaxis_radius_def, replat_primitive, shapekind_sphere, shapekind_box,&
@@ -110,6 +112,16 @@ contains
     real*8, parameter :: pv_edger = 0.25d0 ! outline radius
     real(c_float), parameter :: pv_edge_rgb(3) = (/1._c_float,0.6_c_float,0._c_float/) ! outline color
     character(len=*), parameter :: errorigin = "The origin is not a lattice vector: pick another lattice point"
+    ! preview of the plane where the cell is cut to set the vacuum
+    type(rep_shape) :: cutshp(1) ! transient plane (a thin box)
+    logical :: lvac, lcut ! the axis or the cut of the vacuum changed
+    logical :: lwid ! a widget of the vacuum section changed
+    real*8 :: vacperp(3) ! vacuum along each axis, perpendicular to the other two
+    integer :: ivj, ivk ! the two axes of the plane
+    ! tag of the transient plane (the other transient shapes of this
+    ! window use 0, the positive atom ids and -5 or less)
+    integer, parameter :: tag_vaccut = -1
+    real(c_float), parameter :: pv_cut_alpha = 0.3_c_float ! opacity of the plane
     integer :: istat, latpick(4) ! lattice-vector pick: status and the picked point
     integer :: atpick(4) ! origin pick: the picked atom
     real*8 :: xpick(3)
@@ -156,6 +168,7 @@ contains
     integer, parameter :: iaction_set_atom_occupancy = 24
     integer, parameter :: iaction_sym_deleteops = 25
     integer, parameter :: iaction_shift_origin = 26
+    integer, parameter :: iaction_set_vacuum = 27
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_remove = 1
@@ -1366,6 +1379,145 @@ contains
                    end if
                 end if
              end if
+
+             ! the vacuum along an axis: the cell is cut and made longer
+             ! or shorter there, at constant atomic positions
+             call iw_separatortext("Vacuum",w%geometry_sec(geomsec_vacuum),hasmore=.true.)
+             if (w%geometry_sec(geomsec_vacuum)%open) then
+                associate (gc => w%geometry_cell)
+                  ! first time with this system: the axis with the most vacuum, or c
+                  lvac = .false.
+                  if (gc%vac_axis == 0) then
+                     vacperp = sys(isys)%c%vaclength / (sys(isys)%c%aa * sys(isys)%c%ar)
+                     gc%vac_axis = 3
+                     do im = 1, 2
+                        if (vacperp(im) > vacperp(gc%vac_axis) + 1d-6) gc%vac_axis = im
+                     end do
+                     lvac = .true.
+                  end if
+
+                  call iw_text("Axis",alignframe=.true.)
+                  call iw_combo_simple("##cellvacaxis","a" // c_null_char // "b" // c_null_char // "c" // c_null_char,&
+                     gc%vac_axis,changed=lch,sameline=.true.,startsatone=.true.)
+                  call iw_tooltip("Axis of the cell along which the vacuum is set. The cell is cut by a&
+                     & plane parallel to the other two axes and grows or shrinks there",ttshown)
+                  ! another axis: its largest gap and its current vacuum
+                  lwid = lch
+                  if (lch) then
+                     gc%vac_cutmode = vaccut_gap
+                     lvac = .true.
+                  end if
+                  call iw_text("Slab position",alignframe=.true.,gap=.true.)
+                  call iw_combo_simple("##cellvacpos","Center" // c_null_char // "Bottom" // c_null_char,&
+                     gc%vac_pos,changed=lch,sameline=.true.,startsatone=.true.,tooltips=&
+                     "The atoms are in the middle of the new cell, with half of the vacuum on each side" //&
+                     c_null_char //&
+                     "The lowest atom is at the bottom of the new cell, with all the vacuum above" // c_null_char,&
+                     ttshown=ttshown)
+
+                  lwid = lwid .or. lch
+
+                  ! where the cell is cut
+                  call iw_text("Cut",alignframe=.true.)
+                  call iw_combo_simple("##cellvaccutmode","Largest gap" // c_null_char // "Position" // c_null_char,&
+                     gc%vac_cutmode,changed=lch,sameline=.true.,startsatone=.true.,tooltips=&
+                     "Cut the cell in the middle of the largest empty gap along the axis: the vacuum of a&
+                     & slab, or the widest spacing between atomic planes" // c_null_char //&
+                     "Cut the cell at the given position along the axis" // c_null_char,ttshown=ttshown)
+                  lcut = lch
+                  if (gc%vac_cutmode == vaccut_position) then
+                     lch = iw_dragfloat_real8("##cellvaccut",x1=gc%vac_cut,speed=0.002d0,min=0d0,max=1d0,decimal=4,&
+                        sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+                     lcut = lcut .or. lch
+                  else
+                     call iw_text("at " // string(gc%vac_cut,'f',decimal=4),sameline=.true.)
+                  end if
+                  call iw_tooltip("Fractional coordinate along the axis at which the cell is cut. The atoms&
+                     & below it go to the top of the slab, and an atom at the cut stays at the bottom",ttshown)
+
+                  ! the options (one that is on stays in view when More is closed)
+                  if (w%geometry_sec(geomsec_vacuum)%more .or. gc%vac_ortho .or. gc%vac_keepmol) then
+                     lch = iw_checkbox("Orthogonal axis##cellvacortho",gc%vac_ortho,labelleft=.true.)
+                     lwid = lwid .or. lch
+                     call iw_tooltip("Make the axis perpendicular to the other two. Use it only with enough&
+                        & vacuum: the periodic images of the slab along the axis slide over each other",ttshown)
+                     lch = iw_checkbox("Keep molecules whole##cellvackeepmol",gc%vac_keepmol,labelleft=.true.,&
+                        gap=.true.)
+                     call iw_tooltip("Do not cut the molecules: the cut divides the centers of the&
+                        & molecules instead of the atoms",ttshown)
+                     lcut = lcut .or. lch
+                  end if
+
+                  lwid = lwid .or. lcut
+
+                  ! the current vacuum, found again when the axis, the cut,
+                  ! the geometry or the bonds change (not at every step of a running
+                  ! simulation: when it stops). The requested vacuum starts
+                  ! from the current one on a new axis or lattice, and a
+                  ! position of the cut is not carried over to another
+                  ! lattice (a cell transformation from any window, undo).
+                  if (lvac .or. lcut .or. gc%vac_time < 0d0 .or.&
+                     (sysc(isys)%timelastchange_rebond > gc%vac_time .and. .not.sysc(isys)%md_run)) then
+                     if (any(abs(sys(isys)%c%m_x2c - gc%vac_m) > 1d-8)) then
+                        gc%vac_cutmode = vaccut_gap
+                        gc%vac_m = sys(isys)%c%m_x2c
+                        lvac = .true.
+                     end if
+                     if (gc%vac_cutmode == vaccut_position) then
+                        call sys(isys)%c%vacuum_info(gc%vac_axis,gc%vac_keepmol,gc%vac_cur,gc%vac_thick,cut=gc%vac_cut)
+                     else
+                        call sys(isys)%c%vacuum_info(gc%vac_axis,gc%vac_keepmol,gc%vac_cur,gc%vac_thick,&
+                           cutpos=gc%vac_cut)
+                     end if
+                     if (lvac .or. gc%vac_time < 0d0) gc%vac_new = gc%vac_cur
+                     gc%vac_time = glfwGetTime()
+                  end if
+
+                  call iw_text("Vacuum (Å)",alignframe=.true.)
+                  lch = iw_dragfloat_real8("##cellvacnew",x1=gc%vac_new,speed=0.01d0,decimal=4,scale=bohrtoa,&
+                     sameline=.true.)
+                  lwid = lwid .or. lch
+                  call iw_tooltip("New distance between the atoms on both sides of the cut, measured along&
+                     & the perpendicular to the other two axes",ttshown)
+                  call iw_text("Current",alignframe=.true.,gap=.true.)
+                  call iw_text(string(gc%vac_cur*bohrtoa,'f',decimal=4),sameline=.true.)
+                  call iw_tooltip("Distance between the atoms on both sides of the cut now (Å). It is&
+                     & negative if the molecules on both sides interlock",ttshown)
+                  call iw_text("Slab",alignframe=.true.,gap=.true.)
+                  call iw_text(string(gc%vac_thick*bohrtoa,'f',decimal=4),sameline=.true.)
+                  call iw_tooltip("Thickness of the atoms along the axis (Å): the new cell is as high as&
+                     & the thickness plus the vacuum",ttshown)
+
+                  if (iw_button("Apply##cellvacapply",danger=.true.)) iaction = iaction_set_vacuum
+                  call iw_tooltip("Set the vacuum along the axis, keeping the positions of the atoms&
+                     & relative to each other",ttshown)
+
+                  ! the error of the last attempt referred to the old inputs
+                  if (lwid) w%errmsg = ""
+                end associate
+             end if
+
+             ! the plane of the cut in the view, when the cut is chosen by
+             ! hand or a new vacuum is being prepared, while the values
+             ! of the section are those of this lattice. It is in the
+             ! cell where the view draws the atoms (the display origin
+             ! or, along an axis with vacuum, the reassembled slab).
+             associate (gc => w%geometry_cell)
+               lch = (iview > 0 .and. gc%vac_axis > 0 .and. gc%vac_time >= 0d0)
+               if (lch) lch = associated(win(iview)%sc) .and. all(abs(sys(isys)%c%m_x2c - gc%vac_m) < 1d-8) .and.&
+                  (gc%vac_cutmode == vaccut_position .or. abs(gc%vac_new - gc%vac_cur) > 1d-6)
+               if (lch) then
+                  ivj = mod(gc%vac_axis,3) + 1
+                  ivk = mod(ivj,3) + 1
+                  xb = display_cell_window(isys,win(iview)%sc%disp,rep_display())
+                  xb(gc%vac_axis) = gc%vac_cut - floor(gc%vac_cut - xb(gc%vac_axis))
+                  cutshp(1) = rep_shape(kind=shapekind_box,x1=sys(isys)%c%x2c(xb),&
+                     rad=pv_edger*latvec_rad_def,rgb=pv_edge_rgb,alpha=pv_cut_alpha)
+                  cutshp(1)%v(:,ivj) = sys(isys)%c%m_x2c(:,ivj)
+                  cutshp(1)%v(:,ivk) = sys(isys)%c%m_x2c(:,ivk)
+                  call win(iview)%sc%show_transient_shapes(w%uid,tag_vaccut,cutshp)
+               end if
+             end associate
 
              ! the origin of the cell: at a picked atom, or at a point
              ! calculated from the structure
@@ -2583,6 +2735,17 @@ contains
     elseif (iaction == iaction_shift_origin) then
        call sysc(isys)%shift_origin(iaction_i1,iaction_i2,w%errmsg)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
+       ! the position of the cut of the vacuum referred to the old origin
+       if (len_trim(w%errmsg) == 0) call reset_vacuum_inputs()
+
+    elseif (iaction == iaction_set_vacuum) then
+       associate (gc => w%geometry_cell)
+         call sysc(isys)%set_vacuum(gc%vac_axis,gc%vac_new,gc%vac_pos,gc%vac_ortho,gc%vac_keepmol,&
+            gc%vac_cutmode == vaccut_position,gc%vac_cut,w%geometry_keepbonding,w%errmsg)
+         ! the position of the cut referred to the atoms before the edit
+         if (len_trim(w%errmsg) == 0) call reset_vacuum_inputs()
+       end associate
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_sym_recalc) then
        call sysc(isys)%recalc_symmetry(w%errmsg)
@@ -2687,6 +2850,7 @@ contains
 
       ! clear the cell transformations
       call reset_cell_inputs()
+      w%geometry_cell%vac_axis = 0
       w%geometry_lvpick_row = 0
 
     end subroutine reset_for_new_system
@@ -2735,6 +2899,15 @@ contains
       call reset_orient_inputs()
 
     end subroutine reset_cell_inputs
+
+    ! The vacuum and the cut of the vacuum section refer to a structure
+    ! that was replaced: find them again, with the cut at the largest gap.
+    subroutine reset_vacuum_inputs()
+
+      w%geometry_cell%vac_cutmode = vaccut_gap
+      w%geometry_cell%vac_time = -1d0
+
+    end subroutine reset_vacuum_inputs
 
     ! The inputs of the orient mode of the supercell transformation back
     ! to their defaults.

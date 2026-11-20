@@ -2906,6 +2906,180 @@ contains
 
   end subroutine cell_origin
 
+  !> Calculate the vacuum and the thickness of the contents of the
+  !> cell along the crystallographic axis iaxis (1, 2 or 3), seen as a
+  !> slab parallel to the other two axes. The cell is cut at the
+  !> fractional coordinate cut along the axis or, if cut is not
+  !> present, at the largest empty gap along it; with keepmol, the
+  !> molecules are kept whole and the cut divides their centers.
+  !> Returns the distance between the two faces of the slab (thick)
+  !> and between the slab and its next periodic image (vac), both
+  !> measured along the perpendicular to the other two axes, in bohr.
+  !> With keepmol, vac is negative if the molecules on both sides of
+  !> the cut interlock. If present, cutpos is the fractional
+  !> coordinate at which the cell was cut.
+  module subroutine vacuum_info(c,iaxis,keepmol,vac,thick,cut,cutpos)
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: iaxis
+    logical, intent(in) :: keepmol
+    real*8, intent(out) :: vac, thick
+    real*8, intent(in), optional :: cut
+    real*8, intent(out), optional :: cutpos
+
+    integer, allocatable :: lsh(:)
+    real*8 :: umin, umax, h
+
+    vac = 0d0
+    thick = 0d0
+    if (present(cutpos)) cutpos = 0d0
+    if (c%ismolecule .or. c%ncel == 0 .or. iaxis < 1 .or. iaxis > 3) return
+
+    ! height of the cell along the perpendicular to the other two axes
+    h = 1d0 / c%ar(iaxis)
+    call vacuum_layout(c,iaxis,keepmol,lsh,umin,umax,cut,cutpos)
+    thick = (umax - umin) * h
+    vac = h - thick
+
+  end subroutine vacuum_info
+
+  !> Set the vacuum along the crystallographic axis iaxis (1, 2 or 3)
+  !> to vac (bohr). The contents of the cell are cut at the fractional
+  !> coordinate cut along the axis or, if cut is not present, at the
+  !> largest empty gap along it (see vacuum_info), and the cell is
+  !> lengthened or shortened along that axis until the distance
+  !> between the slab and its next periodic image, measured along the
+  !> perpendicular to the other two axes, is vac. The positions of the
+  !> atoms in the slab relative to each other do not change. ipos is
+  !> the position of the slab in the new cell: vacpos_center (in the
+  !> middle of the cell) or vacpos_bottom (lowest atom at fractional
+  !> coordinate zero, all the vacuum above). The new axis has the
+  !> direction of the old one or, if orthogonal, it is perpendicular to
+  !> the other two. If keepmol, the molecules are kept whole. If
+  !> copybonding, keep the bond connectivity except for the bonds that
+  !> cross the cut, which are kept only if the two sides do not move
+  !> relative to each other (the same crystal with another origin).
+  module subroutine set_vacuum(c,iaxis,vac,ipos,orthogonal,keepmol,cut,copybonding,errmsg,ti)
+    use crystalseedmod, only: crystalseed
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: iaxis
+    real*8, intent(in) :: vac
+    integer, intent(in) :: ipos
+    logical, intent(in) :: orthogonal, keepmol
+    real*8, intent(in), optional :: cut
+    logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
+    logical :: copybonding_
+    integer, allocatable :: lsh(:), imap(:), lshift(:,:)
+    integer :: i, idrop
+    real*8 :: umin, umax, h, hnew, z0, u, xn(3), tilt(3), x(3)
+
+    ! shortest cell height allowed (bohr): the rebuild of a cell much
+    ! flatter than an atom does not finish in a reasonable time
+    real*8, parameter :: hmin = 1d0
+    real*8, parameter :: epstilt = 1d-12 ! the axis is already perpendicular (fractional)
+    real*8, parameter :: epssame = 1d-8 ! the height of the cell does not change (bohr)
+
+    errmsg = ""
+    if (c%ismolecule) then
+       errmsg = "The vacuum cannot be set in a molecule"
+       return
+    end if
+    if (iaxis < 1 .or. iaxis > 3) then
+       errmsg = "Invalid axis"
+       return
+    end if
+    if (ipos /= vacpos_center .and. ipos /= vacpos_bottom) then
+       errmsg = "Invalid slab position"
+       return
+    end if
+    if (vac < 0d0 .and. .not.keepmol) then
+       errmsg = "The vacuum cannot be negative"
+       return
+    end if
+    if (c%ncel == 0) return
+
+    ! the unit vector perpendicular to the other two axes (along the
+    ! reciprocal lattice vector) and the height of the cell along it
+    xn = c%m_c2x(iaxis,:) / c%ar(iaxis)
+    h = 1d0 / c%ar(iaxis)
+
+    ! lay out the atoms as a slab
+    call vacuum_layout(c,iaxis,keepmol,lsh,umin,umax,cut)
+
+    ! the height of the new cell
+    hnew = (umax - umin) * h + vac
+    if (hnew < hmin) then
+       errmsg = "The vacuum is too short: the cell would be less than 1 bohr high along this axis"
+       return
+    end if
+
+    ! height of the bottom of the slab in the new cell
+    if (ipos == vacpos_bottom) then
+       z0 = 0d0
+    else
+       z0 = 0.5d0 * vac
+    end if
+
+    ! make seed from this crystal, preserving the connectivity if requested
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+    call c%makeseed(seed,copysym=.false.,useabr=2,copybonding=copybonding_)
+    seed0 = seed ! this seed rebuilds the current structure
+
+    ! the new lattice vector. If it keeps its direction, so do the
+    ! fractional coordinates along the other two axes. If it is made
+    ! perpendicular to them, the atoms keep their Cartesian positions:
+    ! the old lattice vector is h * xn minus tilt(j) times the other
+    ! two, and an atom at height u goes with it.
+    tilt = 0d0
+    if (orthogonal) then
+       seed%m_x2c(:,iaxis) = hnew * xn
+       tilt = matmul(c%m_c2x,h * xn)
+       tilt(iaxis) = 0d0
+       where (abs(tilt) < epstilt) tilt = 0d0
+    else
+       seed%m_x2c(:,iaxis) = c%m_x2c(:,iaxis) * (hnew / h)
+    end if
+
+    ! the atomic positions: the height of an atom over the plane of
+    ! the other two axes is its fractional coordinate times h
+    do i = 1, c%ncel
+       x = c%atcel(i)%x
+       u = x(iaxis) + real(lsh(i),8) - umin
+       x = x - tilt * u
+       x(iaxis) = (u * h + z0) / hnew
+       seed%x(:,i) = x
+    end do
+
+    ! the bonds: refer them to the shifted atoms and drop those across the cut
+    if (seed%havebonds) then
+       allocate(imap(c%ncel),lshift(3,c%ncel))
+       lshift = 0
+       do i = 1, c%ncel
+          imap(i) = i
+          lshift(iaxis,i) = lsh(i)
+       end do
+       idrop = iaxis
+       if (abs(hnew - h) < epssame .and. all(tilt == 0d0)) idrop = 0
+       call c%bonds_subset(imap,seed%nstar,lshift,dropaxis=idrop)
+    end if
+
+    ! build the new crystal
+    call c%struct_new(seed,errmsg=errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
+
+  end subroutine set_vacuum
+
   !> Add atom with species is and position x in units of iunit_l (see
   !> global). If is <= 0, add a new species with Z = abs(is) to the
   !> system. If isnneq, replicate the atom by symmetry.
@@ -3345,15 +3519,18 @@ contains
   !> only the bonds between two kept atoms, with idcon renumbered. If
   !> lshift(3,ncel) is given, atom i is understood to move by the
   !> lattice vector lshift(:,i) (e.g. a molecule unwrap) and the lcon
-  !> vectors are corrected accordingly. c%nstar must be allocated.
-  module subroutine bonds_subset(c,imap,nstar,lshift)
+  !> vectors are corrected accordingly. With dropaxis (1-3; any other
+  !> value is ignored), the bonds whose corrected lattice vector is
+  !> nonzero along that axis are dropped. c%nstar must be allocated.
+  module subroutine bonds_subset(c,imap,nstar,lshift,dropaxis)
     use types, only: neighstar, nstar_subset
     class(crystal), intent(in) :: c
     integer, intent(in) :: imap(:)
     type(neighstar), allocatable, intent(out) :: nstar(:)
     integer, intent(in), optional :: lshift(:,:)
+    integer, intent(in), optional :: dropaxis
 
-    call nstar_subset(c%nstar(1:c%ncel),imap,nstar,lshift)
+    call nstar_subset(c%nstar(1:c%ncel),imap,nstar,lshift,dropaxis=dropaxis)
 
   end subroutine bonds_subset
 
@@ -3431,6 +3608,141 @@ contains
   end subroutine refresh_molecular_data
 
   !xx! private procedures
+
+  ! Lay out the atoms of the cell as a slab parallel to the other two
+  ! axes than iaxis. The units of the layout are the atoms or, with
+  ! keepmol, the molecules that are not periodic along the axis, taken
+  ! whole in their connected placement. The cell is cut at the
+  ! fractional coordinate cut along the
+  ! axis: the units with their center below it go on top of the
+  ! others, and a unit at the cut stays at the bottom. If cut is not
+  ! present, the cell is cut in the middle of the largest gap between
+  ! the centers of the units (the first one, if several have the same
+  ! length, as in calc_vacuum_lengths). On output, lsh(i) is the
+  ! number of lattice translations along the axis that put the cell
+  ! atom i in the slab (up to a translation of the whole slab), umin
+  ! and umax are the lowest and highest fractional coordinates of the
+  ! shifted atoms and, if present, cutpos is the fractional coordinate
+  ! of the cut, between 0 and 1.
+  subroutine vacuum_layout(c,iaxis,keepmol,lsh,umin,umax,cut,cutpos)
+    use tools, only: qcksort
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: iaxis
+    logical, intent(in) :: keepmol
+    integer, allocatable, intent(out) :: lsh(:)
+    real*8, intent(out) :: umin, umax
+    real*8, intent(in), optional :: cut
+    real*8, intent(out), optional :: cutpos
+
+    ! same criterion as calc_vacuum_lengths (bohr)
+    real*8, parameter :: eps = 1d-6
+
+    integer :: i, j, k, im, nunit, jbest
+    integer, allocatable :: iunit(:), iord(:), nat(:), ish(:)
+    real*8, allocatable :: ucen(:)
+    real*8 :: u, epsf, gap, gapbest, ucut
+    logical :: whole
+
+    allocate(lsh(c%ncel))
+    lsh = 0
+    umin = 0d0
+    umax = 0d0
+    if (present(cutpos)) cutpos = 0d0
+    if (c%ncel == 0) return
+    epsf = eps / c%aa(iaxis)
+
+    ! assign the atoms to units; the molecules are taken whole, in
+    ! their connected placement (the lattice vectors of the fragment
+    ! atoms do not gather the periodic core of a layer or a chain)
+    allocate(iunit(c%ncel))
+    iunit = 0
+    nunit = 0
+    if (keepmol .and. allocated(c%mol) .and. allocated(c%lvecmolc)) then
+       do im = 1, c%nmol
+          whole = c%mol(im)%discrete
+          if (.not.whole) then
+             whole = .true.
+             if (allocated(c%mol(im)%lvec)) &
+                whole = all(c%mol(im)%lvec(iaxis,1:c%mol(im)%nlvec) == 0)
+          end if
+          if (.not.whole) cycle
+          nunit = nunit + 1
+          do k = 1, c%mol(im)%nat
+             i = c%mol(im)%at(k)%cidx
+             iunit(i) = nunit
+             lsh(i) = c%lvecmolc(iaxis,i)
+          end do
+       end do
+    end if
+    do i = 1, c%ncel
+       if (iunit(i) == 0) then
+          nunit = nunit + 1
+          iunit(i) = nunit
+       end if
+    end do
+
+    ! centers of the units, and the translations (ish) that bring them
+    ! to the cell
+    allocate(ucen(nunit),nat(nunit),ish(nunit))
+    ucen = 0d0
+    nat = 0
+    do i = 1, c%ncel
+       ucen(iunit(i)) = ucen(iunit(i)) + c%atcel(i)%x(iaxis) + real(lsh(i),8)
+       nat(iunit(i)) = nat(iunit(i)) + 1
+    end do
+    ucen = ucen / real(nat,8)
+    do j = 1, nunit
+       ish(j) = -floor(ucen(j))
+       if (ucen(j) + real(ish(j),8) > 1d0 - epsf) ish(j) = ish(j) - 1
+       ucen(j) = ucen(j) + real(ish(j),8)
+    end do
+
+    ! the position of the cut
+    if (present(cut)) then
+       ucut = cut - floor(cut)
+       if (ucut > 1d0 - epsf) ucut = 0d0
+    else
+       ! the middle of the largest gap between consecutive centers; the
+       ! last gap wraps around
+       allocate(iord(nunit))
+       do j = 1, nunit
+          iord(j) = j
+       end do
+       call qcksort(ucen,iord,1,nunit)
+       gapbest = -1d0
+       jbest = nunit
+       do j = 1, nunit
+          if (j < nunit) then
+             gap = ucen(iord(j+1)) - ucen(iord(j))
+          else
+             gap = ucen(iord(1)) + 1d0 - ucen(iord(j))
+          end if
+          if (gap > gapbest + epsf) then
+             gapbest = gap
+             jbest = j
+          end if
+       end do
+       ucut = ucen(iord(jbest)) + 0.5d0 * gapbest
+       ucut = ucut - floor(ucut)
+    end if
+    if (present(cutpos)) cutpos = ucut
+
+    ! the units below the cut go on top of the others
+    do j = 1, nunit
+       if (ucen(j) < ucut - epsf) ish(j) = ish(j) + 1
+    end do
+
+    ! the limits of the slab
+    umin = huge(1d0)
+    umax = -huge(1d0)
+    do i = 1, c%ncel
+       lsh(i) = lsh(i) + ish(iunit(i))
+       u = c%atcel(i)%x(iaxis) + real(lsh(i),8)
+       umin = min(umin,u)
+       umax = max(umax,u)
+    end do
+
+  end subroutine vacuum_layout
 
   ! Refresh the derived data after an in-place edit. For a molecule,
   ! grow the encompassing cell first if the edit pushed an atom out of

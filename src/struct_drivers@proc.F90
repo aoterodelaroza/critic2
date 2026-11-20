@@ -3220,7 +3220,9 @@ contains
     use systemmod, only: system
     use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, ferror, faterr,&
        getword, isinteger, string
-    use global, only: eval_next_real, iunit, iunit_fractional, iunit_bohr, iunit_ang
+    use global, only: eval_next_real, iunit, iunit_fractional, iunit_bohr, iunit_ang,&
+       iunitname0, dunit0
+    use crystalmod, only: vacpos_center, vacpos_bottom
     use types, only: realloc
     type(system), intent(inout) :: s
     logical, intent(in) :: verbose
@@ -3228,11 +3230,13 @@ contains
 
     character(len=:), allocatable :: line, word, errmsg
     integer :: lp
-    integer :: idx, nat, i, iunit_l, iaxis
+    integer :: idx, nat, i, iunit_l, iaxis, ipos
     integer, allocatable :: iat(:)
-    logical :: ok, dorelative, dofraction, changed, usesym, oneline
+    logical :: ok, dorelative, dofraction, changed, usesym, oneline, doortho, dokeepmol, docut
 
-    real*8 :: x(3), rdum
+    real*8 :: x(3), rdum, vac0, thick0, cut, cutpos
+
+    character(len=1), parameter :: axname(3) = (/"a","b","c"/)
 
     ! one-line form ("EDIT <subcommand> ..."): run the single subcommand given
     ! on the EDIT line instead of reading a block terminated by END
@@ -3421,6 +3425,77 @@ contains
           call s%c%move_cell(iaxis,rdum,iunit_l,dorelative,dofraction,errmsg=errmsg)
           if (len_trim(errmsg) > 0) goto 999
           changed = .true.
+
+       elseif (equal(word,"vacuum")) then
+          ! VACUUM {A|B|C} len.r [BOHR|ANG] [CENTER|BOTTOM] [CUT x.r] [ORTHOGONAL] [KEEPMOL]
+          word = lgetword(line,lp)
+          iaxis = 0
+          if (len_trim(word) == 1) iaxis = index("abc",trim(word))
+          if (iaxis == 0) then
+             errmsg = "unknown axis in vacuum: " // word
+             goto 999
+          end if
+
+          ! read the vacuum length
+          ok = eval_next_real(rdum,line,lp)
+          if (.not.ok) then
+             errmsg = "invalid numerical argument in vacuum"
+             goto 999
+          end if
+
+          ! parse the rest of the options
+          ipos = vacpos_center
+          doortho = .false.
+          dokeepmol = .false.
+          docut = .false.
+          iunit_l = iunit
+          do while (.true.)
+             word = lgetword(line,lp)
+             if (equal(word,"center")) then
+                ipos = vacpos_center
+             elseif (equal(word,"bottom")) then
+                ipos = vacpos_bottom
+             elseif (equal(word,"cut")) then
+                docut = eval_next_real(cut,line,lp)
+                if (.not.docut) then
+                   errmsg = "invalid position of the cut in vacuum"
+                   goto 999
+                end if
+             elseif (equal(word,"orthogonal")) then
+                doortho = .true.
+             elseif (equal(word,"keepmol")) then
+                dokeepmol = .true.
+             elseif (equal(word,"bohr")) then
+                iunit_l = iunit_bohr
+             elseif (equal(word,"ang").or.equal(word,"angstrom")) then
+                iunit_l = iunit_ang
+             elseif (len_trim(word) == 0) then
+                exit
+             else
+                errmsg = "unknown extra keyword: " // word
+                goto 999
+             end if
+          end do
+          rdum = rdum / dunit0(iunit_l)
+
+          ! transform; the cut is that of the largest gap unless given
+          if (docut) then
+             call s%c%vacuum_info(iaxis,dokeepmol,vac0,thick0,cut=cut,cutpos=cutpos)
+          else
+             call s%c%vacuum_info(iaxis,dokeepmol,vac0,thick0,cutpos=cutpos)
+          end if
+          call s%c%set_vacuum(iaxis,rdum,ipos,doortho,dokeepmol,cut=cutpos,errmsg=errmsg)
+          if (len_trim(errmsg) > 0) goto 999
+          changed = .true.
+          if (verbose) then
+             write (uout,'("+ Vacuum along the ",A," axis set to ",A," ",A," (it was ",A,")")') &
+                axname(iaxis), string(rdum*dunit0(iunit),'f',decimal=4), string(iunitname0(iunit)),&
+                string(vac0*dunit0(iunit),'f',decimal=4)
+             write (uout,'("  Cell cut at ",A," = ",A," (cryst. coord.); slab thickness = ",A," ",A)') &
+                axname(iaxis), string(cutpos,'f',decimal=4), string(thick0*dunit0(iunit),'f',decimal=4),&
+                string(iunitname0(iunit))
+             write (uout,*)
+          end if
 
        elseif (equal(word,"relax")) then
           ! EDIT RELAX ff.s [file.s] [thresh.r]: relax the geometry with force

@@ -17,7 +17,7 @@
 
 ! The class to handle ImGui windows.
 module windows
-  use crystalmod, only: nice_cell
+  use crystalmod, only: nice_cell, vacpos_center
   use systemmod, only: field_ref, propty_item, propid_NUM
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
@@ -197,7 +197,11 @@ module windows
   integer, parameter :: geomsec_symcen = 10 ! centering vectors
   integer, parameter :: geomsec_symanal = 11 ! space group analysis
   integer, parameter :: geomsec_origin = 12 ! origin
-  integer, parameter :: geometry_nsec = 12
+  integer, parameter :: geomsec_vacuum = 13 ! vacuum
+  integer, parameter :: geometry_nsec = 13
+  ! where the cell is cut to set the vacuum in the geometry window
+  integer, parameter :: vaccut_gap = 1 ! at the largest gap
+  integer, parameter :: vaccut_position = 2 ! at a given position
   ! how the supercell transformation of the geometry window is given
   integer(c_int), parameter :: cellmode_simple = 0 ! integer multiples of a/b/c
   integer(c_int), parameter :: cellmode_matrix = 1 ! lattice vectors typed or picked
@@ -1039,6 +1043,19 @@ module windows
      integer(c_int) :: orient_ivec(3) = (/0_c_int,0_c_int,1_c_int/) ! orient: indices of the plane or direction
      integer :: orient_axis = 3 ! orient: axis of the new cell out of the plane or along the direction (1-3)
      logical :: orient_prim = .false. ! orient: primitive cell (plane: the axis goes to the next plane, not perpendicular)
+     ! vacuum: the current values are kept until the axis, the cut or
+     ! the geometry change
+     integer :: vac_axis = 0 ! vacuum: axis (1-3; 0 = not chosen yet)
+     real*8 :: vac_new = 0d0 ! vacuum: requested vacuum (bohr)
+     integer :: vac_pos = vacpos_center ! vacuum: position of the slab in the new cell (vacpos_*)
+     logical :: vac_ortho = .false. ! vacuum: make the axis perpendicular to the other two
+     logical :: vac_keepmol = .false. ! vacuum: keep the molecules whole
+     integer :: vac_cutmode = vaccut_gap ! vacuum: where the cell is cut (vaccut_*)
+     real*8 :: vac_cut = 0d0 ! vacuum: fractional coordinate of the cut along the axis
+     real*8 :: vac_cur = 0d0 ! vacuum: current vacuum at the cut (bohr)
+     real*8 :: vac_thick = 0d0 ! vacuum: thickness of the slab along the axis (bohr)
+     real*8 :: vac_time = -1d0 ! vacuum: time the current values were calculated (< 0 = not yet)
+     real*8 :: vac_m(3,3) = 0d0 ! vacuum: lattice vectors (columns) the current values and the cut refer to
   end type cellform_state
   public :: cellform_state
 

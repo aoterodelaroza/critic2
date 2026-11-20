@@ -326,6 +326,7 @@ module systems
      procedure :: move_cell
      procedure :: transform_cell
      procedure :: transform_cell_matrix
+     procedure :: set_vacuum
      procedure :: shift_origin
      procedure :: cell_nice_list
      procedure :: cell_nice_count
@@ -964,6 +965,16 @@ module systems
        character(len=:), allocatable, intent(inout) :: errmsg
        character(len=*), intent(in), optional :: label
      end subroutine transform_cell_matrix
+     module subroutine set_vacuum(sysc,iaxis,vac,ipos,orthogonal,keepmol,docut,cut,copybonding,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: iaxis
+       real*8, intent(in) :: vac
+       integer, intent(in) :: ipos
+       logical, intent(in) :: orthogonal, keepmol, docut
+       real*8, intent(in) :: cut
+       logical, intent(in) :: copybonding
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine set_vacuum
      module subroutine shift_origin(sysc,itype,id,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: itype

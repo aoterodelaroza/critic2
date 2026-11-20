@@ -46,6 +46,10 @@ module crystalmod
   integer, parameter, public :: origin_center = 3 ! atoms in the middle of the cell
   integer, parameter, public :: origin_inversion = 4 ! at the closest inversion center
 
+  ! position of the slab in the cell (set_vacuum)
+  integer, parameter, public :: vacpos_center = 1 ! in the middle, half of the vacuum on each side
+  integer, parameter, public :: vacpos_bottom = 2 ! lowest atom on the cell face, all the vacuum above
+
   ! rklength scan of the table of k-point grids (get_kpoints_ranges, bohr)
   real*8, parameter, public :: kpoints_rkstep = 0.1d0 ! step
   real*8, parameter, public :: kpoints_rkmax_def = 100d0 ! default end of the scan
@@ -468,6 +472,8 @@ module crystalmod
      procedure :: move_cell_all !< Move the unit cell, specifying all lengths and angles
      procedure :: cell_orient !< Find a cell with an axis along a direction or perpendicular to a plane
      procedure :: cell_origin !< Find an origin translation (atom, center of mass, centering, inversion)
+     procedure :: vacuum_info !< Vacuum and thickness of the cell contents along an axis
+     procedure :: set_vacuum !< Set the vacuum along an axis, at constant atomic positions
      procedure :: add_atom !< Add an atom
      procedure :: add_fragment !< Add several atoms at once (single rebuild)
      procedure :: replace_fragment !< Delete and add several atoms at once (single rebuild)
@@ -1226,11 +1232,12 @@ module crystalmod
        logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine edit_atom_list
-     module subroutine bonds_subset(c,imap,nstar,lshift)
+     module subroutine bonds_subset(c,imap,nstar,lshift,dropaxis)
        class(crystal), intent(in) :: c
        integer, intent(in) :: imap(:)
        type(neighstar), allocatable, intent(out) :: nstar(:)
        integer, intent(in), optional :: lshift(:,:)
+       integer, intent(in), optional :: dropaxis
      end subroutine bonds_subset
      module subroutine substituents(c,icel,nsub,sub)
        class(crystal), intent(in) :: c
@@ -1380,6 +1387,25 @@ module crystalmod
        real*8, intent(out) :: t0(3)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine cell_origin
+     module subroutine vacuum_info(c,iaxis,keepmol,vac,thick,cut,cutpos)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: iaxis
+       logical, intent(in) :: keepmol
+       real*8, intent(out) :: vac, thick
+       real*8, intent(in), optional :: cut
+       real*8, intent(out), optional :: cutpos
+     end subroutine vacuum_info
+     module subroutine set_vacuum(c,iaxis,vac,ipos,orthogonal,keepmol,cut,copybonding,errmsg,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: iaxis
+       real*8, intent(in) :: vac
+       integer, intent(in) :: ipos
+       logical, intent(in) :: orthogonal, keepmol
+       real*8, intent(in), optional :: cut
+       logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine set_vacuum
      module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,bondto,bondx,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: is

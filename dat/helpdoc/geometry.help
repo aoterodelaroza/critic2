@@ -31,9 +31,16 @@ the bond connectivity when the geometry changes.
   them (if the lattice has such a vector), or with one axis along a lattice direction
   [uvw]; the indices refer to the current cell. With "Primitive cell", the third axis of
   the plane cell goes to the next plane instead, as close to the normal as possible, and
-  the cell is primitive. "Origin" moves the origin of the cell, with the same lattice
-  vectors, to an atom picked in the view, to the center of mass, to the closest inversion
-  center, or to the point that centers the atoms along the axes that have vacuum.
+  the cell is primitive. "Vacuum" sets the empty space along an axis: the cell is cut by
+  a plane parallel to the other two axes and grows or shrinks there, without changing the
+  distances between the atoms. The cut is in the middle of the largest gap along the axis
+  or, with "Position", at the given fractional coordinate (the atoms below it go to the
+  top of the slab); the plane of the cut is shown in the view. The slab is left in the
+  center or at the bottom of the new cell; under More, "Orthogonal axis" makes the axis
+  perpendicular to the other two and "Keep molecules whole" avoids cutting molecules.
+  "Origin" moves the origin of the cell, with the same lattice vectors, to an atom picked
+  in the view, to the center of mass, to the closest inversion center, or to the point
+  that centers the atoms along the axes that have vacuum.
 - Molecules: the molecular fragments with their number of atoms, point group and center of
   mass. Selected molecules can be removed or reordered.
 - Bonds: "Bond operations" create, remove or change the order of bonds by clicking in the
