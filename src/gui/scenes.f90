@@ -138,6 +138,9 @@ module scenes
      ! transient representations: rearmed every frame
      integer :: nreptrans = 0 ! number of transient representation slots (may contain holes)
      type(representation), allocatable :: reptrans(:) ! transient representations (slot in use iff reptrans(i)%isinit)
+     ! the whole cell in the vacuum directions (show_full_cell), rearmed every frame
+     logical :: fullcell = .false. ! the unit cell objects draw the whole cell
+     logical :: fullcell_armed = .false. ! asked for in this frame
      ! measure atom sets
      integer :: nmsel
      integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
@@ -203,6 +206,7 @@ module scenes
      procedure :: set_kind_shown => scene_set_kind_shown
      procedure :: set_style => scene_set_style
      procedure :: reap_transient_representations => scene_reap_transient_representations
+     procedure :: show_full_cell => scene_show_full_cell
      procedure :: show_transient_shapes => scene_show_transient_shapes
      procedure :: show_transient_vibarrows => scene_show_transient_vibarrows
      procedure :: show_transient_text => scene_show_transient_text
@@ -405,6 +409,9 @@ module scenes
      module subroutine scene_reap_transient_representations(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_reap_transient_representations
+     module subroutine scene_show_full_cell(s)
+       class(scene), intent(inout) :: s
+     end subroutine scene_show_full_cell
      module subroutine scene_show_transient_shapes(s,owner,tag,shp,found)
        class(scene), intent(inout), target :: s
        integer*8, intent(in) :: owner

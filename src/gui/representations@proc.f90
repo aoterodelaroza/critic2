@@ -1616,8 +1616,9 @@ contains
   !> of cells and the data from representation r. If doanim, use qpt
   !> iqpt and frequency ifreq to animate the representation. A legend
   !> takes the atom colors from the atoms object ratoms (the element
-  !> colors if not given).
-  module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost,ratoms,riso)
+  !> colors if not given). With fullcell, a unit cell object draws the
+  !> whole cell in the vacuum directions, whatever its own setting.
+  module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost,ratoms,riso,fullcell)
     use systems, only: sys, sysc
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane, symop_kind_axis,&
        symop_kind_point, symelem_list, elem_box, elem_maxpt, clip_point_box,&
@@ -1638,9 +1639,10 @@ contains
     logical, intent(in), optional :: noghost
     type(representation), intent(in), optional :: ratoms
     type(representation), intent(in), optional :: riso
+    logical, intent(in), optional :: fullcell
 
     logical, allocatable :: lshown(:,:,:,:)
-    logical :: step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
+    logical :: step, isedge(3), usetshift, doanim_, dobonds, isvac(3), cutvac
     logical :: doatoms, dolabels, dopolyhedra, uselshown, doghost
     logical :: atomsdrawn, markdisplay
     logical :: isvacdir, docycle, dovac(3), border, onemotif, usemasks, useshift
@@ -2111,9 +2113,12 @@ contains
        ! number of cells
        n = disp%ncells(r%disp)
 
-       ! vacuum directions: we have a vacuum and only one cell in that direction
+       ! vacuum directions: we have a vacuum and only one cell in that
+       ! direction (not if the whole cell was asked for)
        isvac = .false.
-       if (r%uc%vaccutsticks) then
+       cutvac = r%uc%vaccutsticks
+       if (present(fullcell)) cutvac = cutvac .and. .not.fullcell
+       if (cutvac) then
           do i = 1, 3
              if (c%vaclength(i) > iperiod_vacthr .and. n(i) == 1) then
                 isvac(i) = .true.

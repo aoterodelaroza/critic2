@@ -1008,6 +1008,12 @@ contains
              ! check if the tab changed
              call check_changed_tab("cell")
 
+             ! while this tab is open, the view shows the whole cell in
+             ! the vacuum directions: the cell cut around the slab looks
+             ! the same whatever the vacuum and the cell length (not in
+             ! the frame after this window moves its view to another system)
+             if (associated(win(iview)%sc) .and. win(iview)%isys == isys) call win(iview)%sc%show_full_cell()
+
              call iw_separatortext("Lattice parameters",w%geometry_sec(geomsec_latpar))
              if (w%geometry_sec(geomsec_latpar)%open) then
                 ! keep symmetry and space group

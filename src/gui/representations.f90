@@ -2207,7 +2207,7 @@ module representations
      module subroutine update_styles(r)
        class(representation), intent(inout) :: r
      end subroutine update_styles
-     module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost,ratoms,riso)
+     module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost,ratoms,riso,fullcell)
        class(representation), intent(inout) :: r
        type(scene_display), intent(in) :: disp
        type(scene_objects), intent(inout) :: obj
@@ -2216,6 +2216,7 @@ module representations
        logical, intent(in), optional :: noghost
        type(representation), intent(in), optional :: ratoms
        type(representation), intent(in), optional :: riso
+       logical, intent(in), optional :: fullcell
      end subroutine add_draw_elements
      module function quant_chem(nti) result(j)
        integer, intent(in) :: nti

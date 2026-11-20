@@ -391,7 +391,7 @@ contains
   module subroutine scene_build_lists(s)
     use representations, only: reptype_atoms, reptype_polyhedra, reptype_axes, reptype_symelem,&
        reptype_shapes, reptype_legend, reptype_colorbar, axes_winfrac_def, axplace_window, colorbar_rep,&
-       reptype_recaxes, reptype_kpath
+       reptype_recaxes, reptype_kpath, reptype_unitcell
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use systems, only: sys, sys_ready, ok_system, sysc, cp_anchor_resolve
@@ -403,6 +403,7 @@ contains
     real(c_float), allocatable :: rfit0(:) ! unshrunk radii of the spheres (apply_radcaps)
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3), deltacam(3)
     real*8 :: xcm(3), cov(3,3), xd(3), eval(3), ax(3,3), proj(3), rmin(3), rmax(3)
+    type(scene_objects) :: objcut ! the unit cell objects as they are without the whole-cell request
 
     ! only build lists if system is initialized
     if (.not.ok_system(s%id,sys_ready)) return
@@ -412,6 +413,7 @@ contains
 
     ! reset the draw lists
     call s%obj%reset()
+    call objcut%reset()
 
     ! update the display
     call s%disp%update(s%id)
@@ -445,6 +447,14 @@ contains
        if (s%rep(i)%type == reptype_shapes .or. s%rep(i)%type == reptype_kpath) cycle
        if (s%rep(i)%type == reptype_legend) cycle
        if (s%rep(i)%type == reptype_colorbar) cycle
+       ! with the whole cell asked for (show_full_cell), the unit cell
+       ! objects are drawn after the size of the scene is known, and only
+       ! the cell they draw otherwise counts for it: the center of the
+       ! view and its size do not depend on the request
+       if (s%fullcell .and. s%rep(i)%type == reptype_unitcell) then
+          call s%rep(i)%add_draw_elements(s%disp,objcut,s%animation>0,s%iqpt_selected,s%ifreq_selected)
+          cycle
+       end if
        call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
           noghost=all(atomcells >= s%disp%ncells(s%rep(i)%disp)))
     end do
@@ -532,7 +542,7 @@ contains
 
     ! recalculate scene bounding box (ignore ghosts)
     nsph = count(.not.s%obj%sph(1:s%obj%nsph)%ghost)
-    if (nsph + s%obj%ncyl + s%obj%ncylflat + s%obj%ncone + s%obj%nstring > 0) then
+    if (nsph + s%obj%ncyl + s%obj%ncylflat + s%obj%ncone + s%obj%nstring + objcut%ncylflat > 0) then
        do i = 1, 3
           xmin(i) = huge(1._c_float)
           xmax(i) = -huge(1._c_float)
@@ -546,6 +556,10 @@ contains
           xmin(i) = min(xmin(i),minval(s%obj%cone(1:s%obj%ncone)%x1(i)))
           xmin(i) = min(xmin(i),minval(s%obj%cone(1:s%obj%ncone)%x2(i)))
           xmin(i) = min(xmin(i),minval(s%obj%string(1:s%obj%nstring)%x(i)))
+          if (objcut%ncylflat > 0) then
+             xmin(i) = min(xmin(i),minval(objcut%cylflat(1:objcut%ncylflat)%x1(i)))
+             xmin(i) = min(xmin(i),minval(objcut%cylflat(1:objcut%ncylflat)%x2(i)))
+          end if
 
           xmax(i) = maxval(s%obj%sph(1:s%obj%nsph)%x(i),mask=.not.s%obj%sph(1:s%obj%nsph)%ghost) + maxrad
           xmax(i) = max(xmax(i),maxval(s%obj%cyl(1:s%obj%ncyl)%x1(i)))
@@ -555,6 +569,10 @@ contains
           xmax(i) = max(xmax(i),maxval(s%obj%cone(1:s%obj%ncone)%x1(i)))
           xmax(i) = max(xmax(i),maxval(s%obj%cone(1:s%obj%ncone)%x2(i)))
           xmax(i) = max(xmax(i),maxval(s%obj%string(1:s%obj%nstring)%x(i)))
+          if (objcut%ncylflat > 0) then
+             xmax(i) = max(xmax(i),maxval(objcut%cylflat(1:objcut%ncylflat)%x1(i)))
+             xmax(i) = max(xmax(i),maxval(objcut%cylflat(1:objcut%ncylflat)%x2(i)))
+          end if
        end do
     else
        xmin = 0._c_float
@@ -685,6 +703,15 @@ contains
           call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
        end if
     end do
+
+    ! the unit cell objects, whole in the vacuum directions (see above)
+    if (s%fullcell) then
+       do i = 1, s%nrep
+          if (s%rep(i)%type /= reptype_unitcell) cycle
+          call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
+             fullcell=.true.)
+       end do
+    end if
 
     ! Transient representations: built last so they do not perturb the camera or scene size.
     do i = 1, s%nreptrans
@@ -3518,12 +3545,14 @@ contains
 
   !> Reap the transient representations: end the items that were not
   !> re-armed by their producer and disarm the survivors for the next
-  !> frame.
+  !> frame. The same for the whole-cell request (show_full_cell).
   module subroutine scene_reap_transient_representations(s)
     class(scene), intent(inout), target :: s
 
     integer :: i
     logical :: died
+
+    if (s%nreptrans == 0 .and. .not.s%fullcell) return
 
     died = .false.
     do i = 1, s%nreptrans
@@ -3550,7 +3579,32 @@ contains
 
     if (died) call transient_dirty(s)
 
+    ! the whole cell in the vacuum directions
+    if (s%fullcell) then
+       if (s%fullcell_armed) then
+          s%fullcell_armed = .false.
+       else
+          s%fullcell = .false.
+          call fullcell_dirty(s)
+       end if
+    end if
+
   end subroutine scene_reap_transient_representations
+
+  !> Draw the whole cell in the vacuum directions in this frame: the
+  !> unit cell objects that cut the cell around the slab draw all of it
+  !> instead (the atoms are drawn as usual), without changing the size
+  !> or the center of the scene. The request ends when it is not made
+  !> again in a frame, like the transient representations.
+  module subroutine scene_show_full_cell(s)
+    class(scene), intent(inout) :: s
+
+    s%fullcell_armed = .true.
+    if (s%fullcell) return
+    s%fullcell = .true.
+    call fullcell_dirty(s)
+
+  end subroutine scene_show_full_cell
 
   !> Show the geometric shapes shp (in the absolute frame: Cartesian bohr,
   !> including the molecular origin molx0 for molecules) as a transient
@@ -4028,6 +4082,21 @@ contains
     end if
 
   end function vibarrow_phase
+
+  !> The whole-cell request of scene s started or ended: rebuild the
+  !> lists if there is a vacuum direction.
+  subroutine fullcell_dirty(s)
+    use systems, only: sys, sys_init, ok_system
+    use crystalmod, only: iperiod_vacthr
+    class(scene), intent(inout) :: s
+
+    if (s%space /= space_real) return
+    if (.not.ok_system(s%id,sys_init)) return
+    if (sys(s%id)%c%ismolecule) return
+    if (.not.any(sys(s%id)%c%vaclength > iperiod_vacthr)) return
+    call transient_dirty(s)
+
+  end subroutine fullcell_dirty
 
   !> Mark the scene as dirty after a transient-representation change:
   !> force a rebuild of the draw lists and post a re-render event.
