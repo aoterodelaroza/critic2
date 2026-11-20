@@ -1049,7 +1049,7 @@ module windows
      real*8 :: vac_new = 0d0 ! vacuum: requested vacuum (bohr)
      integer :: vac_pos = vacpos_center ! vacuum: position of the slab in the new cell (vacpos_*)
      logical :: vac_ortho = .false. ! vacuum: make the axis perpendicular to the other two
-     logical :: vac_keepmol = .false. ! vacuum: keep the molecules whole
+     logical :: vac_keepmol = .false. ! vacuum: keep the molecules whole (on at the start in a molecular crystal)
      integer :: vac_cutmode = vaccut_gap ! vacuum: where the cell is cut (vaccut_*)
      real*8 :: vac_cut = 0d0 ! vacuum: fractional coordinate of the cut along the axis
      real*8 :: vac_cur = 0d0 ! vacuum: current vacuum at the cut (bohr)

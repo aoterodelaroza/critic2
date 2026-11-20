@@ -111,6 +111,8 @@ contains
     real*8, parameter :: pv_headl = 0.15d0 ! arrowhead length (fraction of the arrow)
     real*8, parameter :: pv_edger = 0.25d0 ! outline radius
     real(c_float), parameter :: pv_edge_rgb(3) = (/1._c_float,0.6_c_float,0._c_float/) ! outline color
+    real*8, parameter :: pv_molfac = 2d0 ! the spheres at the centers of the molecules (larger than most atoms)
+    real(c_float), parameter :: pv_mol_alpha = 0.6_c_float ! their opacity (a center can be on an atom)
     character(len=*), parameter :: errorigin = "The origin is not a lattice vector: pick another lattice point"
     ! preview of the plane where the cell is cut to set the vacuum
     type(rep_shape) :: cutshp(2) ! transient plane of the cut (a flat box) and outline of the new cell
@@ -126,10 +128,13 @@ contains
     real*8 :: vacz ! the cut, from the start of the cell in which the atoms are drawn
     real*8 :: vacperp(3) ! vacuum along each axis, perpendicular to the other two
     integer :: ivj, ivk ! the two axes of the plane
-    ! tag of the transient plane and outline of the vacuum (the other
+    logical :: lmolcrys ! a molecular crystal: the molecules are kept whole unless told otherwise
+    ! tags of the transient shapes of the vacuum: the plane and the
+    ! outline, and the centers of the molecules kept whole (the other
     ! transient shapes of this window use 0, the positive atom ids and
     ! -5 or less)
     integer, parameter :: tag_vaccut = -1
+    integer, parameter :: tag_vacmol = -2
     ! two vacuums closer than this (Å) show as the same value in the
     ! field (just over half its last digit, decimal=4)
     real*8, parameter :: vacsame = 0.6d-4
@@ -1406,8 +1411,11 @@ contains
                lwid = .false.
                lvacapply = .false.
 
-               ! first time with this system: the axis with the most vacuum, or c
+               ! first time with this system: the axis with the most vacuum,
+               ! or c, and the molecules whole in a molecular crystal
+               lmolcrys = (sys(isys)%c%ismol3d .and. sys(isys)%c%nmol < sys(isys)%c%ncel)
                if (gc%vac_axis == 0) then
+                  gc%vac_keepmol = lmolcrys
                   vacperp = sys(isys)%c%vaclength / (sys(isys)%c%aa * sys(isys)%c%ar)
                   gc%vac_axis = 3
                   do im = 1, 2
@@ -1458,8 +1466,10 @@ contains
                   call iw_tooltip("Fractional coordinate along the axis at which the cell is cut. The atoms&
                      & below it go to the top of the slab, and an atom at the cut stays at the bottom",ttshown)
 
-                  ! the options (one that is on stays in view when More is closed)
-                  if (w%geometry_sec(geomsec_vacuum)%more .or. gc%vac_ortho .or. gc%vac_keepmol) then
+                  ! the options (one that is on stays in view when More is
+                  ! closed, and so do they in a molecular crystal, where
+                  ! the molecules option starts on)
+                  if (w%geometry_sec(geomsec_vacuum)%more .or. gc%vac_ortho .or. gc%vac_keepmol .or. lmolcrys) then
                      lch = iw_checkbox("Orthogonal axis##cellvacortho",gc%vac_ortho,labelleft=.true.)
                      lwid = lwid .or. lch
                      if (lch .and. gc%vac_ortho) lvacapply = .true.
@@ -1468,7 +1478,8 @@ contains
                      lch = iw_checkbox("Keep molecules whole##cellvackeepmol",gc%vac_keepmol,labelleft=.true.,&
                         gap=.true.)
                      call iw_tooltip("Do not cut the molecules: the cut divides the centers of the&
-                        & molecules instead of the atoms",ttshown)
+                        & molecules (the spheres in the view) instead of the atoms. On at the start in a&
+                        & molecular crystal",ttshown)
                      lcut = lcut .or. lch
                      if (lch) lvacapply = .true.
                   end if
@@ -1600,6 +1611,10 @@ contains
                      rgb=pv_edge_rgb,alpha=0._c_float,shown=(vachnew >= 1d0))
                   call win(iview)%sc%show_transient_shapes(w%uid,tag_vaccut,cutshp)
                end if
+
+               ! the centers of the molecules, while they are kept whole
+               if (gc%vac_keepmol .and. gc%vac_axis > 0 .and. associated(win(iview)%sc)) &
+                  call vacuum_show_molcenters()
              end associate
 
              ! the origin of the cell: at a picked atom, or at a point
@@ -3040,6 +3055,67 @@ contains
       end associate
 
     end subroutine vacuum_newcell
+
+    ! Show the centers of the units that the vacuum section keeps whole
+    ! as spheres in the view. They are the points that the cut divides
+    ! in crystal%set_vacuum (see vacuum_layout): the average position
+    ! of the atoms of each molecule, layer or chain that is not
+    ! periodic along the axis; a unit of one atom has no sphere. A
+    ! molecule that the view draws whole (the connected molecules of
+    ! the Display) has the sphere at the center of the atoms as drawn,
+    ! with the rules of the atoms in add_draw_elements: the origin of
+    ! the Display moves each atom, and along an axis with vacuum the
+    ! molecule is in the reassembled slab. The other units have it in
+    ! the cell where the view draws the atoms.
+    subroutine vacuum_show_molcenters()
+      integer :: imol, k, i, n
+      real*8 :: xwin(3), tshift(3), xc(3), xk(3)
+      logical :: whole, asdrawn, usetshift, isvac(3)
+      type(rep_shape), allocatable :: shp(:)
+
+      if (.not.allocated(sys(isys)%c%mol) .or. .not.allocated(sys(isys)%c%lvecmolc)) return
+      associate (c => sys(isys)%c, iaxis => w%geometry_cell%vac_axis, disp => win(iview)%sc%disp)
+        allocate(shp(c%nmol))
+        ! the cell of the view: along an axis with vacuum it is not at
+        ! the origin of the Display
+        xwin = display_cell_window(isys,disp,rep_display())
+        tshift = disp%tshift
+        usetshift = any(abs(tshift) > 1d-5)
+        isvac = (abs(xwin - tshift) > 1d-6)
+        n = 0
+        do imol = 1, c%nmol
+           if (c%mol(imol)%nat < 2) cycle
+           whole = c%mol(imol)%discrete
+           if (.not.whole) then
+              whole = .true.
+              if (allocated(c%mol(imol)%lvec)) whole = all(c%mol(imol)%lvec(iaxis,1:c%mol(imol)%nlvec) == 0)
+           end if
+           if (.not.whole) cycle
+
+           asdrawn = (c%mol(imol)%discrete .and. disp%onemotif)
+           xc = 0d0
+           do k = 1, c%mol(imol)%nat
+              i = c%mol(imol)%at(k)%cidx
+              if (asdrawn) then
+                 xk = c%mol(imol)%at(k)%x
+                 if (usetshift) then
+                    where (.not.isvac) xk = xk - floor(c%atcel(i)%x - tshift)
+                 end if
+              else
+                 xk = c%atcel(i)%x + c%lvecmolc(:,i)
+              end if
+              xc = xc + xk
+           end do
+           xc = xc / real(c%mol(imol)%nat,8)
+           where (isvac .or. .not.asdrawn) xc = xc - floor(xc - xwin + 1d-6)
+           n = n + 1
+           shp(n) = rep_shape(kind=shapekind_sphere,x1=c%x2c(xc),rad=pv_molfac*latvec_rad_def,&
+              rgb=pv_edge_rgb,alpha=pv_mol_alpha)
+        end do
+        if (n > 0) call win(iview)%sc%show_transient_shapes(w%uid,tag_vacmol,shp(1:n))
+      end associate
+
+    end subroutine vacuum_show_molcenters
 
     ! The vacuum and the cut of the vacuum section refer to a structure
     ! that was replaced: find them again, with the cut at the largest gap.
