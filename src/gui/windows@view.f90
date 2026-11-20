@@ -1045,14 +1045,17 @@ contains
     if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
 
     ! set view modes based on user's key presses. The mode modifiers are
-    ! honored while this view holds a drag lock or over this view window
-    ! (the canvas, its toolbar and the mode bar, so the bar shows the
-    ! mode a held key gives; ChildWindows counts the open combo list and
-    ! the toolbar popups, since the window itself has no children), and
-    ! never while a text field is taking input, since otherwise typing
-    ! with ctrl held would switch the mode.
+    ! honored while this view holds a drag lock, while the canvas is the
+    ! active item (a left press on it: ImGui then hovers no window, and
+    ! the mode of the held key would drop before its drag starts) or
+    ! over this view window (the canvas, its toolbar and the mode bar,
+    ! so the bar shows the mode a held key gives; ChildWindows counts
+    ! the open combo list and the toolbar popups, since the window
+    ! itself has no children), and never while a text field is taking
+    ! input, since otherwise typing with ctrl held would switch the mode.
     if (goodsys) then
        okmods = (w%ilock /= ilock_no)
+       if (.not.okmods) okmods = igIsItemActive()
        if (.not.okmods) okmods = igIsWindowHovered(ior(ImGuiHoveredFlags_ChildWindows,&
           ImGuiHoveredFlags_AllowWhenBlockedByPopup))
        call w%viewmode_set_mode(okmods .and. .not.io%WantTextInput)
