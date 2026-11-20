@@ -252,6 +252,7 @@ module systems
      logical, allocatable :: undo_isobj(:) ! the state comes from an object edit (no seed; same geometry as the previous)
      integer, allocatable :: undo_rev(:,:) ! the geometry and bonding revisions of each state (2,undo_maxdepth)
      character(len=undo_lablen), allocatable :: undo_label(:) ! what made each state (the Undo/Redo menu items)
+     real*8, allocatable :: undo_shift(:,:) ! translation of the main scene that came with each state (3,undo_maxdepth; see view_shift)
      type(scene_objstate) :: undo_objpre ! the objects before the object edit in progress (the current state takes them)
      logical :: undo_dirty = .false. ! the user changed the objects, and the change is not in the history yet
      integer(c_int) :: undo_dirty_id = 0 ! active widget (ImGui ID) when they were changed (0 = none)
@@ -339,6 +340,7 @@ module systems
      ! undo/redo
      procedure :: undo_reset
      procedure :: undo_capture
+     procedure :: view_shift
      procedure :: undo_note_objects
      procedure :: undo_frame_begin
      procedure :: undo_frame_end
@@ -965,7 +967,7 @@ module systems
        character(len=:), allocatable, intent(inout) :: errmsg
        character(len=*), intent(in), optional :: label
      end subroutine transform_cell_matrix
-     module subroutine set_vacuum(sysc,iaxis,vac,ipos,orthogonal,keepmol,docut,cut,copybonding,errmsg)
+     module subroutine set_vacuum(sysc,iaxis,vac,ipos,orthogonal,keepmol,docut,cut,copybonding,errmsg,changed)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: iaxis
        real*8, intent(in) :: vac
@@ -974,6 +976,7 @@ module systems
        real*8, intent(in) :: cut
        logical, intent(in) :: copybonding
        character(len=:), allocatable, intent(inout) :: errmsg
+       logical, intent(out) :: changed
      end subroutine set_vacuum
      module subroutine shift_origin(sysc,itype,id,errmsg)
        class(sysconf), intent(inout) :: sysc
@@ -1030,6 +1033,10 @@ module systems
        real*8, intent(in) :: time
        character(len=*), intent(in) :: label
      end subroutine undo_capture
+     module subroutine view_shift(sysc,shift)
+       class(sysconf), intent(inout) :: sysc
+       real*8, intent(in) :: shift(3)
+     end subroutine view_shift
      module subroutine undo_note_objects(sysc,label,gesture)
        class(sysconf), intent(inout) :: sysc
        character(len=*), intent(in) :: label

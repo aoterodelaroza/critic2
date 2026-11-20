@@ -666,16 +666,20 @@ contains
 
     ! translate the scene so the center position remains unchanged. Under
     ! fixcam, compensate the shift of the molecular cell origin instead, so
-    ! a re-fit of the encompassing cell does not move the scene content
+    ! a re-fit of the encompassing cell does not move the scene content,
+    ! or the shift of the content the caller gave (a new cell origin)
     if (s%iscaminit) then
        if (.not.s%nextbuildlists_fixcam) then
           call translate(s%world,-xc)
        elseif (sys(s%id)%c%ismolecule) then
           deltacam = real(sys(s%id)%c%molx0 - s%buildmolx0,c_float)
           if (any(abs(deltacam) > 0._c_float)) call translate(s%world,deltacam)
+       elseif (any(abs(s%nextbuildlists_shift) > 0d0)) then
+          call translate(s%world,real(s%nextbuildlists_shift,c_float))
        end if
     end if
     s%nextbuildlists_fixcam = .false.
+    s%nextbuildlists_shift = 0d0
     s%buildmolx0 = sys(s%id)%c%molx0
 
     ! a system that had no atoms has nothing to frame, so the camera is

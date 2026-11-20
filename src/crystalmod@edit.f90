@@ -2917,14 +2917,17 @@ contains
   !> measured along the perpendicular to the other two axes, in bohr.
   !> With keepmol, vac is negative if the molecules on both sides of
   !> the cut interlock. If present, cutpos is the fractional
-  !> coordinate at which the cell was cut.
-  module subroutine vacuum_info(c,iaxis,keepmol,vac,thick,cut,cutpos)
+  !> coordinate at which the cell was cut, and ubot is the fractional
+  !> coordinate along the axis of the lowest atom of the slab as it is
+  !> laid out (see vacuum_layout).
+  module subroutine vacuum_info(c,iaxis,keepmol,vac,thick,cut,cutpos,ubot)
     class(crystal), intent(in) :: c
     integer, intent(in) :: iaxis
     logical, intent(in) :: keepmol
     real*8, intent(out) :: vac, thick
     real*8, intent(in), optional :: cut
     real*8, intent(out), optional :: cutpos
+    real*8, intent(out), optional :: ubot
 
     integer, allocatable :: lsh(:)
     real*8 :: umin, umax, h
@@ -2932,6 +2935,7 @@ contains
     vac = 0d0
     thick = 0d0
     if (present(cutpos)) cutpos = 0d0
+    if (present(ubot)) ubot = 0d0
     if (c%ismolecule .or. c%ncel == 0 .or. iaxis < 1 .or. iaxis > 3) return
 
     ! height of the cell along the perpendicular to the other two axes
@@ -2939,6 +2943,7 @@ contains
     call vacuum_layout(c,iaxis,keepmol,lsh,umin,umax,cut,cutpos)
     thick = (umax - umin) * h
     vac = h - thick
+    if (present(ubot)) ubot = umin
 
   end subroutine vacuum_info
 
@@ -2957,8 +2962,13 @@ contains
   !> the other two. If keepmol, the molecules are kept whole. If
   !> copybonding, keep the bond connectivity except for the bonds that
   !> cross the cut, which are kept only if the two sides do not move
-  !> relative to each other (the same crystal with another origin).
-  module subroutine set_vacuum(c,iaxis,vac,ipos,orthogonal,keepmol,cut,copybonding,errmsg,ti)
+  !> relative to each other (the same crystal with another origin). If
+  !> the cell and the position of the slab in it are already the ones
+  !> asked for, the crystal is left as it is; changed, if present, says
+  !> whether it was rebuilt. (The outline of the new cell in the
+  !> geometry window of the GUI, vacuum_newcell, follows the same rules
+  !> for the axis and the position of the slab.)
+  module subroutine set_vacuum(c,iaxis,vac,ipos,orthogonal,keepmol,cut,copybonding,errmsg,changed,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     integer, intent(in) :: iaxis
@@ -2968,15 +2978,16 @@ contains
     real*8, intent(in), optional :: cut
     logical, intent(in), optional :: copybonding
     character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(out), optional :: changed
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
     character(len=:), allocatable :: errmsg0
-    logical :: copybonding_
+    logical :: copybonding_, samecell
     integer, allocatable :: lsh(:), imap(:), lshift(:,:)
     integer :: i, idrop
-    real*8 :: umin, umax, h, hnew, z0, u, xn(3), tilt(3), x(3)
+    real*8 :: umin, umax, h, hnew, z0, u, q, xn(3), tilt(3), x(3)
 
     ! shortest cell height allowed (bohr): the rebuild of a cell much
     ! flatter than an atom does not finish in a reasonable time
@@ -2985,6 +2996,7 @@ contains
     real*8, parameter :: epssame = 1d-8 ! the height of the cell does not change (bohr)
 
     errmsg = ""
+    if (present(changed)) changed = .false.
     if (c%ismolecule) then
        errmsg = "The vacuum cannot be set in a molecule"
        return
@@ -3025,6 +3037,21 @@ contains
        z0 = 0.5d0 * vac
     end if
 
+    ! the tilt of the axis: the old lattice vector is h * xn minus
+    ! tilt(j) times the other two
+    tilt = 0d0
+    if (orthogonal) then
+       tilt = matmul(c%m_c2x,h * xn)
+       tilt(iaxis) = 0d0
+       where (abs(tilt) < epstilt) tilt = 0d0
+    end if
+
+    ! nothing to do if the cell does not change and the slab is where
+    ! it is asked to be (the atoms would move by lattice vectors)
+    samecell = (abs(hnew - h) < epssame .and. all(tilt == 0d0))
+    q = umin - z0 / h
+    if (samecell .and. abs(q - nint(q)) * h < epssame) return
+
     ! make seed from this crystal, preserving the connectivity if requested
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
@@ -3034,14 +3061,9 @@ contains
     ! the new lattice vector. If it keeps its direction, so do the
     ! fractional coordinates along the other two axes. If it is made
     ! perpendicular to them, the atoms keep their Cartesian positions:
-    ! the old lattice vector is h * xn minus tilt(j) times the other
-    ! two, and an atom at height u goes with it.
-    tilt = 0d0
+    ! an atom at height u goes with the tilt of the old axis.
     if (orthogonal) then
        seed%m_x2c(:,iaxis) = hnew * xn
-       tilt = matmul(c%m_c2x,h * xn)
-       tilt(iaxis) = 0d0
-       where (abs(tilt) < epstilt) tilt = 0d0
     else
        seed%m_x2c(:,iaxis) = c%m_x2c(:,iaxis) * (hnew / h)
     end if
@@ -3065,7 +3087,7 @@ contains
           lshift(iaxis,i) = lsh(i)
        end do
        idrop = iaxis
-       if (abs(hnew - h) < epssame .and. all(tilt == 0d0)) idrop = 0
+       if (samecell) idrop = 0
        call c%bonds_subset(imap,seed%nstar,lshift,dropaxis=idrop)
     end if
 
@@ -3077,6 +3099,7 @@ contains
        call c%struct_new(seed0,errmsg0,ti=ti)
        return
     end if
+    if (present(changed)) changed = .true.
 
   end subroutine set_vacuum
 

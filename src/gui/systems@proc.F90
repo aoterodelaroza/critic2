@@ -1942,6 +1942,26 @@ contains
 
   end subroutine undo_capture
 
+  !> The geometry change just posted gave the cell a new origin: the
+  !> main scene is translated by shift (Cartesian, bohr) at its next
+  !> build, so the atoms stay where they are on the screen (the build
+  !> has to be one with nextbuildlists_fixcam), and the same
+  !> translation goes with the state of the undo history, which takes
+  !> it back on undo and makes it again on redo.
+  module subroutine view_shift(sysc,shift)
+    class(sysconf), intent(inout) :: sysc
+    real*8, intent(in) :: shift(3)
+
+    integer :: islot
+
+    sysc%sc%nextbuildlists_shift = sysc%sc%nextbuildlists_shift + shift
+    if (allocated(sysc%undo_shift) .and. sysc%undo_icur >= 1) then
+       islot = undo_slot(sysc,sysc%undo_icur)
+       sysc%undo_shift(:,islot) = sysc%undo_shift(:,islot) + shift
+    end if
+
+  end subroutine view_shift
+
   !> The labels of what the next undo (lundo) and redo (lredo) take
   !> back: a pending change of the objects that goes in the history
   !> first, or the states they step over (empty if there is none, so
@@ -2164,9 +2184,11 @@ contains
 
     if (.not.allocated(sysc%undo_seed)) then
        allocate(sysc%undo_seed(undo_maxdepth),sysc%undo_obj(undo_maxdepth),&
-          sysc%undo_isobj(undo_maxdepth),sysc%undo_rev(2,undo_maxdepth),sysc%undo_label(undo_maxdepth))
+          sysc%undo_isobj(undo_maxdepth),sysc%undo_rev(2,undo_maxdepth),sysc%undo_label(undo_maxdepth),&
+          sysc%undo_shift(3,undo_maxdepth))
        sysc%undo_isobj = .false.
        sysc%undo_label = ""
+       sysc%undo_shift = 0d0
     end if
 
     ! drop any redo states ahead of the current one
@@ -2188,6 +2210,7 @@ contains
        end if
        sysc%undo_n = sysc%undo_n + 1
        sysc%undo_icur = sysc%undo_n
+       sysc%undo_shift(:,undo_slot(sysc,sysc%undo_icur)) = 0d0
     end if
     sysc%undo_rev(:,undo_slot(sysc,sysc%undo_icur)) = (/sysc%rev_geometry,sysc%rev_rebond/)
 
@@ -2228,7 +2251,14 @@ contains
        end do
        call sys(isys)%c%struct_new(sysc%undo_seed(undo_slot(sysc,j)),errmsg=errmsg)
        if (len_trim(errmsg) > 0) return
+       ! the view stays where it is, as when the change was made: with
+       ! the translation of the later of the two states, back or forth
        sysc%sc%nextbuildlists_fixcam = .true.
+       if (icur < ifrom) then
+          sysc%sc%nextbuildlists_shift = sysc%sc%nextbuildlists_shift - sysc%undo_shift(:,undo_slot(sysc,ifrom))
+       else
+          sysc%sc%nextbuildlists_shift = sysc%sc%nextbuildlists_shift + sysc%undo_shift(:,undo_slot(sysc,icur))
+       end if
        call sysc%post_event(lastchange_geometry,nocapture=.true.)
 
        ! the geometry is that of the state again, and so are its revisions:
@@ -4653,8 +4683,10 @@ contains
   !> keepmol = keep the molecules whole; docut = cut the cell at the
   !> fractional coordinate cut along the axis (otherwise, at the
   !> largest gap); copybonding = keep the bonds that do not cross the
-  !> cut. See crystal%set_vacuum.
-  module subroutine set_vacuum(sysc,iaxis,vac,ipos,orthogonal,keepmol,docut,cut,copybonding,errmsg)
+  !> cut. See crystal%set_vacuum. changed says whether the structure
+  !> was rebuilt (not if it failed, or if the cell and the slab were
+  !> already as asked).
+  module subroutine set_vacuum(sysc,iaxis,vac,ipos,orthogonal,keepmol,docut,cut,copybonding,errmsg,changed)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: iaxis
     real*8, intent(in) :: vac
@@ -4663,10 +4695,12 @@ contains
     real*8, intent(in) :: cut
     logical, intent(in) :: copybonding
     character(len=:), allocatable, intent(inout) :: errmsg
+    logical, intent(out) :: changed
 
     integer :: isys
 
     errmsg = ""
+    changed = .false.
 
     ! consistency checks
     isys = sysc%id
@@ -4674,13 +4708,14 @@ contains
 
     if (docut) then
        call sys(isys)%c%set_vacuum(iaxis,vac,ipos,orthogonal,keepmol,cut=cut,copybonding=copybonding,&
-          errmsg=errmsg)
+          errmsg=errmsg,changed=changed)
     else
-       call sys(isys)%c%set_vacuum(iaxis,vac,ipos,orthogonal,keepmol,copybonding=copybonding,errmsg=errmsg)
+       call sys(isys)%c%set_vacuum(iaxis,vac,ipos,orthogonal,keepmol,copybonding=copybonding,errmsg=errmsg,&
+          changed=changed)
     end if
 
-    ! if it failed, no geometry change is recorded
-    if (has_errmsg(errmsg)) return
+    ! if it failed or there was nothing to do, no geometry change is recorded
+    if (has_errmsg(errmsg) .or. .not.changed) return
     call sysc%post_event(lastchange_geometry,label="Set vacuum")
 
   end subroutine set_vacuum

@@ -38,6 +38,10 @@ the bond connectivity when the geometry changes.
   top of the slab); the plane of the cut is shown in the view. The slab is left in the
   center or at the bottom of the new cell; under More, "Orthogonal axis" makes the axis
   perpendicular to the other two and "Keep molecules whole" avoids cutting molecules.
+  The view shows the outline of the new cell while the vacuum is dragged or typed, and
+  the cell changes when the drag ends or the value is entered; the slab position and the
+  options apply at once. A cut at a position is prepared with all its settings and made
+  with "Apply".
   "Origin" moves the origin of the cell, with the same lattice vectors, to an atom picked
   in the view, to the center of mass, to the closest inversion center, or to the point
   that centers the atoms along the axes that have vacuum. While this tab is open, the view

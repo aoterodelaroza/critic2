@@ -1054,6 +1054,7 @@ module windows
      real*8 :: vac_cut = 0d0 ! vacuum: fractional coordinate of the cut along the axis
      real*8 :: vac_cur = 0d0 ! vacuum: current vacuum at the cut (bohr)
      real*8 :: vac_thick = 0d0 ! vacuum: thickness of the slab along the axis (bohr)
+     real*8 :: vac_ubot = 0d0 ! vacuum: fractional coordinate of the lowest atom of the slab along the axis
      real*8 :: vac_time = -1d0 ! vacuum: time the current values were calculated (< 0 = not yet)
      real*8 :: vac_m(3,3) = 0d0 ! vacuum: lattice vectors (columns) the current values and the cut refer to
   end type cellform_state
