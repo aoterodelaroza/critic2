@@ -41,7 +41,8 @@ the bond connectivity when the geometry changes.
   The view shows the outline of the new cell while the vacuum is dragged or typed, and
   the cell changes when the drag ends or the value is entered; the slab position and the
   options apply at once. A cut at a position is prepared with all its settings and made
-  with "Apply".
+  with "Apply". "Reset" returns to the vacuum the cell had when the system or the axis
+  was chosen here, or when the lattice was last changed by another tool or by undo.
   "Origin" moves the origin of the cell, with the same lattice vectors, to an atom picked
   in the view, to the center of mass, to the closest inversion center, or to the point
   that centers the atoms along the axes that have vacuum. While this tab is open, the view

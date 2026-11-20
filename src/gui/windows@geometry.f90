@@ -114,10 +114,13 @@ contains
     character(len=*), parameter :: errorigin = "The origin is not a lattice vector: pick another lattice point"
     ! preview of the plane where the cell is cut to set the vacuum
     type(rep_shape) :: cutshp(2) ! transient plane of the cut (a flat box) and outline of the new cell
-    logical :: lvac, lcut ! the axis or the cut of the vacuum changed
+    logical :: lvac ! the vacuum starts over: the axis was chosen, or the lattice changed elsewhere
+    logical :: lcut ! the cut of the vacuum changed
     logical :: lwid ! a widget of the vacuum section changed
     logical :: lvacapply ! an edit of the vacuum is applied in this frame
-    logical :: lvaccommit ! the value of the vacuum was entered
+    logical :: lvaccommit ! the value of the vacuum was entered or reset
+    real*8 :: vacini ! the vacuum that Reset goes back to (bohr)
+    character(len=:), allocatable :: vactip ! tooltip of the vacuum field
     real*8 :: vacwin(3) ! start of the cell in which the view draws the atoms
     real*8 :: vacx0(3), vacm(3,3), vachnew ! the new cell: origin, lattice vectors and height
     real*8 :: vacz ! the cut, from the start of the cell in which the atoms are drawn
@@ -127,6 +130,9 @@ contains
     ! transient shapes of this window use 0, the positive atom ids and
     ! -5 or less)
     integer, parameter :: tag_vaccut = -1
+    ! two vacuums closer than this (Å) show as the same value in the
+    ! field (just over half its last digit, decimal=4)
+    real*8, parameter :: vacsame = 0.6d-4
     real(c_float), parameter :: pv_cut_alpha = 0.3_c_float ! opacity of the plane
     integer :: istat, latpick(4) ! lattice-vector pick: status and the picked point
     integer :: atpick(4) ! origin pick: the picked atom
@@ -1477,6 +1483,11 @@ contains
                ! transformation from any window, undo). With the cut at
                ! the largest gap nothing is left pending: the vacuum of
                ! the field is the current one except while it is edited.
+               ! Reset goes back to the height the cell has when the axis
+               ! is chosen or the lattice is changed by anything but an
+               ! edit of this section (which notes its own lattice): the
+               ! height, not the vacuum, because the vacuum depends on how
+               ! the atoms are cut (the molecules option, the gap).
                if (lvac .or. lcut .or. gc%vac_time < 0d0 .or.&
                   (sysc(isys)%timelastchange_rebond > gc%vac_time .and. .not.sysc(isys)%md_run)) then
                   if (any(abs(sys(isys)%c%m_x2c - gc%vac_m) > 1d-8)) then
@@ -1492,6 +1503,7 @@ contains
                         cutpos=gc%vac_cut,ubot=gc%vac_ubot)
                   end if
                   if (lvac .or. gc%vac_time < 0d0 .or. gc%vac_cutmode == vaccut_gap) gc%vac_new = gc%vac_cur
+                  if (lvac) gc%vac_hini = 1d0 / sys(isys)%c%ar(gc%vac_axis)
                   gc%vac_time = glfwGetTime()
                end if
 
@@ -1501,30 +1513,44 @@ contains
                   ! entered (the structure is rebuilt once, and a cell that
                   ! was cut is not cut again at every step of the drag). A
                   ! value that the field shows as the current one is the
-                  ! current one (Escape gives it back rounded).
+                  ! current one (Escape gives it back rounded). The vacuum
+                  ! is not negative, unless it is already (molecules kept
+                  ! whole that interlock): then it does not go below that.
                   call iw_text("Vacuum (Å)",alignframe=.true.)
-                  lch = iw_dragfloat_real8("##cellvacnew",x1=gc%vac_new,speed=0.01d0,decimal=4,scale=bohrtoa,&
-                     sameline=.true.,notlive=.true.,committed=lvaccommit)
+                  lch = iw_dragfloat_real8("##cellvacnew",x1=gc%vac_new,speed=0.01d0,&
+                     min=min(0d0,gc%vac_cur*bohrtoa),decimal=4,scale=bohrtoa,sameline=.true.,notlive=.true.,&
+                     committed=lvaccommit,flags=ImGuiSliderFlags_AlwaysClamp)
                   lwid = lwid .or. lch
+                  vactip = "Distance between the atoms on both sides of the cut, measured along the&
+                     & perpendicular to the other two axes (negative if molecules kept whole interlock).&
+                     & The new cell is outlined in the view, and the cell changes when the drag ends or&
+                     & the value is entered"
+                  if (gc%vac_cutmode == vaccut_position) vactip = vactip // " and Apply is pressed (now it is " //&
+                     string(gc%vac_cur*bohrtoa,'f',decimal=4) // " Å at this cut)"
+                  call iw_tooltip(vactip,ttshown)
+
+                  ! back to the vacuum that gives the cell its height at the start
+                  vacini = gc%vac_hini - gc%vac_thick
+                  if (iw_button("Reset##cellvacreset",danger=.true.,sameline=.true.,&
+                     disabled=(abs(gc%vac_new - vacini) * bohrtoa <= vacsame))) then
+                     gc%vac_new = vacini
+                     lwid = .true.
+                     lvaccommit = .true.
+                  end if
+                  call iw_tooltip("Go back to the starting vacuum (" // string(vacini*bohrtoa,'f',decimal=4) //&
+                     " Å): the cell gets the height it had along this axis when the system or the axis was&
+                     & chosen here, or when the lattice was last changed by another tool or by undo",ttshown,&
+                     whendisabled=.true.)
+
+                  ! a new value is applied; one that the field shows as the
+                  ! current one is the current one
                   if (lvaccommit) then
-                     if (abs(gc%vac_new - gc%vac_cur) * bohrtoa > 0.6d-4) then
+                     if (abs(gc%vac_new - gc%vac_cur) * bohrtoa > vacsame) then
                         lvacapply = .true.
                      elseif (gc%vac_cutmode == vaccut_gap) then
                         gc%vac_new = gc%vac_cur
                      end if
                   end if
-                  call iw_tooltip("New distance between the atoms on both sides of the cut, measured along&
-                     & the perpendicular to the other two axes. The new cell is outlined in the view, and&
-                     & the cell changes when the drag ends or the value is entered (with Apply, if the cut&
-                     & is at a position)",ttshown)
-                  call iw_text("Current",alignframe=.true.,gap=.true.)
-                  call iw_text(string(gc%vac_cur*bohrtoa,'f',decimal=4),sameline=.true.)
-                  call iw_tooltip("Distance between the atoms on both sides of the cut now (Å). It is&
-                     & negative if the molecules on both sides interlock",ttshown)
-                  call iw_text("Slab",alignframe=.true.,gap=.true.)
-                  call iw_text(string(gc%vac_thick*bohrtoa,'f',decimal=4),sameline=.true.)
-                  call iw_tooltip("Thickness of the atoms along the axis (Å): the new cell is as high as&
-                     & the thickness plus the vacuum",ttshown)
 
                   ! a cut at a position is prepared and applied once (the
                   ! position refers to the atoms as they are); otherwise the
@@ -2817,8 +2843,11 @@ contains
                vacwin = display_cell_window(isys,win(iview)%sc%disp,rep_display())
                call sysc(isys)%view_shift(vacx0 + floor(vacz - vacwin(im) + 1d-6) * sys(isys)%c%m_x2c(:,im))
             end if
-            ! the position of the cut referred to the atoms before the edit
+            ! the position of the cut referred to the atoms before the
+            ! edit; the new lattice is this section's (Reset keeps its
+            ! starting point)
             call reset_vacuum_inputs()
+            gc%vac_m = sys(isys)%c%m_x2c
          end if
        end associate
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
@@ -2926,6 +2955,7 @@ contains
 
       ! clear the cell transformations
       call reset_cell_inputs()
+      call reset_vacuum_inputs()
       w%geometry_cell%vac_axis = 0
       w%geometry_lvpick_row = 0
 

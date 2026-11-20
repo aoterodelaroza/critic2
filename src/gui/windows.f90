@@ -1053,6 +1053,7 @@ module windows
      integer :: vac_cutmode = vaccut_gap ! vacuum: where the cell is cut (vaccut_*)
      real*8 :: vac_cut = 0d0 ! vacuum: fractional coordinate of the cut along the axis
      real*8 :: vac_cur = 0d0 ! vacuum: current vacuum at the cut (bohr)
+     real*8 :: vac_hini = 0d0 ! vacuum: height of the cell over the other two axes at the start (bohr; Reset goes back to it)
      real*8 :: vac_thick = 0d0 ! vacuum: thickness of the slab along the axis (bohr)
      real*8 :: vac_ubot = 0d0 ! vacuum: fractional coordinate of the lowest atom of the slab along the axis
      real*8 :: vac_time = -1d0 ! vacuum: time the current values were calculated (< 0 = not yet)
