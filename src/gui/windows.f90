@@ -170,13 +170,15 @@ module windows
   ! is identified by its vm_builder_* constant (negative); it_edit is the
   ! distance/angle/dihedral editor, which is driven by the selection
   ! instead; it_none is no tool. The constants above it_edit are the
-  ! cell tools that have only a panel (it_repeat repeats the cell): the
-  ! panel stays on display until it is closed, while the system is a
-  ! crystal. They all sit above the view modes so that the two sets of
-  ! constants never collide.
+  ! cell tools that have a panel and no view mode of their own
+  ! (it_repeat repeats the cell, it_pickcell makes a cell of lattice
+  ! vectors picked in the view): the panel stays on display until it is
+  ! closed, while the system is a crystal. They all sit above the view
+  ! modes so that the two sets of constants never collide.
   integer, parameter, public :: it_none = 0
   integer, parameter, public :: it_edit = vm_NUM + 1
   integer, parameter, public :: it_repeat = vm_NUM + 2
+  integer, parameter, public :: it_pickcell = vm_NUM + 3
 
   ! highest n-mer order the extract window can be asked for
   integer, parameter, public :: nmer_max = 10
@@ -212,8 +214,8 @@ module windows
   integer(c_int), parameter :: cellmode_search = 2 ! chosen from the supercell search
   integer(c_int), parameter :: cellmode_orient = 3 ! an axis along a direction or perpendicular to a plane
   ! value of window%geometry_lvpick_row while the atom at the new
-  ! origin is being picked (the lattice vectors are rows 1 to 3); the
-  ! builder uses it too, for its own pick of that atom
+  ! origin is being picked (the lattice vectors are rows 1 to 3), in
+  ! the cell form of the geometry window and of the builder
   integer, parameter :: lvpick_origin = 4
   ! criteria of the supercell search (the options of its combo)
   integer, parameter :: cellcrit_nice = 1 ! largest inscribed sphere (NEWCELL NICE)
@@ -1022,10 +1024,12 @@ module windows
   end type help_state
   public :: help_state
 
-  !> State of the cell tab of the geometry window: the supercell
-  !> transformation being prepared, given in one of three ways (simple
-  !> repetition, lattice vectors, or a sublattice chosen from the
-  !> supercell search), and the results of the search.
+  !> State of the cell form (the cell tab of the geometry window and
+  !> the cell tools of the builder, cellform_* in windows@geometry.f90): the
+  !> cell transformation being prepared, given in one of four ways
+  !> (simple repetition, lattice vectors, a sublattice chosen from the
+  !> supercell search, or an orientation), the results of the search,
+  !> and the vacuum being set.
   type cellform_state
      logical :: refine = .false. ! standard cells: idealize the atomic positions (REFINE)
      integer(c_int) :: mode = cellmode_simple ! how the supercell is given (cellmode_*)
@@ -1420,6 +1424,7 @@ module windows
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms and pick-atom modes)
      logical :: acceptempty = .false. ! pick-atom mode: an empty-space click delivers a position instead of aborting
      logical :: latonly = .false. ! pick-atom mode: only the lattice points can be picked (anything else aborts)
+     logical :: keepempty = .false. ! pick-atom mode: a click that picks nothing is ignored instead of aborting; the exit bind on empty space ends the pick
      integer :: owner = 0 ! owner window ID
      integer*8 :: owner_uid = 0 ! uid of the owner window (its slot may be reused)
   end type viewmode_data
@@ -1724,9 +1729,9 @@ module windows
      logical :: geometry_expression_ok = .false. ! is the expression ok?
      character(len=:), allocatable :: geometry_expr_error ! error for expression
      real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
-     type(cellform_state) :: geometry_cell ! cell tab: the supercell transformation and the supercell search
-     type(pairpick) :: geometry_lvpick ! session stamp of the lattice-vector pick (matrix transformation) and of the origin pick (also in the builder)
-     integer :: geometry_lvpick_row = 0 ! row of the matrix transformation being picked (1-3; lvpick_origin = the atom at the new origin, also in the builder; 0 = none)
+     type(cellform_state) :: geometry_cell ! cell form (cell tab, cell tools of the builder): the cell transformation, the supercell search and the vacuum
+     type(pairpick) :: geometry_lvpick ! cell form: session stamp of the lattice-vector pick (matrix transformation) and of the origin pick
+     integer :: geometry_lvpick_row = 0 ! cell form: row of the matrix transformation being picked (1-3; lvpick_origin = the atom at the new origin; 0 = none)
      integer :: geometry_lvpick_last = 0 ! last row of the pick: it goes on to the next rows up to this one (Pick All: 3)
      character(len=mlen), allocatable :: geometry_sym_ops(:) ! cached symmetry operations (crystallographic notation)
      character(len=mlen), allocatable :: geometry_sym_hm(:) ! cached Hermann-Mauguin symbols of the operations
@@ -2342,13 +2347,14 @@ module windows
        class(window), intent(inout), target :: w
        logical, intent(in) :: okmods
      end subroutine viewmode_set_mode
-     module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty,latonly,kspace)
+     module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty,latonly,kspace,keepempty)
        class(window), intent(inout), target :: w
        integer, intent(in) :: mode
        character(len=*), intent(in), optional :: message
        integer, intent(in) :: idcaller
        logical, intent(in), optional :: acceptempty
        logical, intent(in), optional :: latonly
+       logical, intent(in), optional :: keepempty
        logical, intent(in), optional :: kspace
      end subroutine viewmode_set_forced
      module subroutine viewmode_exit_forced(w)
@@ -3050,6 +3056,43 @@ module windows
      module subroutine draw_geometry(w)
        class(window), intent(inout), target :: w
      end subroutine draw_geometry
+     ! the cell form, shared with the builder window
+     module subroutine cellform_lvpick_start(w,iview,irow,ilast)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: iview, irow, ilast
+     end subroutine cellform_lvpick_start
+     module subroutine cellform_lvpick_cancel(w,iview)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: iview
+     end subroutine cellform_lvpick_cancel
+     module subroutine cellform_lvpick_poll(w,iview,isys,istat,iat)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: iview, isys
+       integer, intent(out) :: istat, iat
+     end subroutine cellform_lvpick_poll
+     module subroutine cellform_reset_matrix(w)
+       class(window), intent(inout), target :: w
+     end subroutine cellform_reset_matrix
+     module subroutine cellform_pending_cell(w,isys,m,t,isok,msg,noflip)
+       class(window), intent(in) :: w
+       integer, intent(in) :: isys
+       real*8, intent(out) :: m(3,3), t(3)
+       logical, intent(out) :: isok
+       character(len=:), allocatable, intent(out) :: msg
+       logical, intent(in), optional :: noflip
+     end subroutine cellform_pending_cell
+     module subroutine cellform_newcell_summary(isys,m,isok,msg,split)
+       integer, intent(in) :: isys
+       real*8, intent(in) :: m(3,3)
+       logical, intent(in) :: isok
+       character(len=*), intent(in) :: msg
+       logical, intent(in), optional :: split
+     end subroutine cellform_newcell_summary
+     module subroutine cellform_newcell_preview(w,iview,isys,m,t)
+       class(window), intent(in) :: w
+       integer, intent(in) :: iview, isys
+       real*8, intent(in) :: m(3,3), t(3)
+     end subroutine cellform_newcell_preview
      !xx! builder submodule !xx!
      pure module function vm_is_bondmode(mode)
        integer, intent(in) :: mode

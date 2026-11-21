@@ -46,7 +46,7 @@ submodule (windows) view
   integer, parameter :: pend_measure_sel = 2 ! toggle the measurement of the selected atoms (navigation)
   integer, parameter :: pend_pick = 3        ! deliver an atom pick (forced pick modes)
   integer, parameter :: pend_pick_alt = 4    ! deliver an alternate-action pick (builder)
-  integer, parameter :: pend_editexit = 5    ! end the builder's geometry edit session (navigation)
+  integer, parameter :: pend_editexit = 5    ! end the builder's geometry edit session, or close its cell tool (navigation)
 
   ! minimum time elapsed between consecutive queries of the pick buffer (seconds)
   real*8, parameter :: pick_interval = 1d0 / 10d0
@@ -1684,7 +1684,7 @@ contains
   !> shows the mode hint from viewmode_text. idcaller is the window
   !> ID (win(:)) of the caller, used by the caller to verify it owns
   !> the pick result.
-  module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty,latonly,kspace)
+  module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty,latonly,kspace,keepempty)
     class(window), intent(inout), target :: w
     integer, intent(in) :: mode
     character(len=*), intent(in), optional :: message
@@ -1692,6 +1692,7 @@ contains
     logical, intent(in), optional :: acceptempty
     logical, intent(in), optional :: latonly
     logical, intent(in), optional :: kspace
+    logical, intent(in), optional :: keepempty
 
     logical :: kspace_
 
@@ -1714,6 +1715,8 @@ contains
     if (present(acceptempty)) w%vmdata%acceptempty = acceptempty
     w%vmdata%latonly = .false.
     if (present(latonly)) w%vmdata%latonly = latonly
+    w%vmdata%keepempty = .false.
+    if (present(keepempty)) w%vmdata%keepempty = keepempty
     w%vmdata%idx = 0
     w%vmdata%bidx = 0
     w%vmdata%cpidx = 0
@@ -1823,7 +1826,7 @@ contains
   !> mode (the builder passes its parent view, for the armed-fragment name).
   module subroutine viewmode_text(w,mode,hint,descr,picklbl,altlbl)
     use keybindings, only: get_bind_keyname, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
-       BIND_CANCEL, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES,&
+       BIND_PICKATOM_EXIT, BIND_CANCEL, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES,&
        BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE
     class(window), intent(in) :: w
     integer, intent(in) :: mode
@@ -1884,6 +1887,11 @@ contains
           descr = "A window is waiting for a position: click an atom to use its position, "//&
              "or empty space to use the clicked point. Cancelling ("//kn(BIND_CANCEL)//&
              ") aborts the pick."
+       elseif (w%vmdata%keepempty) then
+          hint = "Pick in the view"
+          descr = "A window is waiting for a pick: click to make it. A click on anything "//&
+             "else does nothing; "//kn(BIND_PICKATOM_EXIT)//" on empty space, or cancelling ("//&
+             kn(BIND_CANCEL)//"), aborts the pick."
        else
           hint = "Pick an atom in the view"
           descr = "A window is waiting for an atom: click to pick one. Clicking "//&
@@ -2357,6 +2365,7 @@ contains
       ! modes needing an explicit exit-bind tooltip line: the persistent
       ! builder picks (the move modes list theirs through their own group)
       emptyexit = vm_exits_on_empty(mode)
+      if (mode == vm_pick_atom .and. mode == w%viewmode) emptyexit = w%vmdata%keepempty
       call viewmode_text(w,mode,mhint,mdescr,mpicklbl,maltlbl)
 
       ! the keybinding group for this view mode and, for the transient
@@ -2644,7 +2653,8 @@ contains
        if (ok) ok = .not.is_bind_event(BIND_CANCEL,iview=w%id)
        ! the exit bind on empty space also exits the persistent builder
        ! pick modes (not add-atoms, where every click places a fragment)
-       if (ok .and. vm_exits_on_empty(w%viewmode)) &
+       ! and the picks that ignore the clicks on nothing
+       if (ok .and. (vm_exits_on_empty(w%viewmode) .or. w%vmdata%keepempty)) &
           ok = .not.exit_on_empty(BIND_PICKATOM_EXIT)
        if (.not.ok) then
           call w%viewmode_exit_forced()
@@ -2680,7 +2690,8 @@ contains
     end if
 
     ! drop any pending press capture whose mode is gone: measure captures
-    ! (1/2) are only valid in navigation, pick and alternate-pick captures
+    ! (1/2) and the builder exit capture are only valid in navigation,
+    ! pick and alternate-pick captures
     ! (3/4) only in the window-forced pick modes; anything else is a stale
     ! press (e.g. the mode changed or the viewed system switched between
     ! the press and the release) whose release would otherwise fire an
@@ -2689,7 +2700,8 @@ contains
        if (w%measure_pend == pend_pick .or. w%measure_pend == pend_pick_alt) &
           w%measure_pend = pend_none
     elseif (forcedpick) then
-       if (w%measure_pend == pend_measure .or. w%measure_pend == pend_measure_sel) &
+       if (w%measure_pend == pend_measure .or. w%measure_pend == pend_measure_sel .or.&
+          w%measure_pend == pend_editexit) &
           w%measure_pend = pend_none
     else
        w%measure_pend = pend_none
@@ -2735,20 +2747,28 @@ contains
           end if
        end if
 
-       ! Geometry edit session claims the exit clicks
+       ! A geometry edit session, or a cell tool on display, in a
+       ! builder of this view claims the exit clicks, which end it: the
+       ! measure bind (for the cell tool, on empty space) and the
+       ! measure toggle bind
        editexit = .false.
        if (hover .and. .not.forcedpick) then
           ibedit = builder_editing()
-          if (ibedit > 0) then
-             if (is_bind_event(BIND_NAV_MEASURE,iview=w%id)) then
-                call win(ibedit)%edit_stop()
+          if (ibedit > 0 .or. builder_celltool() > 0) then
+             if (ibedit > 0) then
+                ok = is_bind_event(BIND_NAV_MEASURE,iview=w%id)
+             else
+                ok = exit_on_empty(BIND_NAV_MEASURE)
+             end if
+             if (ok) then
+                call builder_exit()
                 editexit = .true.
              elseif (is_bind_event(BIND_NAV_MEASURE_TOGGLE,iview=w%id)) then
                 if (bind_mouse_button(BIND_NAV_MEASURE_TOGGLE) >= 0) then
                    w%measure_pend = pend_editexit
                    w%press_p0 = mousepos
                 else
-                   call win(ibedit)%edit_stop()
+                   call builder_exit()
                 end if
                 editexit = .true.
              end if
@@ -2855,8 +2875,7 @@ contains
                    w%measure_pend = pend_none
                    if (resolve_alt_pick(w%measure_pend_idx(1:4))) return
                 elseif (w%measure_pend == pend_editexit) then
-                   ibedit = builder_editing()
-                   if (ibedit > 0) call win(ibedit)%edit_stop()
+                   call builder_exit()
                 end if
              end if
              w%measure_pend = pend_none
@@ -3271,6 +3290,41 @@ contains
 
     end function builder_editing
 
+    !> The builder window of this view that has a cell tool with a
+    !> panel on display (builder_tool above it_edit), or 0 if there is
+    !> none.
+    function builder_celltool() result(ib)
+      integer :: ib
+
+      integer :: i
+
+      ib = 0
+      do i = 1, nwin
+         if (.not.win(i)%isinit .or. .not.win(i)%isopen) cycle
+         if (win(i)%type /= wintype_builder) cycle
+         if (win(i)%builder_tool <= it_edit) cycle
+         if (win(i)%anchor_view() /= w%id) cycle
+         ib = i
+         return
+      end do
+
+    end function builder_celltool
+
+    !> End what claims the exit clicks in a builder of this view: its
+    !> geometry edit session or else its cell tool on display.
+    subroutine builder_exit()
+      integer :: ib
+
+      ib = builder_editing()
+      if (ib > 0) then
+         call win(ib)%edit_stop()
+      else
+         ib = builder_celltool()
+         if (ib > 0) win(ib)%builder_tool = it_none
+      end if
+
+    end subroutine builder_exit
+
     ! whether the given view-mode exit bind fired on empty space this
     ! frame (the exit gesture for the move modes and the persistent
     ! builder pick modes)
@@ -3361,7 +3415,8 @@ contains
          ! commanding window accepts it; otherwise it aborts the pick
          ! (flag stays 0). A window that accepts positions also gets the
          ! critical point (cpidx) or the lattice point (latidx) under the
-         ! cursor. The mode ends either way.
+         ! cursor. The mode ends either way, unless the window asked for
+         ! the clicks on nothing to be ignored (keepempty).
          w%vmdata%idx = 0
          w%vmdata%bidx = 0
          w%vmdata%cpidx = 0
@@ -3385,6 +3440,8 @@ contains
          if (deliver) then
             w%vmdata%flag = 1
             w%vmdata%xpos = (/texpos%x,texpos%y/)
+         elseif (w%vmdata%keepempty) then
+            return
          end if
          call viewmode_to_navigate(w)
       elseif (w%viewmode == vm_builder_addatom .or. w%viewmode == vm_builder_addfragment) then

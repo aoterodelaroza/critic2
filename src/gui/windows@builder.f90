@@ -262,6 +262,7 @@ contains
   !> (w%idparent) and operates on the system shown in it.
   module subroutine draw_builder(w)
     use utils, only: iw_bottomrow_ypos, iw_bottomrow_xpos
+    use representations, only: replat_primitive
     use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry,&
        reread_system_from_file, atlisttype_ncel_frac, celltransform_standard,&
        celltransform_primstd
@@ -272,7 +273,7 @@ contains
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax,&
        icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter, icon_ui_slaborigin,&
-       icon_ui_tocrystal, icon_ui_tomolecule, icon_ui_cellrepeat
+       icon_ui_tocrystal, icon_ui_tomolecule, icon_ui_cellrepeat, icon_ui_cellpick
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_textwidth,&
        file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
@@ -284,19 +285,21 @@ contains
        BIND_NAV_MEASURE, BIND_NAV_MEASURE_TOGGLE, BIND_EDIT_WHEEL
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string, nameguess
-    use tools_math, only: cross, perpendicular, axisangle2mat
+    use tools_math, only: cross, perpendicular, axisangle2mat, det3
     use param, only: bohrtoa, pi, eye, maxzat0
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel
-    integer :: idxpick(4), istat, atpick(4)
-    real*8 :: xpick(3)
+    integer :: idxpick(4), istat, iatpick
+    real*8 :: pm(3,3), pt(3) ! Pick Cell tool: lattice vectors and origin of the cell being picked
+    logical :: pok ! Pick Cell tool: whether they make a cell
+    character(len=:), allocatable :: pmsg ! Pick Cell tool: why they do not
     logical :: doquit, goodparent, havesys, ok, ldum, relaxing, syschanged
     logical :: lstate, mdshown, lplaced
     real(c_float) :: xclick(2), xicon, hicon, yrow, reserve
     type(ImVec2) :: szchild, szrow, szwin, szerr
     real(c_float) :: ypanel, hneed
-    character(len=:), allocatable :: errmsg, strgroup, offcrys, offmol, offvac, offsel
+    character(len=:), allocatable :: errmsg, strgroup, offcrys, offmol, offvac, offsel, offpick
     character(kind=c_char,len=:), allocatable, target :: strchild, strerr
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -345,10 +348,12 @@ contains
 
     ! A mode armed on the outgoing system makes no sense on the new one; release
     ! it and commit any pending edit to the system it was made on. The tool on
-    ! display follows from builder_vm/edit_kind and is cleared further down.
+    ! display follows from builder_vm/edit_kind and is cleared further down;
+    ! the Pick Cell tool closes, its picks being of the outgoing system.
     if (goodparent .and. syschanged .and. .not.w%firstpass) then
        call bondmode_stop(w,iview,.true.)
-       call origin_pick_stop()
+       call cellpick_stop()
+       if (w%builder_tool == it_pickcell) w%builder_tool = it_none
        call w%edit_stop()
     end if
 
@@ -447,20 +452,39 @@ contains
        end if
     end if
 
-    ! the pending pick of the atom at the new origin (Slab row), one
-    ! click in the parent view. It ends if another tool has started
-    ! since; the camera of the main view is held for the move, if it
-    ! is made, as in the other cell actions
-    if (w%geometry_lvpick_row == lvpick_origin) then
-       if (.not.havesys .or. w%builder_vm /= 0 .or. w%edit_kind /= 0) then
-          call origin_pick_stop()
+    ! the pending pick of a cell tool in the parent view: the atom at
+    ! the new origin (Slab row), one click, or the lattice points at
+    ! the ends of the vectors of the new cell (Pick Cell tool), one
+    ! after the other, while the tool is on display. It ends if another
+    ! tool has started since. The camera of the main view is held for
+    ! the move of the origin, if it is made, as in the other cell
+    ! actions. A pick of lattice points that ends without one (the
+    ! cancel key, the alternate click, the exit click on empty space,
+    ! a change of the geometry) closes the tool. When the last one is
+    ! in, a left-handed set has its first two vectors exchanged: the
+    ! cell form would invert the three, as crystal%newcell does, which
+    ! puts the cell on the other side of the origin from the points
+    ! that were picked.
+    if (w%geometry_lvpick_row > 0) then
+       ok = (w%geometry_lvpick_row == lvpick_origin .or. w%builder_tool == it_pickcell)
+       if (.not.havesys .or. .not.ok .or. w%builder_vm /= 0 .or. w%edit_kind /= 0) then
+          call cellpick_stop()
        else
-          call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,atidx=atpick)
-          if (istat == ipick_point .and. atpick(1) > 0) then
-             call sysc(isys)%shift_origin(origin_atom,atpick(1),w%errmsg)
+          call cellform_lvpick_poll(w,iview,isys,istat,iatpick)
+          if (iatpick > 0) then
+             call sysc(isys)%shift_origin(origin_atom,iatpick,w%errmsg)
              call cell_hold()
+          elseif (w%builder_tool == it_pickcell) then
+             if (istat == ipick_cancelled .or. istat == ipick_lost) then
+                w%builder_tool = it_none
+             elseif (istat == ipick_point .and. w%geometry_lvpick_row == 0) then
+                call cellform_pending_cell(w,isys,pm,pt,pok,pmsg,noflip=.true.)
+                if (pok .and. det3(pm) < 0d0) then
+                   w%geometry_cell%intmat(:,1:2) = w%geometry_cell%intmat(:,2:1:-1)
+                   w%geometry_cell%cen(1:2) = w%geometry_cell%cen(2:1:-1)
+                end if
+             end if
           end if
-          if (istat /= ipick_pending) w%geometry_lvpick_row = 0
        end if
     end if
 
@@ -573,11 +597,13 @@ contains
     offmol = ""
     offvac = ""
     offsel = ""
+    offpick = ""
     if (havesys) then
        if (sys(isys)%c%ismolecule) then
           offcrys = "crystals only"
           offvac = offcrys
           offsel = offcrys
+          offpick = offcrys
           if (sys(isys)%c%ncel == 0) offmol = "the molecule has no atoms"
        else
           offmol = "molecules only"
@@ -585,6 +611,8 @@ contains
           ok = allocated(sysc(isys)%highlight_rgba)
           if (ok) ok = any(sysc(isys)%highlight_rgba >= 0._c_float)
           if (.not.ok) offsel = "no atoms are selected"
+          ! a pick in the view does not last while the atoms move
+          if (sysc(isys)%md_run) offpick = "not during a run"
        end if
     end if
 
@@ -604,6 +632,13 @@ contains
        "Repeat: make the cell longer or shorter along its axes, by whole periods of the"//&
        " lattice",offcrys,state=lstate)) &
        call celltool_toggle(it_repeat)
+    lstate = (w%builder_tool == it_pickcell)
+    if (cell_button("##bldcellpick",icon_ui_cellpick,"Pk",.false.,&
+       "Pick Cell: make a new cell with three lattice vectors, chosen by clicking the"//&
+       " lattice points at their ends in the view",offpick,state=lstate)) then
+       call celltool_toggle(it_pickcell)
+       if (w%builder_tool == it_pickcell) call pickcell_restart()
+    end if
     ! (no camera hold: the camera is reset, to show the cell)
     if (cell_button("##bldtocrystal",icon_ui_tocrystal,"Cr",.false.,&
        "To Crystal: make a crystal of the molecule, with its box as the unit cell",offmol)) &
@@ -617,9 +652,9 @@ contains
     lstate = (w%geometry_lvpick_row == lvpick_origin)
     if (cell_button("##bldslaborigin",icon_ui_slaborigin,"Or",.true.,&
        "Origin: move the origin of the cell to an atom, chosen by clicking it in the view",&
-       offcrys,state=lstate)) then
+       offpick,state=lstate)) then
        if (w%geometry_lvpick_row == lvpick_origin) then
-          call origin_pick_stop()
+          call cellpick_stop()
        else
           call origin_pick_start()
        end if
@@ -773,6 +808,25 @@ contains
     call window_button("Symmetry",geomtab_symmetry)
     call window_button("Dynamics",geomtab_none)
 
+    ! the Pick Cell tool shows, while it is on display, the lattice
+    ! points to pick from and the cell that the picks make so far
+    ! (as they are picked, not inverted if left-handed). The picks
+    ! refer to the cell as it was: a change of the geometry after them
+    ! closes the tool.
+    pok = .false.
+    if (w%builder_tool == it_pickcell .and. havesys) then
+       if (w%geometry_lvpick%is_stale(sysc(isys)%timelastchange_geometry)) then
+          call cellpick_stop()
+          w%builder_tool = it_none
+       else
+          call cellform_pending_cell(w,isys,pm,pt,pok,pmsg,noflip=.true.)
+          if (associated(win(iview)%sc)) then
+             call win(iview)%sc%show_transient_latvec(w%uid,1,replat_primitive,1)
+             if (pok) call cellform_newcell_preview(w,iview,isys,pm,pt)
+          end if
+       end if
+    end if
+
     ! the options of the tool on display, in a child region so that only
     ! this part scrolls: the footer stays in view. The footer is the
     ! row of buttons and, if there is an error message, the lines it
@@ -793,15 +847,15 @@ contains
     if (igBeginChild_Str(c_loc(strchild),szchild,.false._c_bool,ImGuiWindowFlags_None)) then
        if (w%geometry_lvpick_row == lvpick_origin) then
           call panel_text("Click the atom at the new origin of the cell in the view.")
-          call panel_text("Stop with "//trim(get_bind_keyname(BIND_CANCEL))//", by clicking"//&
-             " empty space, by clicking the tool button again, or by choosing another tool.",&
-             faded=.true.)
+          call panel_text(mode_exits(vm_pick_atom,extra="by clicking empty space"),faded=.true.)
        else
           select case (w%builder_tool)
           case (it_edit)
              call panel_edit()
           case (it_repeat)
              call panel_repeat()
+          case (it_pickcell)
+             if (havesys) call panel_pickcell()
           case (it_none)
              call panel_text("Choose a tool from the panel above to edit the structure. Press "//&
                 trim(get_bind_keyname(BIND_CANCEL))//" to cancel the edit.")
@@ -1073,12 +1127,12 @@ contains
 
     ! Show the panel of cell tool itool (it_*) in place of the tool on
     ! display, or close it if it is the one on display. The active
-    ! builder mode and the pick of the origin, if any, end.
+    ! builder mode and the pick of the cell tools, if any, end.
     subroutine celltool_toggle(itool)
       integer, intent(in) :: itool
 
       call builder_stop()
-      call origin_pick_stop()
+      call cellpick_stop()
       if (w%builder_tool == itool) then
          w%builder_tool = it_none
       else
@@ -1086,6 +1140,19 @@ contains
       end if
 
     end subroutine celltool_toggle
+
+    ! The ways to close a cell tool that has a panel and no view mode
+    ! (see the exit clicks of the navigation mode of the view, and
+    ! process_cancel_bind).
+    function celltool_exits() result(str)
+      character(len=:), allocatable :: str
+
+      str = "Stop with " // trim(get_bind_keyname(BIND_CANCEL)) // ", with " //&
+         trim(get_bind_keyname(BIND_NAV_MEASURE_TOGGLE)) // ", with " //&
+         trim(get_bind_keyname(BIND_NAV_MEASURE)) // " on empty space, by clicking the tool"//&
+         " button again, or by choosing another tool."
+
+    end function celltool_exits
 
     ! Panel of the Repeat tool: the number of periods of the lattice in
     ! the cell along each axis, in three steppers. A new number is
@@ -1101,9 +1168,8 @@ contains
          " makes the cell longer or shorter at once.")
       if (sys(isys)%c%havesym == 0) then
          call panel_text("The symmetry is not known: the cell cannot be made shorter.",faded=.true.)
-      else
-         call panel_text("Close with the tool button, or by choosing another tool.",faded=.true.)
       end if
+      call panel_text(celltool_exits(),faded=.true.)
       nper = sysc(isys)%cell_periods()
       do i = 1, 3
          n = int(nper(i),c_int)
@@ -1118,26 +1184,77 @@ contains
 
     end subroutine panel_repeat
 
+    ! Panel of the Pick Cell tool: what to click, the cell that the
+    ! picked lattice vectors make, and the buttons to make it the cell
+    ! of the crystal or to pick again.
+    subroutine panel_pickcell()
+      character(len=2), parameter :: lbl(3) = (/"a'","b'","c'"/)
+
+      if (w%geometry_lvpick_row >= 1 .and. w%geometry_lvpick_row <= 3) then
+         call panel_text("Click the lattice point at the end of the new lattice vector "//&
+            lbl(w%geometry_lvpick_row)//" in the view.")
+         call panel_text(mode_exits(vm_pick_atom,extra="with "//&
+            trim(get_bind_keyname(BIND_PICKATOM_EXIT))//" on empty space"),faded=.true.)
+      else
+         call panel_text("Apply makes the new cell, with the lattice vectors picked in the"//&
+            " view (the first two exchanged, if the three were left-handed); Reset picks"//&
+            " them again.")
+         call panel_text(celltool_exits(),faded=.true.)
+      end if
+      call cellform_newcell_summary(isys,pm,pok,pmsg,split=.true.)
+
+      ok = pok .and. w%geometry_lvpick_row == 0
+      if (ok) ok = any(abs(pm - eye) > 1d-8)
+      if (iw_button("Apply##bldpickapply",danger=.true.,disabled=.not.ok)) then
+         call cellpick_stop()
+         call sysc(isys)%transform_cell_matrix(pm,pt,.false.,errmsg=w%errmsg)
+         call cell_hold()
+         ! the picks described a transformation of the cell that was replaced
+         if (len_trim(w%errmsg) == 0) then
+            call cellform_reset_matrix(w)
+            w%builder_tool = it_none
+         end if
+      end if
+      call iw_tooltip("Transform the crystal to the new cell",ttshown,whendisabled=.true.)
+      if (iw_button("Reset##bldpickreset",sameline=.true.)) then
+         w%errmsg = ""
+         call pickcell_restart()
+      end if
+      call iw_tooltip("Forget the lattice vectors picked and pick the three again",ttshown)
+
+    end subroutine panel_pickcell
+
+    ! Start the Pick Cell tool over: the new cell is the current one,
+    ! and the three lattice vectors are picked in the parent view, one
+    ! after the other.
+    subroutine pickcell_restart()
+
+      w%geometry_cell%mode = cellmode_matrix
+      call cellform_reset_matrix(w)
+      call cellform_lvpick_start(w,iview,1,3)
+
+    end subroutine pickcell_restart
+
     ! Start the pick of the atom at the new origin in the parent view,
-    ! in place of the active builder mode, if any.
+    ! in place of the active builder mode and of the cell tool on
+    ! display, if any.
     subroutine origin_pick_start()
 
       call builder_stop()
       w%builder_tool = it_none
-      w%geometry_lvpick_row = lvpick_origin
-      call w%geometry_lvpick%arm()
-      call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the atom at the new origin",w%id)
+      call cellform_lvpick_start(w,iview,lvpick_origin,lvpick_origin)
 
     end subroutine origin_pick_start
 
-    ! Stop the pending pick of the atom at the new origin, releasing
-    ! the parent view (if alive and still in the pick).
-    subroutine origin_pick_stop()
+    ! Stop the pending pick of a cell tool (the atom at the new origin,
+    ! the lattice points of Pick Cell), releasing the parent view (if
+    ! alive and still in the pick).
+    subroutine cellpick_stop()
 
       if (goodparent) call win(iview)%viewmode_release_forced(w%id,vm_pick_atom)
       w%geometry_lvpick_row = 0
 
-    end subroutine origin_pick_stop
+    end subroutine cellpick_stop
 
     ! The row of recently placed atoms and fragments, under the Add
     ! tools: each entry redraws the choice it stands for (the local
@@ -1416,9 +1533,10 @@ contains
 
     end subroutine panel_text
 
-    ! The ways out of mode itool
-    function mode_exits(itool) result(str)
+    ! The ways out of mode itool, and one more (extra) if given
+    function mode_exits(itool,extra) result(str)
       integer, intent(in) :: itool
+      character(len=*), intent(in), optional :: extra
       character(len=:), allocatable :: str
 
       str = "Stop with " // trim(get_bind_keyname(BIND_CANCEL))
@@ -1431,6 +1549,7 @@ contains
       if (vm_exits_on_empty(itool)) &
          str = str // ", with " // trim(get_bind_keyname(BIND_PICKATOM_EXIT)) //&
          " on empty space"
+      if (present(extra)) str = str // ", " // extra
       if (itool == vm_builder_addatom .or. itool == vm_builder_addfragment) then
          ! their buttons reopen the chooser instead of disarming
          str = str // ", or by choosing another tool."

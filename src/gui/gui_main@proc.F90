@@ -1138,7 +1138,7 @@ contains
   ! Process the global cancel keybinding (BIND_CANCEL)
   subroutine process_cancel_bind()
     use windows, only: win, nwin, wintype_builder, vm_is_owned,&
-       view_target_window
+       view_target_window, it_none, it_edit
     use systems, only: sysc, ok_system, sys_init
     use keybindings, only: is_bind_event, BIND_CANCEL
     use tools_io, only: ferror, warning
@@ -1174,16 +1174,22 @@ contains
        return
     end if
 
-    ! 3) revert the distance/angle/dihedral being edited in a builder of
-    !    this view (same as its Revert button) and stop the session
+    ! 3) in a builder of this view: revert the distance/angle/dihedral
+    !    being edited (same as its Revert button) and stop the session,
+    !    or else close the cell tool on display (the tools that have a
+    !    panel and no view mode)
     do i = 1, nwin
-       if (.not.win(i)%isinit) cycle
+       if (.not.win(i)%isinit .or. .not.win(i)%isopen) cycle
        if (win(i)%type /= wintype_builder) cycle
        if (win(i)%anchor_view() /= iv) cycle
-       if (win(i)%edit_kind == 0) cycle
-       call win(i)%edit_revert()
-       call win(i)%edit_stop()
-       return
+       if (win(i)%edit_kind /= 0) then
+          call win(i)%edit_revert()
+          call win(i)%edit_stop()
+          return
+       elseif (win(i)%builder_tool > it_edit) then
+          win(i)%builder_tool = it_none
+          return
+       end if
     end do
 
     ! 4) clear the measurement selection

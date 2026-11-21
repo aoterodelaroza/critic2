@@ -107,7 +107,8 @@ module icons
   integer, parameter, public :: icon_ui_tocrystal = 71 ! molecule to crystal (molecule in a cell)
   integer, parameter, public :: icon_ui_tomolecule = 72 ! selection to molecule (molecule between the corners of a cell)
   integer, parameter, public :: icon_ui_cellrepeat = 73 ! repeat the cell (two cells side by side)
-  integer, parameter, public :: icon_NUM = 73
+  integer, parameter, public :: icon_ui_cellpick = 74 ! pick a cell (a cell between lattice points)
+  integer, parameter, public :: icon_NUM = 74
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

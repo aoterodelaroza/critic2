@@ -15,10 +15,25 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Routines for the view/edit geometry window.
+! Routines for the view/edit geometry window. The cell form routines
+! (cellform_*) are the parts of its cell tab that the builder window
+! uses too; both windows keep the state of the form in their own
+! geometry_cell and geometry_lvpick* fields.
 submodule (windows) geometry
   use interfaces_cimgui
   implicit none
+
+  ! preview of the new cell, in lattice-point sphere radii
+  real*8, parameter :: pv_radfac = 1.5d0 ! the new lattice vectors' spheres
+  real*8, parameter :: pv_arrowr = 0.3d0 ! arrow shaft radius
+  real*8, parameter :: pv_headr = 2.5d0 ! arrowhead radius (shaft radii)
+  real*8, parameter :: pv_headl = 0.15d0 ! arrowhead length (fraction of the arrow)
+  real*8, parameter :: pv_edger = 0.25d0 ! outline radius
+  real(c_float), parameter :: pv_edge_rgb(3) = (/1._c_float,0.6_c_float,0._c_float/) ! outline color
+
+  ! the message for a pick of the lattice point at the origin
+  character(len=*), parameter :: errorigin = "The origin is not a lattice vector: pick another lattice point"
+
 contains
 
   !> Draw the geometry window.
@@ -50,7 +65,6 @@ contains
        iw_push_iconrow_frame, iw_pop_iconrow_frame
     use types, only: realloc, molsymop_rotation, molsymop_plane, molsymop_imp_rotation
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
-    use tools_math, only: det3, matinv, cellpar_from_metric
     use param, only: newline, bohrtoa, pi, atmcov0, maxzat0, eye
     class(window), intent(inout), target :: w
 
@@ -97,24 +111,16 @@ contains
     real*8 :: rotdir(3), rotlen ! transient rotation-axis direction and half-length
     type(rep_shape) :: stdshp(3) ! transient std-orientation axes (arrows)
     type(rep_shape) :: rotshp(1) ! transient rotation axis (cylinder)
-    type(rep_shape) :: lvshp(7) ! transient preview of the new cell (spheres, arrows, box)
     logical :: lvshown ! what the cell tab pick needs was shown this frame (lattice points; the tab, for the origin)
     real*8 :: xb(3)
     real*8 :: pm(3,3), pt(3) ! cell tab: matrix and origin of the supercell being prepared
     logical :: pok ! cell tab: whether that transformation is valid
     character(len=:), allocatable :: pmsg ! cell tab: why it is not
-    real*8 :: xcl(3), xca(3) ! cell tab: lengths and angles of the new cell
     integer :: ib, nsl, ncan ! cell tab: supercell candidate, selected size, and its number of sublattices
-    ! preview of the new cell, in lattice-point sphere radii
-    real*8, parameter :: pv_radfac = 1.5d0 ! the new lattice vectors' spheres
-    real*8, parameter :: pv_arrowr = 0.3d0 ! arrow shaft radius
-    real*8, parameter :: pv_headr = 2.5d0 ! arrowhead radius (shaft radii)
-    real*8, parameter :: pv_headl = 0.15d0 ! arrowhead length (fraction of the arrow)
-    real*8, parameter :: pv_edger = 0.25d0 ! outline radius
-    real(c_float), parameter :: pv_edge_rgb(3) = (/1._c_float,0.6_c_float,0._c_float/) ! outline color
+    ! preview of the new cell of the vacuum section, in lattice-point
+    ! sphere radii (the outline is that of the new-cell preview)
     real*8, parameter :: pv_molfac = 1d0 ! the spheres at the centers of the molecules
     real(c_float), parameter :: pv_mol_rgb(3) = (/0.70_c_float,0.93_c_float,0.55_c_float/) ! their color (bordered, as the lattice points)
-    character(len=*), parameter :: errorigin = "The origin is not a lattice vector: pick another lattice point"
     ! preview of the plane where the cell is cut to set the vacuum
     type(rep_shape) :: cutshp(2) ! transient plane of the cut (a flat box) and outline of the new cell
     logical :: lvac ! the vacuum starts over: the axis was chosen, or the lattice changed elsewhere
@@ -140,9 +146,8 @@ contains
     ! field (just over half its last digit, decimal=4)
     real*8, parameter :: vacsame = 0.6d-4
     real(c_float), parameter :: pv_cut_alpha = 0.3_c_float ! opacity of the plane
-    integer :: istat, latpick(4) ! lattice-vector pick: status and the picked point
-    integer :: atpick(4) ! origin pick: the picked atom
-    real*8 :: xpick(3)
+    integer :: istat ! status of the pick of the cell tab
+    integer :: iatpick ! origin pick: the picked atom (cell index)
     type(ImVec4) :: col4
     character(len=3) :: schpg
     integer :: holo, laue
@@ -327,36 +332,12 @@ contains
     ! row; with Pick All, the pick moves on to the next rows. The origin
     ! is not a lattice vector: picking it keeps the pick waiting.
     lvshown = .false.
-    if (w%geometry_lvpick_row == lvpick_origin) then
+    call cellform_lvpick_poll(w,iview,isys,istat,iatpick)
+    if (iatpick > 0) then
        ! the atom at the new origin
-       call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,atidx=atpick)
-       if (istat == ipick_point .and. atpick(1) > 0) then
-          iaction = iaction_shift_origin
-          iaction_i1 = origin_atom
-          iaction_i2 = atpick(1)
-       end if
-       if (istat /= ipick_pending) w%geometry_lvpick_row = 0
-    elseif (w%geometry_lvpick_row > 0) then
-       call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,latidx=latpick)
-       if (istat == ipick_point .and. latpick(4) > 0 .and. latpick(4) <= sys(isys)%c%ncv) then
-          if (all(abs(latpick(1:3) + sys(isys)%c%cen(:,latpick(4))) < 1d-5)) then
-             w%errmsg = errorigin
-             call lvpick_start(w%geometry_lvpick_row,w%geometry_lvpick_last)
-          else
-             i = w%geometry_lvpick_row
-             w%geometry_cell%intmat(:,i) = latpick(1:3)
-             w%geometry_cell%cen(i) = latpick(4)
-             w%errmsg = ""
-             if (i < w%geometry_lvpick_last) then
-                call lvpick_start(i+1,w%geometry_lvpick_last)
-             else
-                w%geometry_lvpick_row = 0
-             end if
-          end if
-       elseif (istat /= ipick_pending) then
-          w%geometry_lvpick_row = 0
-          if (w%errmsg == errorigin) w%errmsg = ""
-       end if
+       iaction = iaction_shift_origin
+       iaction_i1 = origin_atom
+       iaction_i2 = iatpick
     end if
 
     ! set the initial atomtype
@@ -1193,14 +1174,14 @@ contains
                       ! lattice vectors of the new cell, not rows of its inverse
                       if (iw_button("Pick##cellpick" // string(im),sameline=.true.,&
                          disabled=(w%geometry_lvpick_row == im .or. w%geometry_cell%inverse))) &
-                         call lvpick_start(im,im)
+                         call cellform_lvpick_start(w,iview,im,im)
                       call iw_tooltip("Pick this lattice vector in the view: click the lattice point &
                          &it ends at (a click anywhere else cancels). Not available with the inverse&
                          & matrix",ttshown,whendisabled=.true.)
                    end do
                    if (iw_button("Pick All##cellpickall",disabled=((w%geometry_lvpick_row > 0 .and.&
                       w%geometry_lvpick_row /= lvpick_origin) .or.&
-                      w%geometry_cell%inverse))) call lvpick_start(1,3)
+                      w%geometry_cell%inverse))) call cellform_lvpick_start(w,iview,1,3)
                    call iw_tooltip("Pick the three lattice vectors in the view, one after the other &
                       &(a click anywhere else than a lattice point cancels). Not available with the&
                       & inverse matrix",ttshown,whendisabled=.true.)
@@ -1311,23 +1292,11 @@ contains
              end if
 
              ! the transformation the supercell section describes now
-             call pending_cell(pm,pt,pok,pmsg)
+             call cellform_pending_cell(w,isys,pm,pt,pok,pmsg)
 
              if (w%geometry_sec(geomsec_super)%open) then
                 ! the cell the transformation leads to
-                call iw_text("New cell:",alignframe=.true.)
-                if (pok) then
-                   call pending_metrics(pm,s,xcl,xca)
-                   call iw_text(s,sameline=.true.)
-                   call iw_text("a/b/c (Å):",alignframe=.true.)
-                   call iw_text(string(xcl(1)*bohrtoa,'f',decimal=4) // "  " // string(xcl(2)*bohrtoa,'f',decimal=4) //&
-                      "  " // string(xcl(3)*bohrtoa,'f',decimal=4),sameline=.true.)
-                   call iw_text("α/β/γ (°):",alignframe=.true.,gap=.true.)
-                   call iw_text(string(xca(1),'f',decimal=2) // "  " // string(xca(2),'f',decimal=2) //&
-                      "  " // string(xca(3),'f',decimal=2),sameline=.true.)
-                else
-                   call iw_text(pmsg,disabled=.true.,sameline=.true.)
-                end if
+                call cellform_newcell_summary(isys,pm,pok,pmsg)
 
                 ok = iw_button("Apply##celltransfapply",danger=.true.,disabled=.not.pok)
                 call iw_tooltip("Transform the crystal to the new cell",ttshown)
@@ -1341,10 +1310,7 @@ contains
                    if (w%geometry_cell%mode == cellmode_simple) then
                       w%geometry_cell%nrep = 1_c_int
                    elseif (w%geometry_cell%mode == cellmode_matrix) then
-                      w%geometry_cell%intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
-                      w%geometry_cell%cen = 1
-                      w%geometry_cell%origin = 0d0
-                      w%geometry_cell%inverse = .false.
+                      call cellform_reset_matrix(w)
                    elseif (w%geometry_cell%mode == cellmode_orient) then
                       call reset_orient_inputs()
                    else
@@ -1628,7 +1594,8 @@ contains
              call iw_separatortext("Origin",w%geometry_sec(geomsec_origin))
              if (w%geometry_sec(geomsec_origin)%open) then
                 if (iw_button("Pick Atom##celloriginpick",disabled=(iview == 0 .or.&
-                   w%geometry_lvpick_row == lvpick_origin))) call lvpick_start(lvpick_origin,lvpick_origin)
+                   w%geometry_lvpick_row == lvpick_origin))) &
+                   call cellform_lvpick_start(w,iview,lvpick_origin,lvpick_origin)
                 call iw_tooltip("Move the origin of the cell to an atom: click it in the view (a click&
                    & anywhere else cancels)",ttshown,whendisabled=.true.)
                 if (iw_button("Center of Mass##cellorigincm",sameline=.true.)) then
@@ -1655,31 +1622,17 @@ contains
              ! the pick of the new origin lasts while this tab is shown
              if (w%geometry_lvpick_row == lvpick_origin) lvshown = .true.
 
-             ! the preview of the new cell in the view: its lattice vectors
-             ! (spheres in the axis colors at their ends, and arrows from
-             ! the origin ending at their surface) and its outline, at its
-             ! origin. In the matrix mode, also the lattice points around
-             ! the displayed cells, for the picks (not during the pick of
-             ! the atom at the new origin: they would hide the atoms).
+             ! the preview of the new cell in the view and, in the matrix
+             ! mode, the lattice points around the displayed cells, for
+             ! the picks (not during the pick of the atom at the new
+             ! origin: they would hide the atoms).
              if (associated(win(iview)%sc)) then
                 if (w%geometry_cell%mode == cellmode_matrix .and. w%geometry_lvpick_row /= lvpick_origin) then
                    call win(iview)%sc%show_transient_latvec(w%uid,1,replat_primitive,1)
                    lvshown = .true.
                 end if
                 if (pok .and. (w%geometry_cell%mode == cellmode_matrix .or. any(abs(pm - eye) > 1d-8) .or.&
-                   any(abs(pt) > 1d-8))) then
-                   do im = 1, 3
-                      xb = sys(isys)%c%x2c(pm(:,im))
-                      lvshp(im) = rep_shape(kind=shapekind_sphere,x1=xb,rad=pv_radfac*latvec_rad_def,&
-                         rgb=ColorAxes_def(:,im))
-                      lvshp(3+im) = rep_shape(kind=shapekind_arrow,shown=(norm2(xb) > 2d0*lvshp(im)%rad),&
-                         rad=pv_arrowr*latvec_rad_def,headr=pv_headr,headl=pv_headl,rgb=ColorAxes_def(:,im))
-                      if (lvshp(3+im)%shown) lvshp(3+im)%v(:,1) = xb * (1d0 - lvshp(im)%rad / norm2(xb))
-                   end do
-                   lvshp(7) = rep_shape(kind=shapekind_box,x1=sys(isys)%c%x2c(pt),&
-                      v=matmul(sys(isys)%c%m_x2c,pm),rad=pv_edger*latvec_rad_def,rgb=pv_edge_rgb,alpha=0._c_float)
-                   call win(iview)%sc%show_transient_shapes(w%uid,0,lvshp)
-                end if
+                   any(abs(pt) > 1d-8))) call cellform_newcell_preview(w,iview,isys,pm,pt)
              end if
 
              ! the error of the last cell transformation or supercell search
@@ -2592,7 +2545,7 @@ contains
 
     ! the lattice-vector pick ends with the lattice points it picks
     ! from, and the pick of the origin with the cell tab
-    if (.not.lvshown .and. w%geometry_lvpick_row > 0) call lvpick_cancel()
+    if (.not.lvshown .and. w%geometry_lvpick_row > 0) call cellform_lvpick_cancel(w,iview)
 
     ! hover highlight, plus the atom awaiting an add-bond pick (transient
     ! highlights clear each frame, so they must go in a single call)
@@ -2988,47 +2941,12 @@ contains
 
     end subroutine reset_for_new_system
 
-    ! Start a pick of the cell tab in the anchor view: the lattice
-    ! vector in row irow of the matrix cell transformation (the pick
-    ! goes on to the next rows up to ilast), or the atom at the new
-    ! origin of the cell (irow = lvpick_origin). It replaces a pending
-    ! add-bond pick and the other pick of the cell tab.
-    subroutine lvpick_start(irow,ilast)
-      integer, intent(in) :: irow, ilast
-
-      character(len=3), parameter :: lbl(3) = (/"a' ","b' ","c' "/)
-
-      call w%geometry_addbond%clear()
-      w%geometry_lvpick_row = irow
-      w%geometry_lvpick_last = ilast
-      call w%geometry_lvpick%arm()
-      if (irow == lvpick_origin) then
-         if (w%errmsg == errorigin) w%errmsg = ""
-         call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the atom at the new origin",w%id)
-      else
-         call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the lattice point of " // trim(lbl(irow)),&
-            w%id,latonly=.true.)
-      end if
-
-    end subroutine lvpick_start
-
-    ! Cancel a pending lattice-vector or origin pick and release the view.
-    subroutine lvpick_cancel()
-
-      call win(iview)%viewmode_release_forced(w%id)
-      w%geometry_lvpick_row = 0
-
-    end subroutine lvpick_cancel
-
     ! The inputs of the supercell transformation, in the simple,
     ! matrix and orient modes, back to their defaults.
     subroutine reset_cell_inputs()
 
       w%geometry_cell%nrep = 1_c_int
-      w%geometry_cell%intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
-      w%geometry_cell%cen = 1
-      w%geometry_cell%origin = 0d0
-      w%geometry_cell%inverse = .false.
+      call cellform_reset_matrix(w)
       call reset_orient_inputs()
 
     end subroutine reset_cell_inputs
@@ -3148,95 +3066,6 @@ contains
       w%geometry_cell%orient_prim = .false.
 
     end subroutine reset_orient_inputs
-
-    ! The supercell transformation that the supercell section of the
-    ! cell tab describes in its current mode: the lattice vectors of
-    ! the new cell (columns of m, crystallographic coordinates of the
-    ! current cell) and its origin (t), as newcell will use them (a
-    ! left-handed set of vectors is inverted). isok is false if there
-    ! is none (no supercell selected in the search) or the vectors do
-    ! not make a cell, and msg says why.
-    subroutine pending_cell(m,t,isok,msg)
-      real*8, intent(out) :: m(3,3), t(3)
-      logical, intent(out) :: isok
-      character(len=:), allocatable, intent(out) :: msg
-
-      integer :: k
-
-      m = eye
-      t = 0d0
-      isok = .true.
-      msg = ""
-      if (w%geometry_cell%mode == cellmode_simple) then
-         do k = 1, 3
-            m(k,k) = real(w%geometry_cell%nrep(k),8)
-         end do
-      elseif (w%geometry_cell%mode == cellmode_matrix) then
-         ! integer part plus centering
-         do k = 1, 3
-            m(:,k) = real(w%geometry_cell%intmat(:,k),8) +&
-               sys(isys)%c%cen(:,min(max(w%geometry_cell%cen(k),1),max(sys(isys)%c%ncv,1)))
-         end do
-         t = w%geometry_cell%origin
-         if (w%geometry_cell%inverse) then
-            isok = (abs(det3(m)) > 1d-8)
-            if (isok) call matinv(m,3)
-         end if
-      elseif (w%geometry_cell%mode == cellmode_orient) then
-         call sys(isys)%c%cell_orient(int(w%geometry_cell%orient_ivec),w%geometry_cell%orient_dir,&
-            w%geometry_cell%orient_axis,w%geometry_cell%orient_prim,m,msg)
-         isok = (len_trim(msg) == 0)
-      else
-         isok = allocated(w%geometry_cell%cand) .and. w%geometry_cell%isel > 0
-         if (isok) isok = (w%geometry_cell%isel <= size(w%geometry_cell%cand,1))
-         if (isok) m = real(w%geometry_cell%cand(w%geometry_cell%isel)%m,8)
-         if (.not.isok) msg = "Select a supercell in the table"
-      end if
-      ! the same threshold newcell uses, which also flips a left-handed cell
-      if (isok) isok = (abs(det3(m)) * max(sys(isys)%c%ncv,1) > 1d-2)
-      if (isok) then
-         if (det3(m) < 0d0) m = -m
-      elseif (len_trim(msg) == 0) then
-         msg = "The lattice vectors are not valid"
-      end if
-
-    end subroutine pending_cell
-
-    ! The cell that the valid supercell transformation m (see
-    ! pending_cell) leads to: its size and number of atoms (str), cell
-    ! lengths (xl, bohr) and angles (xa, degrees).
-    subroutine pending_metrics(m,str,xl,xa)
-      use tools_math, only: gcd
-      real*8, intent(in) :: m(3,3)
-      character(kind=c_char,len=:), allocatable, intent(inout) :: str
-      real*8, intent(out) :: xl(3), xa(3)
-
-      real*8 :: d, r(3,3)
-      integer :: num, den, ig
-
-      ! the size of the new cell, a fraction of the current one if it
-      ! is smaller than a cell of a centered lattice
-      d = abs(det3(m))
-      den = max(sys(isys)%c%ncv,1)
-      if (abs(d * den - nint(d * den)) < 1d-6) then
-         num = nint(d * den)
-         ig = gcd(num,den)
-         str = string(num / ig)
-         if (den / ig > 1) str = str // "/" // string(den / ig)
-      else
-         str = string(d,'f',decimal=4)
-      end if
-      if (d < 1d0 + 1d-6) then
-         str = str // " cell, "
-      else
-         str = str // " cells, "
-      end if
-      str = str // string(nint(d * sys(isys)%c%ncel)) // " atoms"
-
-      r = matmul(sys(isys)%c%m_x2c,m)
-      call cellpar_from_metric(matmul(transpose(r),r),xl,xa)
-
-    end subroutine pending_metrics
 
     ! Select supercell candidate ic (index in the search results), of
     ! size nsz: it becomes the transformation of the search mode, and its
@@ -4238,5 +4067,279 @@ contains
     end subroutine process_selectable_clicks
 
   end subroutine draw_geometry
+
+  !xx! the cell form: shared with the builder window !xx!
+
+  !> Start a pick of the cell form of window w in view iview: the
+  !> lattice vector in row irow of the matrix cell transformation (the
+  !> pick goes on to the next rows up to ilast), or the atom at the new
+  !> origin of the cell (irow = lvpick_origin). It replaces a pending
+  !> add-bond pick and the other pick of the cell form.
+  module subroutine cellform_lvpick_start(w,iview,irow,ilast)
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: iview, irow, ilast
+
+    character(len=3), parameter :: lbl(3) = (/"a' ","b' ","c' "/)
+
+    call w%geometry_addbond%clear()
+    w%geometry_lvpick_row = irow
+    w%geometry_lvpick_last = ilast
+    call w%geometry_lvpick%arm()
+    if (irow == lvpick_origin) then
+       if (w%errmsg == errorigin) w%errmsg = ""
+       call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the atom at the new origin",w%id)
+    else
+       ! in the builder, the pick is a tool: a click on anything else
+       ! does not end it
+       call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the lattice point of " // trim(lbl(irow)),&
+          w%id,latonly=.true.,keepempty=(w%type == wintype_builder))
+    end if
+
+  end subroutine cellform_lvpick_start
+
+  !> Cancel a pending lattice-vector or origin pick of window w and
+  !> release view iview.
+  module subroutine cellform_lvpick_cancel(w,iview)
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: iview
+
+    call win(iview)%viewmode_release_forced(w%id)
+    w%geometry_lvpick_row = 0
+
+  end subroutine cellform_lvpick_cancel
+
+  !> Handle the pending pick of the cell form of window w in view
+  !> iview, for system isys, if there is one. A lattice-vector pick:
+  !> the picked point is the integer part and the centering vector of
+  !> the row; with several rows, the pick moves on to the next one. The
+  !> origin is not a lattice vector: picking it keeps the pick waiting.
+  !> The pick of the atom at the new origin: iat is the atom (cell
+  !> index; zero if there is no pick, or no atom yet), and moving the
+  !> origin there is up to the caller. istat is the state of the pick
+  !> (ipick_*; pending if there is none): a pick that ended without a
+  !> lattice point or an atom is cancelled.
+  module subroutine cellform_lvpick_poll(w,iview,isys,istat,iat)
+    use systems, only: sys
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: iview, isys
+    integer, intent(out) :: istat, iat
+
+    integer :: i, ilast, latpick(4), atpick(4)
+    real*8 :: xpick(3)
+
+    istat = ipick_pending
+    iat = 0
+    if (w%geometry_lvpick_row <= 0) return
+
+    ! the atom at the new origin
+    if (w%geometry_lvpick_row == lvpick_origin) then
+       call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,atidx=atpick)
+       if (istat == ipick_point) then
+          if (atpick(1) > 0) then
+             iat = atpick(1)
+          else
+             istat = ipick_cancelled
+          end if
+       end if
+       if (istat /= ipick_pending) w%geometry_lvpick_row = 0
+       return
+    end if
+
+    ! a lattice vector
+    call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,latidx=latpick)
+    if (istat == ipick_point .and. latpick(4) > 0 .and. latpick(4) <= sys(isys)%c%ncv) then
+       i = w%geometry_lvpick_row
+       ilast = w%geometry_lvpick_last
+       if (all(abs(latpick(1:3) + sys(isys)%c%cen(:,latpick(4))) < 1d-5)) then
+          w%errmsg = errorigin
+          call cellform_lvpick_start(w,iview,i,ilast)
+       else
+          w%geometry_cell%intmat(:,i) = latpick(1:3)
+          w%geometry_cell%cen(i) = latpick(4)
+          w%errmsg = ""
+          if (i < ilast) then
+             call cellform_lvpick_start(w,iview,i+1,ilast)
+          else
+             w%geometry_lvpick_row = 0
+          end if
+       end if
+    elseif (istat /= ipick_pending) then
+       if (istat == ipick_point) istat = ipick_cancelled
+       w%geometry_lvpick_row = 0
+       if (w%errmsg == errorigin) w%errmsg = ""
+    end if
+
+  end subroutine cellform_lvpick_poll
+
+  !> The inputs of the matrix mode of the cell form of window w back to
+  !> their defaults: the current cell.
+  module subroutine cellform_reset_matrix(w)
+    class(window), intent(inout), target :: w
+
+    w%geometry_cell%intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
+    w%geometry_cell%cen = 1
+    w%geometry_cell%origin = 0d0
+    w%geometry_cell%inverse = .false.
+
+  end subroutine cellform_reset_matrix
+
+  !> The cell transformation that the cell form of window w describes
+  !> in its current mode, for system isys: the lattice vectors of the
+  !> new cell (columns of m, crystallographic coordinates of the
+  !> current cell) and its origin (t), as newcell will use them (a
+  !> left-handed set of vectors is inverted, unless noflip). isok is
+  !> false if there is none (no supercell selected in the search) or
+  !> the vectors do not make a cell, and msg says why.
+  module subroutine cellform_pending_cell(w,isys,m,t,isok,msg,noflip)
+    use systems, only: sys
+    use tools_math, only: det3, matinv
+    use param, only: eye
+    class(window), intent(in) :: w
+    integer, intent(in) :: isys
+    real*8, intent(out) :: m(3,3), t(3)
+    logical, intent(out) :: isok
+    character(len=:), allocatable, intent(out) :: msg
+    logical, intent(in), optional :: noflip
+
+    integer :: k
+    logical :: noflip_
+
+    noflip_ = .false.
+    if (present(noflip)) noflip_ = noflip
+    m = eye
+    t = 0d0
+    isok = .true.
+    msg = ""
+    if (w%geometry_cell%mode == cellmode_simple) then
+       do k = 1, 3
+          m(k,k) = real(w%geometry_cell%nrep(k),8)
+       end do
+    elseif (w%geometry_cell%mode == cellmode_matrix) then
+       ! integer part plus centering
+       do k = 1, 3
+          m(:,k) = real(w%geometry_cell%intmat(:,k),8) +&
+             sys(isys)%c%cen(:,min(max(w%geometry_cell%cen(k),1),max(sys(isys)%c%ncv,1)))
+       end do
+       t = w%geometry_cell%origin
+       if (w%geometry_cell%inverse) then
+          isok = (abs(det3(m)) > 1d-8)
+          if (isok) call matinv(m,3)
+       end if
+    elseif (w%geometry_cell%mode == cellmode_orient) then
+       call sys(isys)%c%cell_orient(int(w%geometry_cell%orient_ivec),w%geometry_cell%orient_dir,&
+          w%geometry_cell%orient_axis,w%geometry_cell%orient_prim,m,msg)
+       isok = (len_trim(msg) == 0)
+    else
+       isok = allocated(w%geometry_cell%cand) .and. w%geometry_cell%isel > 0
+       if (isok) isok = (w%geometry_cell%isel <= size(w%geometry_cell%cand,1))
+       if (isok) m = real(w%geometry_cell%cand(w%geometry_cell%isel)%m,8)
+       if (.not.isok) msg = "Select a supercell in the table"
+    end if
+    ! the same threshold newcell uses, which also flips a left-handed cell
+    if (isok) isok = (abs(det3(m)) * max(sys(isys)%c%ncv,1) > 1d-2)
+    if (isok) then
+       if (det3(m) < 0d0 .and. .not.noflip_) m = -m
+    elseif (len_trim(msg) == 0) then
+       msg = "The lattice vectors are not valid"
+    end if
+
+  end subroutine cellform_pending_cell
+
+  !> Draw the summary of the cell that the transformation m (see
+  !> cellform_pending_cell) of system isys leads to: its size and
+  !> number of atoms, and its cell lengths and angles (the angles in a
+  !> line of their own if split, for a narrow window). If the
+  !> transformation is not valid (isok is false), the reason (msg).
+  module subroutine cellform_newcell_summary(isys,m,isok,msg,split)
+    use systems, only: sys
+    use utils, only: iw_text
+    use tools_io, only: string
+    use tools_math, only: det3, gcd, cellpar_from_metric
+    use param, only: bohrtoa
+    integer, intent(in) :: isys
+    real*8, intent(in) :: m(3,3)
+    logical, intent(in) :: isok
+    character(len=*), intent(in) :: msg
+    logical, intent(in), optional :: split
+
+    logical :: split_
+    character(kind=c_char,len=:), allocatable :: str
+    real*8 :: d, r(3,3), xl(3), xa(3)
+    integer :: num, den, ig
+
+    call iw_text("New cell:",alignframe=.true.)
+    if (.not.isok) then
+       call iw_text(msg,disabled=.true.,sameline=.true.)
+       return
+    end if
+
+    ! the size of the new cell, a fraction of the current one if it
+    ! is smaller than a cell of a centered lattice
+    d = abs(det3(m))
+    den = max(sys(isys)%c%ncv,1)
+    if (abs(d * den - nint(d * den)) < 1d-6) then
+       num = nint(d * den)
+       ig = gcd(num,den)
+       str = string(num / ig)
+       if (den / ig > 1) str = str // "/" // string(den / ig)
+    else
+       str = string(d,'f',decimal=4)
+    end if
+    if (d < 1d0 + 1d-6) then
+       str = str // " cell, "
+    else
+       str = str // " cells, "
+    end if
+    str = str // string(nint(d * sys(isys)%c%ncel)) // " atoms"
+    call iw_text(str,sameline=.true.)
+
+    ! cell lengths and angles
+    r = matmul(sys(isys)%c%m_x2c,m)
+    call cellpar_from_metric(matmul(transpose(r),r),xl,xa)
+    call iw_text("a/b/c (Å):",alignframe=.true.)
+    call iw_text(string(xl(1)*bohrtoa,'f',decimal=4) // "  " // string(xl(2)*bohrtoa,'f',decimal=4) //&
+       "  " // string(xl(3)*bohrtoa,'f',decimal=4),sameline=.true.)
+    split_ = .false.
+    if (present(split)) split_ = split
+    call iw_text("α/β/γ (°):",alignframe=.true.,gap=.not.split_)
+    call iw_text(string(xa(1),'f',decimal=2) // "  " // string(xa(2),'f',decimal=2) //&
+       "  " // string(xa(3),'f',decimal=2),sameline=.true.)
+
+  end subroutine cellform_newcell_summary
+
+  !> Show the preview of the new cell with lattice vectors m (columns)
+  !> and origin t (see cellform_pending_cell) of system isys in view
+  !> iview, for this frame: its lattice vectors (spheres in the axis
+  !> colors at their ends, and arrows from the origin ending at their
+  !> surface) and its outline, at its origin. The shapes belong to
+  !> window w.
+  module subroutine cellform_newcell_preview(w,iview,isys,m,t)
+    use systems, only: sys
+    use representations, only: rep_shape, shapekind_sphere, shapekind_arrow, shapekind_box,&
+       latvec_rad_def
+    use gui_main, only: ColorAxes_def
+    class(window), intent(in) :: w
+    integer, intent(in) :: iview, isys
+    real*8, intent(in) :: m(3,3), t(3)
+
+    integer :: im
+    real*8 :: xb(3)
+    type(rep_shape) :: lvshp(7)
+
+    if (.not.associated(win(iview)%sc)) return
+
+    do im = 1, 3
+       xb = sys(isys)%c%x2c(m(:,im))
+       lvshp(im) = rep_shape(kind=shapekind_sphere,x1=xb,rad=pv_radfac*latvec_rad_def,&
+          rgb=ColorAxes_def(:,im))
+       lvshp(3+im) = rep_shape(kind=shapekind_arrow,shown=(norm2(xb) > 2d0*lvshp(im)%rad),&
+          rad=pv_arrowr*latvec_rad_def,headr=pv_headr,headl=pv_headl,rgb=ColorAxes_def(:,im))
+       if (lvshp(3+im)%shown) lvshp(3+im)%v(:,1) = xb * (1d0 - lvshp(im)%rad / norm2(xb))
+    end do
+    lvshp(7) = rep_shape(kind=shapekind_box,x1=sys(isys)%c%x2c(t),&
+       v=matmul(sys(isys)%c%m_x2c,m),rad=pv_edger*latvec_rad_def,rgb=pv_edge_rgb,alpha=0._c_float)
+    call win(iview)%sc%show_transient_shapes(w%uid,0,lvshp)
+
+  end subroutine cellform_newcell_preview
 
 end submodule geometry
