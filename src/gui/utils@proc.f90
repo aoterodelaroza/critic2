@@ -1829,8 +1829,11 @@ contains
   !> draws the widget in the same line as the previous one. If notlive
   !> is present and true, the input commits only on Enter. If tooltip is
   !> present, it is shown when hovering over the input field or either
-  !> button. Returns .true. if the value changed.
-  module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,notlive,flags,tooltip)
+  !> button. If norepeat is present and true, a button held down steps
+  !> only once (for a value whose change is costly to apply). Returns
+  !> .true. if the value changed.
+  module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,notlive,flags,tooltip,&
+     norepeat)
     use interfaces_cimgui
     use gui_main, only: g
     character(len=*,kind=c_char), intent(in) :: str
@@ -1842,9 +1845,10 @@ contains
     logical, intent(in), optional :: notlive
     integer(c_int), intent(in), optional :: flags
     character(len=*,kind=c_char), intent(in), optional :: tooltip
+    logical, intent(in), optional :: norepeat
     logical :: iw_intstepper
 
-    logical :: sameline_, ldum
+    logical :: sameline_, ldum, repeat_
     integer :: nd
     integer(c_int) :: old
     logical, save :: ttshown = .false.
@@ -1852,6 +1856,8 @@ contains
     old = ival
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
+    repeat_ = .true.
+    if (present(norepeat)) repeat_ = .not.norepeat
 
     ! field width (number of digits)
     if (present(ndigit)) then
@@ -1867,11 +1873,11 @@ contains
        call igSameLine(0._c_float,g%Style%FramePadding%x)
     end if
 
-    ! "-" button / input field / "+" button (buttons auto-repeat when held); the "_" after
+    ! "-" button / input field / "+" button (buttons auto-repeat when held, unless norepeat); the "_" after
     ! the "##" keeps a str that starts with "#" from making "###", which would give the
     ! three the same ID (ImGui hashes only what follows "###"). The input field
     ! reuses iw_inputint so it inherits the notlive/flags handling (and its no-loss commit).
-    call igPushButtonRepeat(.true._c_bool)
+    call igPushButtonRepeat(logical(repeat_,c_bool))
     if (iw_button("-##_" // str)) ival = ival - 1
     if (present(tooltip)) call iw_tooltip(tooltip,ttshown)
     call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)

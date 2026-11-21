@@ -272,11 +272,12 @@ contains
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax,&
        icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter, icon_ui_slaborigin,&
-       icon_ui_tocrystal, icon_ui_tomolecule
+       icon_ui_tocrystal, icon_ui_tomolecule, icon_ui_cellrepeat
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_textwidth,&
        file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
        iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu,&
+       iw_intstepper,&
        iw_framed_gap
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS, BIND_NAV_MEASURE,&
        BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT, BIND_CANCEL,&
@@ -474,16 +475,19 @@ contains
     ! atoms toggle edit distance, three edit angle, four edit dihedral,
     ! and otherwise deactivate the active session, if any. Either way
     ! the geometry editor becomes the tool on display, so the panel
-    ! shows the session this opened.
+    ! shows the session this opened (the panel of a cell tool stays if
+    ! no session did).
     if (w%edit_pending .or. (w%focused() .and. is_bind_event(BIND_EDIT_D_A_PHI))) then
        w%edit_pending = .false.
+       ok = .true.
        if (nsel >= 2 .and. nsel <= 4) then
           call edit_toggle(nsel)
-          w%builder_tool = it_edit
        elseif (w%edit_kind /= 0) then
           call w%edit_stop()
-          w%builder_tool = it_edit
+       else
+          ok = .false.
        end if
+       if (ok .and. (w%edit_kind /= 0 .or. w%builder_tool <= it_edit)) w%builder_tool = it_edit
     end if
 
     ! per-frame guards on the active edit session
@@ -501,8 +505,16 @@ contains
        if (glfwGetTime() - w%edit_wheel_time > wheel_commit_delay) call edit_commit()
     end if
 
-    ! No tool is on display unless one is running
-    if (w%builder_vm == 0 .and. w%edit_kind == 0) w%builder_tool = it_none
+    ! No tool is on display unless one is running, or it is a cell
+    ! tool with a panel, which stays until it is closed while the
+    ! system is a crystal
+    if (w%builder_tool > it_edit) then
+       ok = havesys
+       if (ok) ok = .not.sys(isys)%c%ismolecule
+       if (.not.ok) w%builder_tool = it_none
+    elseif (w%builder_vm == 0 .and. w%edit_kind == 0) then
+       w%builder_tool = it_none
+    end if
 
     ! header: the system this builder operates on
     call iw_text("System",highlight=.true.)
@@ -587,6 +599,11 @@ contains
        call sysc(isys)%transform_cell(celltransform_primstd,.false.,errmsg=w%errmsg)
        call cell_hold()
     end if
+    lstate = (w%builder_tool == it_repeat)
+    if (cell_button("##bldcellrepeat",icon_ui_cellrepeat,"Rp",.false.,&
+       "Repeat: make the cell longer or shorter along its axes, by whole periods of the"//&
+       " lattice",offcrys,state=lstate)) &
+       call celltool_toggle(it_repeat)
     ! (no camera hold: the camera is reset, to show the cell)
     if (cell_button("##bldtocrystal",icon_ui_tocrystal,"Cr",.false.,&
        "To Crystal: make a crystal of the molecule, with its box as the unit cell",offmol)) &
@@ -783,6 +800,8 @@ contains
           select case (w%builder_tool)
           case (it_edit)
              call panel_edit()
+          case (it_repeat)
+             call panel_repeat()
           case (it_none)
              call panel_text("Choose a tool from the panel above to edit the structure. Press "//&
                 trim(get_bind_keyname(BIND_CANCEL))//" to cancel the edit.")
@@ -1052,11 +1071,59 @@ contains
 
     end subroutine cell_hold
 
+    ! Show the panel of cell tool itool (it_*) in place of the tool on
+    ! display, or close it if it is the one on display. The active
+    ! builder mode and the pick of the origin, if any, end.
+    subroutine celltool_toggle(itool)
+      integer, intent(in) :: itool
+
+      call builder_stop()
+      call origin_pick_stop()
+      if (w%builder_tool == itool) then
+         w%builder_tool = it_none
+      else
+         w%builder_tool = itool
+      end if
+
+    end subroutine celltool_toggle
+
+    ! Panel of the Repeat tool: the number of periods of the lattice in
+    ! the cell along each axis, in three steppers. A new number is
+    ! applied at once (a typed one, when the input ends); a button held
+    ! down steps once, because each step rebuilds the structure.
+    subroutine panel_repeat()
+      integer :: i, nper(3)
+      integer(c_int) :: n
+
+      character(len=1), parameter :: lbl(3) = (/"a","b","c"/)
+
+      call panel_text("Periods of the lattice in the cell, along each axis. A new number"//&
+         " makes the cell longer or shorter at once.")
+      if (sys(isys)%c%havesym == 0) then
+         call panel_text("The symmetry is not known: the cell cannot be made shorter.",faded=.true.)
+      else
+         call panel_text("Close with the tool button, or by choosing another tool.",faded=.true.)
+      end if
+      nper = sysc(isys)%cell_periods()
+      do i = 1, 3
+         n = int(nper(i),c_int)
+         call iw_text(lbl(i),alignframe=.true.,gap=(i > 1))
+         if (iw_intstepper("bldrepeat" // lbl(i),n,minval=1_c_int,sameline=.true.,notlive=.true.,&
+            tooltip="Number of periods of the lattice in the cell along this axis",&
+            norepeat=.true.)) then
+            call sysc(isys)%cell_repeat(i,int(n),w%errmsg)
+            call cell_hold()
+         end if
+      end do
+
+    end subroutine panel_repeat
+
     ! Start the pick of the atom at the new origin in the parent view,
     ! in place of the active builder mode, if any.
     subroutine origin_pick_start()
 
       call builder_stop()
+      w%builder_tool = it_none
       w%geometry_lvpick_row = lvpick_origin
       call w%geometry_lvpick%arm()
       call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the atom at the new origin",w%id)

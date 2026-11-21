@@ -35,6 +35,7 @@ submodule (systems) proc
   ! function field_key(isys,ifield)
   ! subroutine capture_objects(sysc)
   ! subroutine undo_save_objects(sysc)
+  ! function cen_axis(xcen)
   ! subroutine undo_step(sysc,idir,errmsg)
   ! subroutine objstate_move(a,b)
   ! function is_scene_file(file)
@@ -4844,6 +4845,96 @@ contains
     call undo_save_objects(sysc)
 
   end subroutine molecule_to_crystal
+
+  !> The number of periods of the lattice that the cell spans along
+  !> each of its axes: the lattice translations along the axis that
+  !> are shorter than the cell vector (the centering vectors with no
+  !> component along the other two), plus one. One if the symmetry of
+  !> the system is not known (crystal%havesym is zero), and in a
+  !> molecule.
+  module function cell_periods(sysc) result(nper)
+    class(sysconf), intent(in) :: sysc
+    integer :: nper(3)
+
+    integer :: isys, i, j
+
+    nper = 1
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    do j = 2, sys(isys)%c%ncv
+       i = cen_axis(sys(isys)%c%cen(:,j))
+       if (i > 0) nper(i) = nper(i) + 1
+    end do
+
+  end function cell_periods
+
+  !> Make the cell span n periods of the lattice along its axis iaxis
+  !> (see cell_periods), keeping the other two axes and the origin:
+  !> more periods than it has repeat the cell, fewer cut it. The
+  !> bonding is kept if the new cell is a whole number of the old ones.
+  module subroutine cell_repeat(sysc,iaxis,n,errmsg)
+    use param, only: eye
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: iaxis
+    integer, intent(in) :: n
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: isys, j, jbest, nper(3)
+    real*8 :: x0(3,3), r, f, d, dbest
+
+    errmsg = ""
+    if (iaxis < 1 .or. iaxis > 3 .or. n < 1) return
+    nper = sysc%cell_periods()
+    if (n == nper(iaxis)) return
+
+    ! the new cell vector in terms of the old ones: a number of whole
+    ! cells or, if it is not, whole cells plus the centering vector
+    ! along the axis that makes up the rest. The centering vector is
+    ! used as it is, off the axis by the noise of the symmetry search,
+    ! because that is the lattice translation crystal%newcell accepts.
+    x0 = eye
+    r = real(n,8) / real(nper(iaxis),8)
+    if (mod(n,nper(iaxis)) == 0) then
+       x0(iaxis,iaxis) = r
+    else
+       isys = sysc%id
+       jbest = 0
+       dbest = huge(1d0)
+       do j = 2, sys(isys)%c%ncv
+          if (cen_axis(sys(isys)%c%cen(:,j)) /= iaxis) cycle
+          f = sys(isys)%c%cen(iaxis,j) - floor(sys(isys)%c%cen(iaxis,j))
+          d = abs(f - (r - floor(r)))
+          if (d < dbest) then
+             dbest = d
+             jbest = j
+          end if
+       end do
+       if (jbest == 0) return
+       x0(:,iaxis) = sys(isys)%c%cen(:,jbest) - nint(sys(isys)%c%cen(:,jbest))
+       x0(iaxis,iaxis) = floor(r) + sys(isys)%c%cen(iaxis,jbest) - floor(sys(isys)%c%cen(iaxis,jbest))
+    end if
+    call sysc%transform_cell_matrix(x0,(/0d0,0d0,0d0/),.false.,errmsg,label="Repeat cell")
+
+  end subroutine cell_repeat
+
+  !> The axis of the cell (1 to 3) along which the centering vector
+  !> xcen runs: the only one along which its component is not a whole
+  !> number. Zero if there is none, or more than one.
+  function cen_axis(xcen) result(iaxis)
+    real*8, intent(in) :: xcen(3)
+    integer :: iaxis
+
+    logical :: off(3)
+
+    real*8, parameter :: eps = 1d-4 ! in crystallographic coordinates
+
+    iaxis = 0
+    off = (abs(xcen - nint(xcen)) >= eps)
+    if (count(off) == 1) iaxis = findloc(off,.true.,1)
+
+  end function cen_axis
 
   !> Passthrough to crystal%cell_nice_list and cell_nice_select: search
   !> the supercells of increasing size up to inice times the input

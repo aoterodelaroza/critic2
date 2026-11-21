@@ -330,6 +330,8 @@ module systems
      procedure :: set_vacuum
      procedure :: shift_origin
      procedure :: molecule_to_crystal
+     procedure :: cell_periods
+     procedure :: cell_repeat
      procedure :: cell_nice_list
      procedure :: cell_nice_count
      procedure :: recalc_symmetry
@@ -989,6 +991,16 @@ module systems
        class(sysconf), intent(inout) :: sysc
        character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine molecule_to_crystal
+     module function cell_periods(sysc) result(nper)
+       class(sysconf), intent(in) :: sysc
+       integer :: nper(3)
+     end function cell_periods
+     module subroutine cell_repeat(sysc,iaxis,n,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: iaxis
+       integer, intent(in) :: n
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine cell_repeat
      module subroutine cell_nice_list(sysc,inice,doreach,mindisp,nc,ic0,cand,ibest,errmsg)
        use crystalmod, only: nice_cell
        class(sysconf), intent(inout) :: sysc

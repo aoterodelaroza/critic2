@@ -169,10 +169,14 @@ module windows
   ! chooses what the contextual panel shows. A tool that arms a pick mode
   ! is identified by its vm_builder_* constant (negative); it_edit is the
   ! distance/angle/dihedral editor, which is driven by the selection
-  ! instead; it_none is no tool. it_edit sits above the view modes so
-  ! that the two sets of constants never collide.
+  ! instead; it_none is no tool. The constants above it_edit are the
+  ! cell tools that have only a panel (it_repeat repeats the cell): the
+  ! panel stays on display until it is closed, while the system is a
+  ! crystal. They all sit above the view modes so that the two sets of
+  ! constants never collide.
   integer, parameter, public :: it_none = 0
   integer, parameter, public :: it_edit = vm_NUM + 1
+  integer, parameter, public :: it_repeat = vm_NUM + 2
 
   ! highest n-mer order the extract window can be asked for
   integer, parameter, public :: nmer_max = 10
