@@ -45,7 +45,7 @@ submodule (icons) proc
      "at_paint.png","at_enlarge.png","at_shrink.png","at_hide.png",&
      "at_shift.png",&
      "ui_cellconv.png","ui_cellprim.png","ui_slabcenter.png",&
-     "ui_slaborigin.png"/)
+     "ui_slaborigin.png","ui_tocrystal.png","ui_tomolecule.png"/)
 
   ! format icon PNG file names, in isformat_r_* order
   character(len=*), parameter :: fmtfile(0:icon_fmt_MAX) = (/character(len=20) ::&

@@ -104,7 +104,9 @@ module icons
   integer, parameter, public :: icon_ui_cellprim = 68 ! primitive cell (skewed cell)
   integer, parameter, public :: icon_ui_slabcenter = 69 ! center the slab (cell with a band across the middle)
   integer, parameter, public :: icon_ui_slaborigin = 70 ! move the origin to an atom (two cell edges, atom at their corner)
-  integer, parameter, public :: icon_NUM = 70
+  integer, parameter, public :: icon_ui_tocrystal = 71 ! molecule to crystal (molecule in a cell)
+  integer, parameter, public :: icon_ui_tomolecule = 72 ! selection to molecule (molecule between the corners of a cell)
+  integer, parameter, public :: icon_NUM = 72
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

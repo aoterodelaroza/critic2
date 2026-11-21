@@ -97,6 +97,7 @@ module scenes
      logical :: nextbuildlists_fixcam = .false. ! if true, next build_lists skips camera translation
      real*8 :: nextbuildlists_shift(3) = 0d0 ! with fixcam, the content moved by minus this: the next build_lists leaves it where it was
      real*8 :: buildmolx0(3) = 0d0 ! molecular cell origin at the last build_lists (molecules)
+     logical :: buildismol = .false. ! the system was a molecule at the last build_lists
      integer :: buildncel = -1 ! number of cell atoms at the last build_lists (-1 = never built)
      real*8 :: timelastrender = 0d0 ! time when the view was last rendered
      real*8 :: timelastbuild = 0d0 ! time of the last build

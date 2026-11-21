@@ -34,6 +34,7 @@ submodule (systems) proc
   ! function atoms_prefix_hash(isys,n)
   ! function field_key(isys,ifield)
   ! subroutine capture_objects(sysc)
+  ! subroutine undo_save_objects(sysc)
   ! subroutine undo_step(sysc,idir,errmsg)
   ! subroutine objstate_move(a,b)
   ! function is_scene_file(file)
@@ -2133,6 +2134,15 @@ contains
 
   end subroutine capture_objects
 
+  !> Save the objects of the main scene in the current state of the
+  !> undo history, if there is one.
+  subroutine undo_save_objects(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    if (sysc%undo_icur >= 1) call sysc%sc%objects_save(sysc%undo_obj(undo_slot(sysc,sysc%undo_icur)))
+
+  end subroutine undo_save_objects
+
   !> Go one state back (idir = -1) or forward (+1) in the undo history,
   !> after capturing a change of the objects not in it yet. States of the
   !> objects that cannot be brought back (saved from a scene since reset)
@@ -2226,7 +2236,10 @@ contains
   !> itself recorded as a new history entry, goes back to the geometry
   !> and bonding revisions of the state, and brings back its objects,
   !> if it has them saved (the rebuild resets the styles and the Display
-  !> masks made for other revisions; no object ends).
+  !> masks made for other revisions; no object ends, unless the change
+  !> is between a molecule and a crystal: then the objects saved with
+  !> the state left and not with this one end, as the unit cell of
+  !> molecule_to_crystal does).
   subroutine undo_restore(sysc,ifrom,errmsg,done)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: ifrom
@@ -2234,6 +2247,7 @@ contains
     logical, intent(out) :: done
 
     integer :: isys, icur, j
+    logical :: wasmol
 
     errmsg = ""
     done = .true.
@@ -2249,6 +2263,7 @@ contains
        do while (j > 1 .and. sysc%undo_isobj(undo_slot(sysc,j)))
           j = j - 1
        end do
+       wasmol = sys(isys)%c%ismolecule
        call sys(isys)%c%struct_new(sysc%undo_seed(undo_slot(sysc,j)),errmsg=errmsg)
        if (len_trim(errmsg) > 0) return
        ! the view stays where it is, as when the change was made: with
@@ -2265,7 +2280,12 @@ contains
        ! its saved objects are current, the styles made since are not
        sysc%rev_geometry = sysc%undo_rev(1,undo_slot(sysc,icur))
        sysc%rev_rebond = sysc%undo_rev(2,undo_slot(sysc,icur))
-       call sysc%sc%objects_restore(sysc%undo_obj(undo_slot(sysc,icur)))
+       if (wasmol .neqv. sys(isys)%c%ismolecule) then
+          call sysc%sc%objects_restore(sysc%undo_obj(undo_slot(sysc,icur)),&
+             sysc%undo_obj(undo_slot(sysc,ifrom)))
+       else
+          call sysc%sc%objects_restore(sysc%undo_obj(undo_slot(sysc,icur)))
+       end if
     end if
 
     ! force the next edit to start a new history entry instead of coalescing
@@ -4767,6 +4787,63 @@ contains
     if (any(abs(xwin) > epsnull)) call sysc%view_shift(matmul(sys(isys)%c%m_x2c,xwin))
 
   end subroutine shift_origin
+
+  !> Make a crystal of this molecule, in place: the box of the
+  !> molecule becomes the unit cell, with the atoms where they are and
+  !> the same bonds. The main scene of the system shows the unit cell
+  !> and the atoms on the cell border, as it does in a crystal, with
+  !> the camera reset to show the whole cell; undo takes that back
+  !> with the structure.
+  module subroutine molecule_to_crystal(sysc,errmsg)
+    use crystalseedmod, only: crystalseed
+    use representations, only: reptype_unitcell, repflavor_unitcell_basic
+    class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: isys
+    type(crystalseed) :: seed, seedmol
+    character(len=:), allocatable :: errmsg2
+
+    errmsg = ""
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (.not.sys(isys)%c%ismolecule) return
+
+    ! save the objects of the molecule's scene in the current undo
+    ! state (capturing first an object edit still pending), so that
+    ! undo can take away the unit cell added below
+    if (sysc%undo_dirty) call capture_objects(sysc)
+    call undo_save_objects(sysc)
+
+    ! the same structure, as a crystal (the seed has the molecular box
+    ! as the cell and the atoms in crystallographic coordinates); the
+    ! molecule again if the crystal cannot be built
+    call sys(isys)%c%makeseed(seedmol,copysym=.false.,copybonding=.true.)
+    seed = seedmol
+    seed%ismolecule = .false.
+    call sys(isys)%c%struct_new(seed,errmsg=errmsg)
+    if (has_errmsg(errmsg)) then
+       errmsg = "Could not rebuild the structure as a crystal: " // errmsg
+       call sys(isys)%c%struct_new(seedmol,errmsg=errmsg2)
+       return
+    end if
+
+    ! the scene was made for a molecule
+    call sysc%sc%set_kind_shown(reptype_unitcell,repflavor_unitcell_basic,.true.)
+    sysc%sc%disp%border = .true.
+    sysc%sc%forceresetcam = .true.
+
+    ! the geometry has changed, in a state of its own in the undo
+    ! history (never merged with a change made just before); the
+    ! objects of the crystal's scene are saved in it, so that redo
+    ! brings the unit cell back
+    sysc%undo_lasttime = -1d30
+    call sysc%post_event(lastchange_geometry,label="Molecule to crystal")
+    call undo_save_objects(sysc)
+
+  end subroutine molecule_to_crystal
 
   !> Passthrough to crystal%cell_nice_list and cell_nice_select: search
   !> the supercells of increasing size up to inice times the input

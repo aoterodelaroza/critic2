@@ -271,7 +271,8 @@ contains
     use gui_main, only: g, io, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax,&
-       icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter, icon_ui_slaborigin
+       icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter, icon_ui_slaborigin,&
+       icon_ui_tocrystal, icon_ui_tomolecule
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_textwidth,&
        file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
@@ -289,12 +290,12 @@ contains
     integer :: isys, iview, icel, imode, nsel
     integer :: idxpick(4), istat, atpick(4)
     real*8 :: xpick(3)
-    logical :: doquit, goodparent, havesys, ok, ldum, relaxing, syschanged, iscrys
+    logical :: doquit, goodparent, havesys, ok, ldum, relaxing, syschanged
     logical :: lstate, mdshown, lplaced
     real(c_float) :: xclick(2), xicon, hicon, yrow, reserve
     type(ImVec2) :: szchild, szrow, szwin, szerr
     real(c_float) :: ypanel, hneed
-    character(len=:), allocatable :: errmsg, strgroup
+    character(len=:), allocatable :: errmsg, strgroup, offcrys, offmol, offvac, offsel
     character(kind=c_char,len=:), allocatable, target :: strchild, strerr
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -456,7 +457,7 @@ contains
           call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,atidx=atpick)
           if (istat == ipick_point .and. atpick(1) > 0) then
              call sysc(isys)%shift_origin(origin_atom,atpick(1),w%errmsg)
-             if (len_trim(w%errmsg) == 0) sysc(isys)%sc%nextbuildlists_fixcam = .true.
+             call cell_hold()
           end if
           if (istat /= ipick_pending) w%geometry_lvpick_row = 0
        end if
@@ -553,24 +554,53 @@ contains
        " angle, and four a dihedral.")
     call tool_button(it_edit,.true.)
 
-    ! the cell and the slab tools, for crystals only
-    iscrys = .false.
-    if (havesys) iscrys = .not.sys(isys)%c%ismolecule
+    ! why each cell and slab button is disabled (empty: enabled). Most
+    ! are for crystals only, To Crystal is for molecules with atoms,
+    ! Center Slab needs vacuum and To Molecule selected atoms
+    offcrys = ""
+    offmol = ""
+    offvac = ""
+    offsel = ""
+    if (havesys) then
+       if (sys(isys)%c%ismolecule) then
+          offcrys = "crystals only"
+          offvac = offcrys
+          offsel = offcrys
+          if (sys(isys)%c%ncel == 0) offmol = "the molecule has no atoms"
+       else
+          offmol = "molecules only"
+          if (.not.any(sys(isys)%c%vaclength > iperiod_vacthr)) offvac = "the cell has no vacuum"
+          ok = allocated(sysc(isys)%highlight_rgba)
+          if (ok) ok = any(sysc(isys)%highlight_rgba >= 0._c_float)
+          if (.not.ok) offsel = "no atoms are selected"
+       end if
+    end if
+
     call row_label("Cell")
     if (cell_button("##bldcellconv",icon_ui_cellconv,"Cv",.true.,&
-       "Conventional Cell: transform to the conventional cell")) then
+       "Conventional Cell: transform to the conventional cell",offcrys)) then
        call sysc(isys)%transform_cell(celltransform_standard,.false.,errmsg=w%errmsg)
+       call cell_hold()
     end if
     if (cell_button("##bldcellprim",icon_ui_cellprim,"Pr",.false.,&
-       "Primitive Cell: transform to the standard primitive cell")) then
+       "Primitive Cell: transform to the standard primitive cell",offcrys)) then
        call sysc(isys)%transform_cell(celltransform_primstd,.false.,errmsg=w%errmsg)
+       call cell_hold()
     end if
+    ! (no camera hold: the camera is reset, to show the cell)
+    if (cell_button("##bldtocrystal",icon_ui_tocrystal,"Cr",.false.,&
+       "To Crystal: make a crystal of the molecule, with its box as the unit cell",offmol)) &
+       call sysc(isys)%molecule_to_crystal(w%errmsg)
+    if (cell_button("##bldtomolecule",icon_ui_tomolecule,"Ml",.false.,&
+       "To Molecule: make a new system, a molecule, with the atoms selected in the view",&
+       offsel)) &
+       call sysc(isys)%new_system_from_highlighted(forcemolecule=.true.)
 
     call row_label("Slab")
     lstate = (w%geometry_lvpick_row == lvpick_origin)
     if (cell_button("##bldslaborigin",icon_ui_slaborigin,"Or",.true.,&
        "Origin: move the origin of the cell to an atom, chosen by clicking it in the view",&
-       state=lstate)) then
+       offcrys,state=lstate)) then
        if (w%geometry_lvpick_row == lvpick_origin) then
           call origin_pick_stop()
        else
@@ -579,8 +609,9 @@ contains
     end if
     if (cell_button("##bldslabcenter",icon_ui_slabcenter,"Cs",.false.,&
        "Center Slab: move the origin so that the atoms are in the middle of the cell,"//&
-       " along the axes that have vacuum",needvac=.true.)) then
+       " along the axes that have vacuum",offvac)) then
        call sysc(isys)%shift_origin(origin_center,0,w%errmsg)
+       call cell_hold()
     end if
 
     call row_label("Symmetry")
@@ -982,49 +1013,44 @@ contains
 
     end subroutine tool_button
 
-    ! Draw the palette button of a cell tool, which is for crystals
-    ! only: the framed icon, with ttip (its name and what it does) as
-    ! tooltip. first is whether it opens its row. With needvac, the
-    ! button is also disabled in a crystal that has no vacuum. Returns
-    ! whether it was pressed; by then the edit session, if any, has
-    ! ended. Without state the button is an action, which the caller
-    ! carries out when it is pressed: the camera of the main view of
-    ! the system is held for the change that follows (as in the Cell
-    ! tab of the geometry window; any other view of the system centers
-    ! again). With state the button is a tool that is switched on and
-    ! off: it is drawn on while state is true, and pressing it flips
-    ! state.
-    function cell_button(strid,icon,fallback,first,ttip,needvac,state) result(pressed)
-      character(len=*), intent(in) :: strid, fallback, ttip
+    ! Draw the palette button of a cell tool: the framed icon, with
+    ! ttip (its name and what it does) as tooltip. first is whether it
+    ! opens its row. The button is disabled if there is no system or
+    ! if off, the reason why the tool does not apply to this one, is
+    ! not empty; the tooltip then ends with it. With state the button
+    ! is a tool that is switched on and off: it is drawn on while
+    ! state is true, and pressing it flips state. Returns whether it
+    ! was pressed; by then the edit session, if any, has ended.
+    function cell_button(strid,icon,fallback,first,ttip,off,state) result(pressed)
+      character(len=*), intent(in) :: strid, fallback, ttip, off
       integer, intent(in) :: icon
       logical, intent(in) :: first
-      logical, intent(in), optional :: needvac
       logical, intent(inout), optional :: state
       logical :: pressed
 
-      logical :: novac
-
-      novac = .false.
-      if (present(needvac) .and. iscrys) &
-         novac = needvac .and. .not.any(sys(isys)%c%vaclength > iperiod_vacthr)
-
       call row_cursor(first,iw_framed_gap)
       pressed = iw_icon_togglebutton(strid,icon_tex(icon),fallback,state=state,&
-         disabled=(.not.iscrys .or. novac),framed=.true.)
-      if (havesys .and. .not.iscrys) then
-         call iw_tooltip(ttip // " (crystals only)",ttshown,whendisabled=.true.)
-      elseif (novac) then
-         call iw_tooltip(ttip // " (the cell has no vacuum)",ttshown,whendisabled=.true.)
+         disabled=(.not.havesys .or. len(off) > 0),framed=.true.)
+      if (len(off) > 0) then
+         call iw_tooltip(ttip // " (" // off // ")",ttshown,whendisabled=.true.)
       else
          call iw_tooltip(ttip,ttshown,whendisabled=.true.)
       end if
       if (pressed) then
          w%errmsg = ""
          if (w%edit_kind /= 0) call w%edit_stop()
-         if (.not.present(state)) sysc(isys)%sc%nextbuildlists_fixcam = .true.
       end if
 
     end function cell_button
+
+    ! Hold the camera of the main view of the system for the change of
+    ! the cell just made, if it was made (as in the Cell tab of the
+    ! geometry window; any other view of the system centers again).
+    subroutine cell_hold()
+
+      if (len_trim(w%errmsg) == 0) sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
+    end subroutine cell_hold
 
     ! Start the pick of the atom at the new origin in the parent view,
     ! in place of the active builder mode, if any.

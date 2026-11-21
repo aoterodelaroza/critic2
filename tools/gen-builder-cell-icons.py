@@ -57,6 +57,31 @@ def cellprim():
     save(img, "ui_cellprim.png")
 
 
+def molecule(dr):
+    """Two bonded atoms, in the middle of the canvas."""
+    dr.line([(186, 326), (326, 186)], fill=WHITE, width=34)
+    dot(dr, 186, 326, 56)
+    dot(dr, 326, 186, 56)
+
+
+def tocrystal():
+    """To crystal: a molecule in a cell."""
+    img, dr = canvas()
+    polyline(dr, [(56, 56), (456, 56), (456, 456), (56, 456)], closed=True, width=36)
+    molecule(dr)
+    save(img, "ui_tocrystal.png")
+
+
+def tomolecule():
+    """To molecule: a molecule between the corners that are left of a cell."""
+    img, dr = canvas()
+    for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
+        x, y = 256 - 200 * sx, 256 - 200 * sy
+        polyline(dr, [(x + 110 * sx, y), (x, y), (x, y + 110 * sy)], width=36)
+    molecule(dr)
+    save(img, "ui_tomolecule.png")
+
+
 def slaborigin():
     """Origin: two edges of the cell, with an atom at the corner they share."""
     img, dr = canvas()
@@ -73,7 +98,7 @@ def slabcenter():
     save(img, "ui_slabcenter.png")
 
 
-ICONS = {f.__name__: f for f in (cellconv, cellprim, slaborigin, slabcenter)}
+ICONS = {f.__name__: f for f in (cellconv, cellprim, tocrystal, tomolecule, slaborigin, slabcenter)}
 
 if __name__ == "__main__":
     for name in sys.argv[1:] or ICONS:

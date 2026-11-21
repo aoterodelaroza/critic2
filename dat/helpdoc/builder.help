@@ -27,9 +27,11 @@ Undo in the Edit menu (by default Control-z) reverts a change.
   their distance, angle or dihedral, choosing which atoms move. "Apply" commits and
   "Revert" restores the starting value. When measuring in the view,
   pressing "E" allows editing a distance, angle, or dihedral.
-- Cell (crystals only): "Conventional Cell" and "Primitive Cell"
-  transform the structure to the conventional and to the standard
-  primitive cell.
+- Cell: "Conventional Cell" and "Primitive Cell" transform a crystal
+  to the conventional and to the standard primitive cell. "To Crystal"
+  makes a crystal of a molecule, with the box of the molecule as the
+  unit cell. "To Molecule" makes a new system, a molecule, with the
+  atoms of a crystal selected in the view.
 - Slab (crystals only): "Origin" moves the origin of the cell to the
   atom clicked in the view. "Center Slab" moves the origin so that the
   atoms are in the middle of the cell, along the axes that have vacuum;

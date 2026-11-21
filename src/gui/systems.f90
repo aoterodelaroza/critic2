@@ -329,6 +329,7 @@ module systems
      procedure :: transform_cell_matrix
      procedure :: set_vacuum
      procedure :: shift_origin
+     procedure :: molecule_to_crystal
      procedure :: cell_nice_list
      procedure :: cell_nice_count
      procedure :: recalc_symmetry
@@ -984,6 +985,10 @@ module systems
        integer, intent(in) :: id
        character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine shift_origin
+     module subroutine molecule_to_crystal(sysc,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine molecule_to_crystal
      module subroutine cell_nice_list(sysc,inice,doreach,mindisp,nc,ic0,cand,ibest,errmsg)
        use crystalmod, only: nice_cell
        class(sysconf), intent(inout) :: sysc
