@@ -99,7 +99,11 @@ module icons
   integer, parameter, public :: icon_at_shrink = 64 ! make atoms smaller (sphere, arrows in)
   integer, parameter, public :: icon_at_hide = 65 ! hide atoms (crossed-out circle)
   integer, parameter, public :: icon_at_shift = 66 ! shift atoms by a lattice vector (atom, arrow, dashed copy)
-  integer, parameter, public :: icon_NUM = 66
+  ! icon IDs: cell and slab rows of the builder
+  integer, parameter, public :: icon_ui_cellconv = 67 ! conventional cell (square cell, point at the center)
+  integer, parameter, public :: icon_ui_cellprim = 68 ! primitive cell (skewed cell)
+  integer, parameter, public :: icon_ui_slabcenter = 69 ! center the slab (cell with a band across the middle)
+  integer, parameter, public :: icon_NUM = 69
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

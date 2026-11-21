@@ -4723,9 +4723,14 @@ contains
   !> Move the origin of the cell. itype is one of the origin_*
   !> constants of crystalmod (the cell atom id, the center of mass, the
   !> centering of the atoms, the closest inversion center). The bonding
-  !> is kept. See crystal%cell_origin.
+  !> is kept. See crystal%cell_origin. Along the axes that have vacuum,
+  !> the main view of the system keeps the atoms where they are on the
+  !> screen (see view_shift; the caller holds the camera of the main
+  !> scene).
   module subroutine shift_origin(sysc,itype,id,errmsg)
     use crystalmod, only: origin_inversion
+    use representations, only: display_cell_window
+    use display, only: rep_display
     use param, only: eye
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: itype
@@ -4733,7 +4738,7 @@ contains
     character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys
-    real*8 :: t(3)
+    real*8 :: t(3), xwin(3)
 
     real*8, parameter :: epsnull = 1d-10 ! no translation
 
@@ -4750,7 +4755,16 @@ contains
        if (itype == origin_inversion) errmsg = "The origin is already at an inversion center"
        return
     end if
+    xwin = display_cell_window(isys,sysc%sc%disp,rep_display())
     call sysc%transform_cell_matrix(eye,t,.false.,errmsg,label="Move origin")
+    if (has_errmsg(errmsg)) return
+
+    ! along an axis with vacuum the view draws the slab in the cell
+    ! that starts in the middle of the vacuum, which moves with the
+    ! origin: the view moves by the same amount, so that the atoms
+    ! stay where they are on the screen
+    xwin = xwin - display_cell_window(isys,sysc%sc%disp,rep_display())
+    if (any(abs(xwin) > epsnull)) call sysc%view_shift(matmul(sys(isys)%c%m_x2c,xwin))
 
   end subroutine shift_origin
 

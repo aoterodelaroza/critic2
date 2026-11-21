@@ -263,12 +263,15 @@ contains
   module subroutine draw_builder(w)
     use utils, only: iw_bottomrow_ypos, iw_bottomrow_xpos
     use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry,&
-       reread_system_from_file, atlisttype_ncel_frac
+       reread_system_from_file, atlisttype_ncel_frac, celltransform_standard,&
+       celltransform_primstd
+    use crystalmod, only: origin_center, iperiod_vacthr
     use dynamics, only: md_relax
     use energy, only: ff_backend_applicable, ff_backend_default, ff_eam
     use gui_main, only: g, io, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
        ColorElement, lumweights, ColorBlack, ColorWhite
-    use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
+    use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax,&
+       icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_textwidth,&
        file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
@@ -284,14 +287,14 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel
-    integer :: idxpick(4), nrline
-    logical :: doquit, goodparent, havesys, ok, ldum, relaxing, syschanged
+    integer :: idxpick(4)
+    logical :: doquit, goodparent, havesys, ok, ldum, relaxing, syschanged, iscrys
     logical :: lstate, mdshown, lplaced
     real(c_float) :: xclick(2), xicon, hicon, yrow, reserve
-    type(ImVec2) :: szchild, szrow, szwin
+    type(ImVec2) :: szchild, szrow, szwin, szerr
     real(c_float) :: ypanel, hneed
     character(len=:), allocatable :: errmsg, strgroup
-    character(kind=c_char,len=:), allocatable, target :: strchild
+    character(kind=c_char,len=:), allocatable, target :: strchild, strerr
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -530,6 +533,26 @@ contains
        " angle, and four a dihedral.")
     call tool_button(it_edit,.true.)
 
+    ! the cell and the slab tools, for crystals only
+    iscrys = .false.
+    if (havesys) iscrys = .not.sys(isys)%c%ismolecule
+    call row_label("Cell")
+    if (cell_button("##bldcellconv",icon_ui_cellconv,"Cv",.true.,&
+       "Conventional Cell: transform to the conventional cell")) then
+       call sysc(isys)%transform_cell(celltransform_standard,.false.,errmsg=w%errmsg)
+    end if
+    if (cell_button("##bldcellprim",icon_ui_cellprim,"Pr",.false.,&
+       "Primitive Cell: transform to the standard primitive cell")) then
+       call sysc(isys)%transform_cell(celltransform_primstd,.false.,errmsg=w%errmsg)
+    end if
+
+    call row_label("Slab")
+    if (cell_button("##bldslabcenter",icon_ui_slabcenter,"Cs",.true.,&
+       "Center Slab: move the origin so that the atoms are in the middle of the cell,"//&
+       " along the axes that have vacuum",needvac=.true.)) then
+       call sysc(isys)%shift_origin(origin_center,0,w%errmsg)
+    end if
+
     call row_label("Symmetry")
     call row_cursor(.true.)
     if (iw_icon_togglebutton("##buildersymm",icon_tex(icon_ui_symmetry),"Sy",&
@@ -673,11 +696,18 @@ contains
     call window_button("Dynamics",geomtab_none)
 
     ! the options of the tool on display, in a child region so that only
-    ! this part scrolls: the footer buttons stay in view
+    ! this part scrolls: the footer stays in view. The footer is the
+    ! row of buttons and, if there is an error message, the lines it
+    ! takes at this width above the row, which then starts a line of
+    ! its own under the separator (hence its thickness, one pixel)
     call igSeparator()
-    nrline = 0
-    if (len_trim(w%errmsg) > 0) nrline = 1
-    reserve = iw_calcheight(1,nrline,.true.) + 2._c_float*g%Style%ItemSpacing%y
+    reserve = iw_calcheight(1,0,.true.) + 2._c_float*g%Style%ItemSpacing%y
+    if (len_trim(w%errmsg) > 0) then
+       call igGetContentRegionAvail(szrow)
+       strerr = trim(w%errmsg) // c_null_char
+       call igCalcTextSize(szerr,c_loc(strerr),c_null_ptr,.false._c_bool,szrow%x)
+       reserve = reserve + szerr%y + g%Style%ItemSpacing%y + 1._c_float
+    end if
     strchild = "##buildertoolpanel" // c_null_char
     szchild%x = 0._c_float
     szchild%y = -reserve
@@ -723,12 +753,16 @@ contains
        call sysc(w%builder_sys%id)%highlight_atoms(.true.,w%builder_bond%idx(1:1),&
        atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,1))
 
-    ! error message, if any
-    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+    ! error message, if any, on its own lines above the row of buttons
+    ! (the framework draws the Help button at the left end of that row)
+    if (len_trim(w%errmsg) > 0) then
+       call iw_text(trim(w%errmsg),danger=.true.,wrap=.true.)
+       call igSetCursorPosX(iw_calcwidth(5,1,from_end=.true.))
+    else
+       call iw_setposx_fromend(5,1)
+    end if
 
-    ! close button and binds (the framework puts the Help button on
-    ! this row, at its left end)
-    call iw_setposx_fromend(5,1)
+    ! close button and binds
     iw_bottomrow_ypos = igGetCursorPosY()
     iw_bottomrow_xpos = igGetCursorPosX()
     if (iw_button("Close")) doquit = .true.
@@ -910,6 +944,46 @@ contains
       end if
 
     end subroutine tool_button
+
+    ! Draw the palette button of a cell action, which acts when it is
+    ! pressed and is for crystals only: the framed icon, with ttip (its
+    ! name and what it does) as tooltip. first is whether it opens its
+    ! row. With needvac, the button is also disabled in a crystal that
+    ! has no vacuum. Returns whether it was pressed; by then the edit
+    ! session, if any, has ended, and the camera of the main view of
+    ! the system is held for the change that follows (as in the Cell
+    ! tab of the geometry window; any other view of the system centers
+    ! again).
+    function cell_button(strid,icon,fallback,first,ttip,needvac) result(pressed)
+      character(len=*), intent(in) :: strid, fallback, ttip
+      integer, intent(in) :: icon
+      logical, intent(in) :: first
+      logical, intent(in), optional :: needvac
+      logical :: pressed
+
+      logical :: novac
+
+      novac = .false.
+      if (present(needvac) .and. iscrys) &
+         novac = needvac .and. .not.any(sys(isys)%c%vaclength > iperiod_vacthr)
+
+      call row_cursor(first,iw_framed_gap)
+      pressed = iw_icon_togglebutton(strid,icon_tex(icon),fallback,&
+         disabled=(.not.iscrys .or. novac),framed=.true.)
+      if (havesys .and. .not.iscrys) then
+         call iw_tooltip(ttip // " (crystals only)",ttshown,whendisabled=.true.)
+      elseif (novac) then
+         call iw_tooltip(ttip // " (the cell has no vacuum)",ttshown,whendisabled=.true.)
+      else
+         call iw_tooltip(ttip,ttshown,whendisabled=.true.)
+      end if
+      if (pressed) then
+         w%errmsg = ""
+         if (w%edit_kind /= 0) call w%edit_stop()
+         sysc(isys)%sc%nextbuildlists_fixcam = .true.
+      end if
+
+    end function cell_button
 
     ! The row of recently placed atoms and fragments, under the Add
     ! tools: each entry redraws the choice it stands for (the local

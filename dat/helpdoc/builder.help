@@ -3,10 +3,10 @@ manual: structure/#c2-edit
 
 Modify the structure shown in the view by clicking on it: add or
 remove atoms and fragments, change the number of hydrogens, create or
-remove bonds, and edit distances, angles, and dihedrals. To use the
-builder, choose a tool from the palette; the panel below explains what
-a click in the view does and how to stop. Undo in the Edit menu
-(by default Control-z) reverts a change.
+remove bonds, edit distances, angles, and dihedrals, and change the
+unit cell. To use the builder, choose a tool from the palette; the
+panel below explains what a click in the view does and how to stop.
+Undo in the Edit menu (by default Control-z) reverts a change.
 
 # Tools
 - Add: "Add Atoms" opens the periodic table; the chosen element is
@@ -27,6 +27,12 @@ a click in the view does and how to stop. Undo in the Edit menu
   their distance, angle or dihedral, choosing which atoms move. "Apply" commits and
   "Revert" restores the starting value. When measuring in the view,
   pressing "E" allows editing a distance, angle, or dihedral.
+- Cell (crystals only): "Conventional Cell" and "Primitive Cell"
+  transform the structure to the conventional and to the standard
+  primitive cell.
+- Slab (crystals only): "Center Slab" moves the origin so that the
+  atoms are in the middle of the cell, along the axes that have vacuum;
+  it is disabled if there is none.
 - Symmetry: moves the atoms onto their symmetry positions exactly; the
   point group or space group is shown next to the button.
 - Relax: relaxes the geometry to the nearest minimum with the chosen force field until
