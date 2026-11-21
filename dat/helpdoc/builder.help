@@ -27,8 +27,11 @@ Undo in the Edit menu (by default Control-z) reverts a change.
   their distance, angle or dihedral, choosing which atoms move. "Apply" commits and
   "Revert" restores the starting value. When measuring in the view,
   pressing "E" allows editing a distance, angle, or dihedral.
-- Cell: "Conventional Cell" and "Primitive Cell" transform a crystal
-  to the conventional and to the standard primitive cell. "Repeat"
+- Cell: "Lattice" shows the lengths and angles of the cell and its
+  volume; a new value changes the cell, keeping the space group if
+  "Keep symmetry" is checked. "Conventional Cell" and "Primitive
+  Cell" transform a crystal to the conventional and to the standard
+  primitive cell. "Repeat"
   shows the number of periods of the lattice in the cell along each
   axis; a new number makes the cell longer or shorter. "Pick Cell"
   shows the lattice points in the view: click the three at the ends

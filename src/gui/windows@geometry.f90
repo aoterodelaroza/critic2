@@ -18,7 +18,7 @@
 ! Routines for the view/edit geometry window. The cell form routines
 ! (cellform_*) are the parts of its cell tab that the builder window
 ! uses too; both windows keep the state of the form in their own
-! geometry_cell and geometry_lvpick* fields.
+! geometry_cell, geometry_lvpick* and geometry_forcewyc fields.
 submodule (windows) geometry
   use interfaces_cimgui
   implicit none
@@ -69,7 +69,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr, doocc
-    logical :: doquit, clicked, forcesort, ch, lch, deselected, chvol, iactive, syschanged
+    logical :: doquit, clicked, forcesort, ch, lch, deselected, iactive, syschanged
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:17)
     integer :: iwrite
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
@@ -104,7 +104,7 @@ contains
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, havergb_, ldum, ok, ballow
-    real*8 :: x0(3), x6(6), xold(3), x6old(6), res, vol, volold, scal
+    real*8 :: x0(3), xold(3), res
     real*8 :: occval, occold
     real*8 :: stdrot(3,3), stdcom(3), stdext, stdaxlen ! transient std-orientation axes
     integer :: ieuler_drag ! which Euler angle (1/2/3) is being dragged (0 = none)
@@ -1015,64 +1015,8 @@ contains
 
              call iw_separatortext("Lattice parameters",w%geometry_sec(geomsec_latpar))
              if (w%geometry_sec(geomsec_latpar)%open) then
-                ! keep symmetry and space group
-                ldum = iw_checkbox("Keep symmetry",w%geometry_forcewyc,labelleft=.true.)
-                call iw_tooltip("If checked, force system to maintain the current space group",ttshown)
-                call iw_text("Spg",alignframe=.true.,gap=.true.)
-                if (sys(isys)%c%spgavail) then
-                   call pointgroup_info(sys(isys)%c%spg%pointgroup_symbol,schpg,holo,laue)
-                   call iw_text(trim(sys(isys)%c%spg%international_symbol) // " (" //&
-                      string(holo_string(holo)) // ")",sameline=.true.)
-                else
-                   call iw_text("n/a",sameline=.true.)
-                end if
-
-                x6(1:3) = sys(isys)%c%aa
-                x6(4:6) = sys(isys)%c%bb
-                x6old = x6
-
-                call iw_text("a/b/c (Å)",alignframe=.true.)
-                ch = .false.
-                lch = iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,&
-                   notlive=.true.,sameline=.true.)
-                ch = ch .or. lch
-                lch = iw_dragfloat_real8("##celllengthsb",x1=x6(2),speed=0.005d0,decimal=6,scale=bohrtoa,&
-                   notlive=.true.,sameline=.true.)
-                ch = ch .or. lch
-                lch = iw_dragfloat_real8("##celllengthsc",x1=x6(3),speed=0.005d0,decimal=6,scale=bohrtoa,&
-                   notlive=.true.,sameline=.true.)
-                ch = ch .or. lch
-
-                call iw_text("α/β/γ (°)",alignframe=.true.)
-                lch = iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.,&
-                   notlive=.true.)
-                ch = ch .or. lch
-                lch = iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.,&
-                   notlive=.true.)
-                ch = ch .or. lch
-                lch = iw_dragfloat_real8("##cellanbsc",x1=x6(6),speed=0.01d0,decimal=4,sameline=.true.,&
-                   notlive=.true.)
-                ch = ch .or. lch
-
-                ! cell volume
-                call iw_text("Volume (Å³)",alignframe=.true.)
-                vol = sys(isys)%c%omega * bohrtoa**3
-                volold = vol
-                chvol = iw_dragfloat_real8("##cellvolume",x1=vol,speed=0.5d0,decimal=4,min=1d-6,&
-                   notlive=.true.,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-                call iw_tooltip("Cell volume in Å³. Changing it scales the cell isotropically, &
-                   &compressing or expanding the crystal at constant fractional coordinates",ttshown)
-
-                if (ch .and. any(abs(x6-x6old) > epsmoved)) then
+                if (cellform_latpar(w,isys,ttshown,iaction_x6(1:3),iaction_x6(4:6))) then
                    iaction = iaction_change_cell
-                   iaction_x6 = x6
-                   iaction_l = w%geometry_forcewyc
-                elseif (chvol .and. abs(vol-volold) > epsmoved .and. vol > 1d-6) then
-                   ! isotropic scale factor on the lengths to reach the target volume
-                   scal = (vol / volold)**(1d0/3d0)
-                   iaction = iaction_change_cell
-                   iaction_x6(1:3) = sys(isys)%c%aa * scal
-                   iaction_x6(4:6) = sys(isys)%c%bb
                    iaction_l = w%geometry_forcewyc
                 end if
              end if
@@ -4069,6 +4013,89 @@ contains
   end subroutine draw_geometry
 
   !xx! the cell form: shared with the builder window !xx!
+
+  !> The lattice parameters of the cell form, for the crystal in system
+  !> isys: the Keep symmetry checkbox (w%geometry_forcewyc) with the
+  !> space group, and the lengths, the angles and the volume of the
+  !> cell. Returns whether a new cell was asked for: aa (bohr) and bb
+  !> (degrees) are then its lengths and angles (a new volume scales
+  !> the lengths), as sysconf%move_cell takes them.
+  module function cellform_latpar(w,isys,ttshown,aa,bb) result(changed)
+    use systems, only: sys
+    use crystalmod, only: holo_string, pointgroup_info
+    use utils, only: iw_text, iw_checkbox, iw_tooltip, iw_dragfloat_real8
+    use tools_io, only: string
+    use param, only: bohrtoa
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+    logical, intent(inout) :: ttshown
+    real*8, intent(out) :: aa(3), bb(3)
+    logical :: changed
+
+    logical :: ldum, ch, lch, chvol
+    real*8 :: vol, vol0
+    character(len=3) :: schpg
+    integer :: holo, laue
+
+    real*8, parameter :: epsmoved = 1d-8
+
+    ! keep symmetry and space group
+    ldum = iw_checkbox("Keep symmetry",w%geometry_forcewyc,labelleft=.true.)
+    call iw_tooltip("If checked, force system to maintain the current space group",ttshown)
+    call iw_text("Spg",alignframe=.true.,gap=.true.)
+    if (sys(isys)%c%spgavail) then
+       call pointgroup_info(sys(isys)%c%spg%pointgroup_symbol,schpg,holo,laue)
+       call iw_text(trim(sys(isys)%c%spg%international_symbol) // " (" //&
+          string(holo_string(holo)) // ")",sameline=.true.)
+    else
+       call iw_text("n/a",sameline=.true.)
+    end if
+
+    ! cell lengths and angles
+    aa = sys(isys)%c%aa
+    bb = sys(isys)%c%bb
+    call iw_text("a/b/c (Å)",alignframe=.true.)
+    ch = .false.
+    lch = iw_dragfloat_real8("##celllengthsa",x1=aa(1),speed=0.005d0,decimal=6,scale=bohrtoa,&
+       notlive=.true.,sameline=.true.)
+    ch = ch .or. lch
+    lch = iw_dragfloat_real8("##celllengthsb",x1=aa(2),speed=0.005d0,decimal=6,scale=bohrtoa,&
+       notlive=.true.,sameline=.true.)
+    ch = ch .or. lch
+    lch = iw_dragfloat_real8("##celllengthsc",x1=aa(3),speed=0.005d0,decimal=6,scale=bohrtoa,&
+       notlive=.true.,sameline=.true.)
+    ch = ch .or. lch
+
+    call iw_text("α/β/γ (°)",alignframe=.true.)
+    lch = iw_dragfloat_real8("##cellangsa",x1=bb(1),speed=0.01d0,decimal=4,sameline=.true.,&
+       notlive=.true.)
+    ch = ch .or. lch
+    lch = iw_dragfloat_real8("##cellanbsb",x1=bb(2),speed=0.01d0,decimal=4,sameline=.true.,&
+       notlive=.true.)
+    ch = ch .or. lch
+    lch = iw_dragfloat_real8("##cellanbsc",x1=bb(3),speed=0.01d0,decimal=4,sameline=.true.,&
+       notlive=.true.)
+    ch = ch .or. lch
+
+    ! cell volume
+    call iw_text("Volume (Å³)",alignframe=.true.)
+    vol0 = sys(isys)%c%omega * bohrtoa**3
+    vol = vol0
+    chvol = iw_dragfloat_real8("##cellvolume",x1=vol,speed=0.5d0,decimal=4,min=1d-6,&
+       notlive=.true.,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Cell volume in Å³. Changing it scales the cell isotropically, &
+       &compressing or expanding the crystal at constant fractional coordinates",ttshown)
+
+    changed = ch .and. (any(abs(aa-sys(isys)%c%aa) > epsmoved) .or.&
+       any(abs(bb-sys(isys)%c%bb) > epsmoved))
+    if (.not.changed .and. chvol .and. abs(vol-vol0) > epsmoved .and. vol > 1d-6) then
+       ! isotropic scale factor on the lengths to reach the target volume
+       aa = sys(isys)%c%aa * (vol / vol0)**(1d0/3d0)
+       bb = sys(isys)%c%bb
+       changed = .true.
+    end if
+
+  end function cellform_latpar
 
   !> Start a pick of the cell form of window w in view iview: the
   !> lattice vector in row irow of the matrix cell transformation (the

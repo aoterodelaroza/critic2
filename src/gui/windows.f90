@@ -172,13 +172,15 @@ module windows
   ! instead; it_none is no tool. The constants above it_edit are the
   ! cell tools that have a panel and no view mode of their own
   ! (it_repeat repeats the cell, it_pickcell makes a cell of lattice
-  ! vectors picked in the view): the panel stays on display until it is
-  ! closed, while the system is a crystal. They all sit above the view
-  ! modes so that the two sets of constants never collide.
+  ! vectors picked in the view, it_lattice has the lattice parameters):
+  ! the panel stays on display until it is closed, while the system is
+  ! a crystal. They all sit above the view modes so that the two sets
+  ! of constants never collide.
   integer, parameter, public :: it_none = 0
   integer, parameter, public :: it_edit = vm_NUM + 1
   integer, parameter, public :: it_repeat = vm_NUM + 2
   integer, parameter, public :: it_pickcell = vm_NUM + 3
+  integer, parameter, public :: it_lattice = vm_NUM + 4
 
   ! highest n-mer order the extract window can be asked for
   integer, parameter, public :: nmer_max = 10
@@ -3058,6 +3060,13 @@ module windows
        class(window), intent(inout), target :: w
      end subroutine draw_geometry
      ! the cell form, shared with the builder window
+     module function cellform_latpar(w,isys,ttshown,aa,bb) result(changed)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: isys
+       logical, intent(inout) :: ttshown
+       real*8, intent(out) :: aa(3), bb(3)
+       logical :: changed
+     end function cellform_latpar
      module subroutine cellform_lvpick_start(w,iview,irow,ilast)
        class(window), intent(inout), target :: w
        integer, intent(in) :: iview, irow, ilast

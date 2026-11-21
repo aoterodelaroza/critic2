@@ -273,7 +273,8 @@ contains
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax,&
        icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter, icon_ui_slaborigin,&
-       icon_ui_tocrystal, icon_ui_tomolecule, icon_ui_cellrepeat, icon_ui_cellpick
+       icon_ui_tocrystal, icon_ui_tomolecule, icon_ui_cellrepeat, icon_ui_cellpick,&
+       icon_ui_celllattice
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_textwidth,&
        file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
@@ -339,6 +340,7 @@ contains
        w%builder_time = 0d0
        call w%builder_bond%clear()
        w%geometry_lvpick_row = 0
+       w%geometry_forcewyc = .true.
        w%edit_kind = 0
        w%edit_sys = sys_ref()
        w%edit_idx = 0
@@ -617,7 +619,12 @@ contains
     end if
 
     call row_label("Cell")
-    if (cell_button("##bldcellconv",icon_ui_cellconv,"Cv",.true.,&
+    lstate = (w%builder_tool == it_lattice)
+    if (cell_button("##bldcelllattice",icon_ui_celllattice,"La",.true.,&
+       "Lattice: change the lengths and angles of the cell, or its volume",offcrys,&
+       state=lstate)) &
+       call celltool_toggle(it_lattice)
+    if (cell_button("##bldcellconv",icon_ui_cellconv,"Cv",.false.,&
        "Conventional Cell: transform to the conventional cell",offcrys)) then
        call sysc(isys)%transform_cell(celltransform_standard,.false.,errmsg=w%errmsg)
        call cell_hold()
@@ -852,8 +859,10 @@ contains
           select case (w%builder_tool)
           case (it_edit)
              call panel_edit()
+          case (it_lattice)
+             if (havesys) call panel_lattice()
           case (it_repeat)
-             call panel_repeat()
+             if (havesys) call panel_repeat()
           case (it_pickcell)
              if (havesys) call panel_pickcell()
           case (it_none)
@@ -1153,6 +1162,23 @@ contains
          " button again, or by choosing another tool."
 
     end function celltool_exits
+
+    ! Panel of the Lattice tool: the lengths, the angles and the volume
+    ! of the cell, with the controls of the cell tab of the geometry
+    ! window. A new value is applied at once (when its input ends).
+    subroutine panel_lattice()
+      real*8 :: aa(3), bb(3)
+
+      call panel_text("Lengths and angles of the cell, and its volume. A new value changes"//&
+         " the cell at once.")
+      call panel_text(celltool_exits(),faded=.true.)
+      if (cellform_latpar(w,isys,ttshown,aa,bb)) then
+         ! the bonds are kept, as in the other cell tools
+         call sysc(isys)%move_cell(aa,bb,w%geometry_forcewyc,copybonding=.true.,errmsg=w%errmsg)
+         call cell_hold()
+      end if
+
+    end subroutine panel_lattice
 
     ! Panel of the Repeat tool: the number of periods of the lattice in
     ! the cell along each axis, in three steppers. A new number is
