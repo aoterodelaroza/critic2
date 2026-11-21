@@ -265,13 +265,13 @@ contains
     use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry,&
        reread_system_from_file, atlisttype_ncel_frac, celltransform_standard,&
        celltransform_primstd
-    use crystalmod, only: origin_center, iperiod_vacthr
+    use crystalmod, only: origin_center, origin_atom, iperiod_vacthr
     use dynamics, only: md_relax
     use energy, only: ff_backend_applicable, ff_backend_default, ff_eam
     use gui_main, only: g, io, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax,&
-       icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter
+       icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter, icon_ui_slaborigin
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_textwidth,&
        file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
@@ -287,7 +287,8 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel
-    integer :: idxpick(4)
+    integer :: idxpick(4), istat, atpick(4)
+    real*8 :: xpick(3)
     logical :: doquit, goodparent, havesys, ok, ldum, relaxing, syschanged, iscrys
     logical :: lstate, mdshown, lplaced
     real(c_float) :: xclick(2), xicon, hicon, yrow, reserve
@@ -332,6 +333,7 @@ contains
        w%builder_sys = sys_ref()
        w%builder_time = 0d0
        call w%builder_bond%clear()
+       w%geometry_lvpick_row = 0
        w%edit_kind = 0
        w%edit_sys = sys_ref()
        w%edit_idx = 0
@@ -344,6 +346,7 @@ contains
     ! display follows from builder_vm/edit_kind and is cleared further down.
     if (goodparent .and. syschanged .and. .not.w%firstpass) then
        call bondmode_stop(w,iview,.true.)
+       call origin_pick_stop()
        call w%edit_stop()
     end if
 
@@ -439,6 +442,23 @@ contains
        else
           ! no click pending: stamp the reference time for the stale-click guard
           w%builder_time = glfwGetTime()
+       end if
+    end if
+
+    ! the pending pick of the atom at the new origin (Slab row), one
+    ! click in the parent view. It ends if another tool has started
+    ! since; the camera of the main view is held for the move, if it
+    ! is made, as in the other cell actions
+    if (w%geometry_lvpick_row == lvpick_origin) then
+       if (.not.havesys .or. w%builder_vm /= 0 .or. w%edit_kind /= 0) then
+          call origin_pick_stop()
+       else
+          call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,atidx=atpick)
+          if (istat == ipick_point .and. atpick(1) > 0) then
+             call sysc(isys)%shift_origin(origin_atom,atpick(1),w%errmsg)
+             if (len_trim(w%errmsg) == 0) sysc(isys)%sc%nextbuildlists_fixcam = .true.
+          end if
+          if (istat /= ipick_pending) w%geometry_lvpick_row = 0
        end if
     end if
 
@@ -547,7 +567,17 @@ contains
     end if
 
     call row_label("Slab")
-    if (cell_button("##bldslabcenter",icon_ui_slabcenter,"Cs",.true.,&
+    lstate = (w%geometry_lvpick_row == lvpick_origin)
+    if (cell_button("##bldslaborigin",icon_ui_slaborigin,"Or",.true.,&
+       "Origin: move the origin of the cell to an atom, chosen by clicking it in the view",&
+       state=lstate)) then
+       if (w%geometry_lvpick_row == lvpick_origin) then
+          call origin_pick_stop()
+       else
+          call origin_pick_start()
+       end if
+    end if
+    if (cell_button("##bldslabcenter",icon_ui_slabcenter,"Cs",.false.,&
        "Center Slab: move the origin so that the atoms are in the middle of the cell,"//&
        " along the axes that have vacuum",needvac=.true.)) then
        call sysc(isys)%shift_origin(origin_center,0,w%errmsg)
@@ -713,15 +743,22 @@ contains
     szchild%y = -reserve
     ypanel = igGetCursorPosY()
     if (igBeginChild_Str(c_loc(strchild),szchild,.false._c_bool,ImGuiWindowFlags_None)) then
-       select case (w%builder_tool)
-       case (it_edit)
-          call panel_edit()
-       case (it_none)
-          call panel_text("Choose a tool from the panel above to edit the structure. Press "//&
-             trim(get_bind_keyname(BIND_CANCEL))//" to cancel the edit.")
-       case default
-          call panel_pick(w%builder_tool)
-       end select
+       if (w%geometry_lvpick_row == lvpick_origin) then
+          call panel_text("Click the atom at the new origin of the cell in the view.")
+          call panel_text("Stop with "//trim(get_bind_keyname(BIND_CANCEL))//", by clicking"//&
+             " empty space, by clicking the tool button again, or by choosing another tool.",&
+             faded=.true.)
+       else
+          select case (w%builder_tool)
+          case (it_edit)
+             call panel_edit()
+          case (it_none)
+             call panel_text("Choose a tool from the panel above to edit the structure. Press "//&
+                trim(get_bind_keyname(BIND_CANCEL))//" to cancel the edit.")
+          case default
+             call panel_pick(w%builder_tool)
+          end select
+       end if
        ! how tall the panel is, kept on the window: a child clipped away
        ! by a window too short to show it draws nothing, so the frame
        ! that has to grow is exactly the one that cannot measure this
@@ -945,20 +982,24 @@ contains
 
     end subroutine tool_button
 
-    ! Draw the palette button of a cell action, which acts when it is
-    ! pressed and is for crystals only: the framed icon, with ttip (its
-    ! name and what it does) as tooltip. first is whether it opens its
-    ! row. With needvac, the button is also disabled in a crystal that
-    ! has no vacuum. Returns whether it was pressed; by then the edit
-    ! session, if any, has ended, and the camera of the main view of
+    ! Draw the palette button of a cell tool, which is for crystals
+    ! only: the framed icon, with ttip (its name and what it does) as
+    ! tooltip. first is whether it opens its row. With needvac, the
+    ! button is also disabled in a crystal that has no vacuum. Returns
+    ! whether it was pressed; by then the edit session, if any, has
+    ! ended. Without state the button is an action, which the caller
+    ! carries out when it is pressed: the camera of the main view of
     ! the system is held for the change that follows (as in the Cell
     ! tab of the geometry window; any other view of the system centers
-    ! again).
-    function cell_button(strid,icon,fallback,first,ttip,needvac) result(pressed)
+    ! again). With state the button is a tool that is switched on and
+    ! off: it is drawn on while state is true, and pressing it flips
+    ! state.
+    function cell_button(strid,icon,fallback,first,ttip,needvac,state) result(pressed)
       character(len=*), intent(in) :: strid, fallback, ttip
       integer, intent(in) :: icon
       logical, intent(in) :: first
       logical, intent(in), optional :: needvac
+      logical, intent(inout), optional :: state
       logical :: pressed
 
       logical :: novac
@@ -968,7 +1009,7 @@ contains
          novac = needvac .and. .not.any(sys(isys)%c%vaclength > iperiod_vacthr)
 
       call row_cursor(first,iw_framed_gap)
-      pressed = iw_icon_togglebutton(strid,icon_tex(icon),fallback,&
+      pressed = iw_icon_togglebutton(strid,icon_tex(icon),fallback,state=state,&
          disabled=(.not.iscrys .or. novac),framed=.true.)
       if (havesys .and. .not.iscrys) then
          call iw_tooltip(ttip // " (crystals only)",ttshown,whendisabled=.true.)
@@ -980,10 +1021,30 @@ contains
       if (pressed) then
          w%errmsg = ""
          if (w%edit_kind /= 0) call w%edit_stop()
-         sysc(isys)%sc%nextbuildlists_fixcam = .true.
+         if (.not.present(state)) sysc(isys)%sc%nextbuildlists_fixcam = .true.
       end if
 
     end function cell_button
+
+    ! Start the pick of the atom at the new origin in the parent view,
+    ! in place of the active builder mode, if any.
+    subroutine origin_pick_start()
+
+      call builder_stop()
+      w%geometry_lvpick_row = lvpick_origin
+      call w%geometry_lvpick%arm()
+      call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the atom at the new origin",w%id)
+
+    end subroutine origin_pick_start
+
+    ! Stop the pending pick of the atom at the new origin, releasing
+    ! the parent view (if alive and still in the pick).
+    subroutine origin_pick_stop()
+
+      if (goodparent) call win(iview)%viewmode_release_forced(w%id,vm_pick_atom)
+      w%geometry_lvpick_row = 0
+
+    end subroutine origin_pick_stop
 
     ! The row of recently placed atoms and fragments, under the Add
     ! tools: each entry redraws the choice it stands for (the local

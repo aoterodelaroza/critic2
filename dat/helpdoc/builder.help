@@ -30,7 +30,8 @@ Undo in the Edit menu (by default Control-z) reverts a change.
 - Cell (crystals only): "Conventional Cell" and "Primitive Cell"
   transform the structure to the conventional and to the standard
   primitive cell.
-- Slab (crystals only): "Center Slab" moves the origin so that the
+- Slab (crystals only): "Origin" moves the origin of the cell to the
+  atom clicked in the view. "Center Slab" moves the origin so that the
   atoms are in the middle of the cell, along the axes that have vacuum;
   it is disabled if there is none.
 - Symmetry: moves the atoms onto their symmetry positions exactly; the

@@ -1290,10 +1290,9 @@ contains
              call w%end_nci()
           end if
        elseif (w%type == wintype_builder) then
-          ! release the forced builder mode on the parent view, if still active
+          ! release the mode or the pick forced on the parent view, if still active
           iv = w%anchor_view()
-          if (w%builder_vm /= 0 .and. iv > 0) &
-             call win(iv)%viewmode_release_forced(w%id,w%builder_vm)
+          if (iv > 0) call win(iv)%viewmode_release_forced(w%id)
           ! stop the edit session
           call w%edit_stop()
        elseif (w%type == wintype_geometry) then

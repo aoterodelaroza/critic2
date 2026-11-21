@@ -103,7 +103,8 @@ module icons
   integer, parameter, public :: icon_ui_cellconv = 67 ! conventional cell (square cell, point at the center)
   integer, parameter, public :: icon_ui_cellprim = 68 ! primitive cell (skewed cell)
   integer, parameter, public :: icon_ui_slabcenter = 69 ! center the slab (cell with a band across the middle)
-  integer, parameter, public :: icon_NUM = 69
+  integer, parameter, public :: icon_ui_slaborigin = 70 ! move the origin to an atom (two cell edges, atom at their corner)
+  integer, parameter, public :: icon_NUM = 70
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

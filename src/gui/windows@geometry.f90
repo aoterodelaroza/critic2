@@ -1615,10 +1615,11 @@ contains
 
                ! the centers of the molecules, while they are kept whole
                ! (not with the lattice points of the matrix mode, which
-               ! they would hide where both coincide, nor during the pick
-               ! of the atom at the new origin: they would hide atoms)
+               ! they would hide where both coincide, nor while a window
+               ! waits for an atom picked in the view, as this one and
+               ! the builder do for the new origin: they would hide atoms)
                if (gc%vac_keepmol .and. gc%vac_axis > 0 .and. associated(win(iview)%sc) .and.&
-                  gc%mode /= cellmode_matrix .and. w%geometry_lvpick_row /= lvpick_origin) &
+                  gc%mode /= cellmode_matrix .and. win(iview)%viewmode /= vm_pick_atom) &
                   call vacuum_show_molcenters()
              end associate
 

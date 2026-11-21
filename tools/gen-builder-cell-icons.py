@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Draw the icons of the Cell and Slab rows of the GUI builder window.
 
-Usage: python3 tools/gen-builder-cell-icons.py
+Usage: python3 tools/gen-builder-cell-icons.py [name ...]
 
 Writes 64x64 white-on-transparent PNGs to dat/assets/icons (the GUI
-tints them at draw time). Each icon is drawn at 512x512 and
+tints them at draw time): the icons named (cellconv, slaborigin, ...)
+or, with no names, all of them. Each icon is drawn at 512x512 and
 downsampled. Requires Pillow.
 """
 import os
+import sys
 from PIL import Image, ImageDraw
 
 BIG = 512  # drawing canvas side (pixels)
@@ -55,6 +57,14 @@ def cellprim():
     save(img, "ui_cellprim.png")
 
 
+def slaborigin():
+    """Origin: two edges of the cell, with an atom at the corner they share."""
+    img, dr = canvas()
+    polyline(dr, [(126, 66), (126, 386), (446, 386)])
+    dot(dr, 126, 386, 88)
+    save(img, "ui_slaborigin.png")
+
+
 def slabcenter():
     """Center slab: a cell with the slab across its middle."""
     img, dr = canvas()
@@ -63,7 +73,10 @@ def slabcenter():
     save(img, "ui_slabcenter.png")
 
 
+ICONS = {f.__name__: f for f in (cellconv, cellprim, slaborigin, slabcenter)}
+
 if __name__ == "__main__":
-    cellconv()
-    cellprim()
-    slabcenter()
+    for name in sys.argv[1:] or ICONS:
+        if name not in ICONS:
+            sys.exit(f"unknown icon {name!r}; known: {', '.join(ICONS)}")
+        ICONS[name]()

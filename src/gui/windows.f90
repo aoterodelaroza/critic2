@@ -208,7 +208,8 @@ module windows
   integer(c_int), parameter :: cellmode_search = 2 ! chosen from the supercell search
   integer(c_int), parameter :: cellmode_orient = 3 ! an axis along a direction or perpendicular to a plane
   ! value of window%geometry_lvpick_row while the atom at the new
-  ! origin is being picked (the lattice vectors are rows 1 to 3)
+  ! origin is being picked (the lattice vectors are rows 1 to 3); the
+  ! builder uses it too, for its own pick of that atom
   integer, parameter :: lvpick_origin = 4
   ! criteria of the supercell search (the options of its combo)
   integer, parameter :: cellcrit_nice = 1 ! largest inscribed sphere (NEWCELL NICE)
@@ -1720,8 +1721,8 @@ module windows
      character(len=:), allocatable :: geometry_expr_error ! error for expression
      real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
      type(cellform_state) :: geometry_cell ! cell tab: the supercell transformation and the supercell search
-     type(pairpick) :: geometry_lvpick ! session stamp of the lattice-vector pick (matrix transformation)
-     integer :: geometry_lvpick_row = 0 ! row of the matrix transformation being picked (1-3; lvpick_origin = the atom at the new origin; 0 = none)
+     type(pairpick) :: geometry_lvpick ! session stamp of the lattice-vector pick (matrix transformation) and of the origin pick (also in the builder)
+     integer :: geometry_lvpick_row = 0 ! row of the matrix transformation being picked (1-3; lvpick_origin = the atom at the new origin, also in the builder; 0 = none)
      integer :: geometry_lvpick_last = 0 ! last row of the pick: it goes on to the next rows up to this one (Pick All: 3)
      character(len=mlen), allocatable :: geometry_sym_ops(:) ! cached symmetry operations (crystallographic notation)
      character(len=mlen), allocatable :: geometry_sym_hm(:) ! cached Hermann-Mauguin symbols of the operations
