@@ -1147,37 +1147,7 @@ contains
                    ! if the user changed the matrix or the origin, clear the error message
                    if (ch) w%errmsg = ""
                 elseif (w%geometry_cell%mode == cellmode_orient) then
-                   ! a plane or a direction, and the axis of the new cell that goes with it
-                   call iw_text("Type",alignframe=.true.)
-                   ch = iw_radiobutton("Plane (hkl)",bool=w%geometry_cell%orient_dir,boolval=.false.,sameline=.true.)
-                   call iw_tooltip("The indices are the Miller indices of a family of lattice planes. Two&
-                      & axes of the new cell are the shortest lattice vectors in the plane, and the third&
-                      & is the shortest lattice vector perpendicular to it. If the lattice has none, the&
-                      & third axis goes to the next plane, as close to the normal as possible",ttshown)
-                   lch = iw_radiobutton("Direction [uvw]",bool=w%geometry_cell%orient_dir,boolval=.true.,&
-                      sameline=.true.)
-                   ch = ch .or. lch
-                   call iw_tooltip("The indices are a lattice direction. One axis of the new cell is the&
-                      & shortest lattice vector along it, and the other two are the shortest lattice&
-                      & vectors that complete the cell",ttshown)
-                   call iw_text("Indices",alignframe=.true.)
-                   lch = iw_inputint3("##cellorientidx",w%geometry_cell%orient_ivec,width=3*3,sameline=.true.)
-                   ch = ch .or. lch
-                   call iw_tooltip("Indices of the plane or the direction, referred to the current cell",ttshown)
-                   call iw_text("Axis",alignframe=.true.,gap=.true.)
-                   call iw_combo_simple("##cellorientaxis","a" // c_null_char // "b" // c_null_char // "c" //&
-                      c_null_char,w%geometry_cell%orient_axis,changed=lch,sameline=.true.,startsatone=.true.)
-                   ch = ch .or. lch
-                   call iw_tooltip("Axis of the new cell that goes out of the plane, or along the&
-                      & direction",ttshown)
-                   if (.not.w%geometry_cell%orient_dir) then
-                      lch = iw_checkbox("Primitive cell",w%geometry_cell%orient_prim,labelleft=.true.,gap=.true.)
-                      ch = ch .or. lch
-                      call iw_tooltip("Make the new cell primitive: the third axis goes to the next plane,&
-                         & as close to the normal as possible, even if the lattice has a vector&
-                         & perpendicular to the plane",ttshown)
-                   end if
-                   if (ch) w%errmsg = ""
+                   call cellform_orient(w,ttshown)
                 else
                    ! supercell search: the criterion and the largest size
                    call iw_text("Criterion",alignframe=.true.)
@@ -1256,7 +1226,7 @@ contains
                    elseif (w%geometry_cell%mode == cellmode_matrix) then
                       call cellform_reset_matrix(w)
                    elseif (w%geometry_cell%mode == cellmode_orient) then
-                      call reset_orient_inputs()
+                      call cellform_reset_orient(w)
                    else
                       w%geometry_cell%isel = 0
                       w%geometry_cell%nsel = 0
@@ -2891,7 +2861,7 @@ contains
 
       w%geometry_cell%nrep = 1_c_int
       call cellform_reset_matrix(w)
-      call reset_orient_inputs()
+      call cellform_reset_orient(w)
 
     end subroutine reset_cell_inputs
 
@@ -2999,17 +2969,6 @@ contains
       w%geometry_cell%vac_time = -1d0
 
     end subroutine reset_vacuum_inputs
-
-    ! The inputs of the orient mode of the supercell transformation back
-    ! to their defaults.
-    subroutine reset_orient_inputs()
-
-      w%geometry_cell%orient_dir = .false.
-      w%geometry_cell%orient_ivec = (/0_c_int,0_c_int,1_c_int/)
-      w%geometry_cell%orient_axis = 3
-      w%geometry_cell%orient_prim = .false.
-
-    end subroutine reset_orient_inputs
 
     ! Select supercell candidate ic (index in the search results), of
     ! size nsz: it becomes the transformation of the search mode, and its
@@ -4209,6 +4168,63 @@ contains
     w%geometry_cell%inverse = .false.
 
   end subroutine cellform_reset_matrix
+
+  !> The orient mode of the cell form of window w: a family of lattice
+  !> planes or a lattice direction (its indices), the axis of the new
+  !> cell that goes with it, and whether the new cell is primitive. A
+  !> change clears the error message of the window.
+  module subroutine cellform_orient(w,ttshown)
+    use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_inputint3, iw_combo_simple, iw_checkbox
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+
+    logical :: ch, lch
+
+    ! a plane or a direction, and the axis of the new cell that goes with it
+    call iw_text("Type",alignframe=.true.)
+    ch = iw_radiobutton("Plane (hkl)",bool=w%geometry_cell%orient_dir,boolval=.false.,sameline=.true.)
+    call iw_tooltip("The indices are the Miller indices of a family of lattice planes. Two&
+       & axes of the new cell are the shortest lattice vectors in the plane, and the third&
+       & is the shortest lattice vector perpendicular to it. If the lattice has none, the&
+       & third axis goes to the next plane, as close to the normal as possible",ttshown)
+    lch = iw_radiobutton("Direction [uvw]",bool=w%geometry_cell%orient_dir,boolval=.true.,&
+       sameline=.true.)
+    ch = ch .or. lch
+    call iw_tooltip("The indices are a lattice direction. One axis of the new cell is the&
+       & shortest lattice vector along it, and the other two are the shortest lattice&
+       & vectors that complete the cell",ttshown)
+    call iw_text("Indices",alignframe=.true.)
+    lch = iw_inputint3("##cellorientidx",w%geometry_cell%orient_ivec,width=3*3,sameline=.true.)
+    ch = ch .or. lch
+    call iw_tooltip("Indices of the plane or the direction, referred to the current cell",ttshown)
+    call iw_text("Axis",alignframe=.true.,gap=.true.)
+    call iw_combo_simple("##cellorientaxis","a" // c_null_char // "b" // c_null_char // "c" //&
+       c_null_char,w%geometry_cell%orient_axis,changed=lch,sameline=.true.,startsatone=.true.)
+    ch = ch .or. lch
+    call iw_tooltip("Axis of the new cell that goes out of the plane, or along the&
+       & direction",ttshown)
+    if (.not.w%geometry_cell%orient_dir) then
+       lch = iw_checkbox("Primitive cell",w%geometry_cell%orient_prim,labelleft=.true.,gap=.true.)
+       ch = ch .or. lch
+       call iw_tooltip("Make the new cell primitive: the third axis goes to the next plane,&
+          & as close to the normal as possible, even if the lattice has a vector&
+          & perpendicular to the plane",ttshown)
+    end if
+    if (ch) w%errmsg = ""
+
+  end subroutine cellform_orient
+
+  !> The inputs of the orient mode of the cell form of window w back
+  !> to their defaults.
+  module subroutine cellform_reset_orient(w)
+    class(window), intent(inout), target :: w
+
+    w%geometry_cell%orient_dir = .false.
+    w%geometry_cell%orient_ivec = (/0_c_int,0_c_int,1_c_int/)
+    w%geometry_cell%orient_axis = 3
+    w%geometry_cell%orient_prim = .false.
+
+  end subroutine cellform_reset_orient
 
   !> The cell transformation that the cell form of window w describes
   !> in its current mode, for system isys: the lattice vectors of the

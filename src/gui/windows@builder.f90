@@ -274,7 +274,7 @@ contains
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax,&
        icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter, icon_ui_slaborigin,&
        icon_ui_tocrystal, icon_ui_tomolecule, icon_ui_cellrepeat, icon_ui_cellpick,&
-       icon_ui_celllattice
+       icon_ui_celllattice, icon_ui_slaborient
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_textwidth,&
        file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
@@ -292,9 +292,9 @@ contains
 
     integer :: isys, iview, icel, imode, nsel
     integer :: idxpick(4), istat, iatpick
-    real*8 :: pm(3,3), pt(3) ! Pick Cell tool: lattice vectors and origin of the cell being picked
-    logical :: pok ! Pick Cell tool: whether they make a cell
-    character(len=:), allocatable :: pmsg ! Pick Cell tool: why they do not
+    real*8 :: pm(3,3), pt(3) ! Pick Cell and Orient tools: lattice vectors and origin of the new cell
+    logical :: pok ! Pick Cell and Orient tools: whether they make a cell
+    character(len=:), allocatable :: pmsg ! Pick Cell and Orient tools: why they do not
     logical :: doquit, goodparent, havesys, ok, ldum, relaxing, syschanged
     logical :: lstate, mdshown, lplaced
     real(c_float) :: xclick(2), xicon, hicon, yrow, reserve
@@ -351,11 +351,12 @@ contains
     ! A mode armed on the outgoing system makes no sense on the new one; release
     ! it and commit any pending edit to the system it was made on. The tool on
     ! display follows from builder_vm/edit_kind and is cleared further down;
-    ! the Pick Cell tool closes, its picks being of the outgoing system.
+    ! the Pick Cell and Orient tools close, their picks and indices being
+    ! of the outgoing system.
     if (goodparent .and. syschanged .and. .not.w%firstpass) then
        call bondmode_stop(w,iview,.true.)
        call cellpick_stop()
-       if (w%builder_tool == it_pickcell) w%builder_tool = it_none
+       if (w%builder_tool == it_pickcell .or. w%builder_tool == it_orient) w%builder_tool = it_none
        call w%edit_stop()
     end if
 
@@ -656,8 +657,15 @@ contains
        call sysc(isys)%new_system_from_highlighted(forcemolecule=.true.)
 
     call row_label("Slab")
+    lstate = (w%builder_tool == it_orient)
+    if (cell_button("##bldslaborient",icon_ui_slaborient,"Ot",.true.,&
+       "Orient: make a new cell with two axes in a family of lattice planes, or with one"//&
+       " axis along a lattice direction",offcrys,state=lstate)) then
+       call celltool_toggle(it_orient)
+       if (w%builder_tool == it_orient) call orient_restart()
+    end if
     lstate = (w%geometry_lvpick_row == lvpick_origin)
-    if (cell_button("##bldslaborigin",icon_ui_slaborigin,"Or",.true.,&
+    if (cell_button("##bldslaborigin",icon_ui_slaborigin,"Or",.false.,&
        "Origin: move the origin of the cell to an atom, chosen by clicking it in the view",&
        offpick,state=lstate)) then
        if (w%geometry_lvpick_row == lvpick_origin) then
@@ -815,13 +823,17 @@ contains
     call window_button("Symmetry",geomtab_symmetry)
     call window_button("Dynamics",geomtab_none)
 
-    ! the Pick Cell tool shows, while it is on display, the lattice
-    ! points to pick from and the cell that the picks make so far
-    ! (as they are picked, not inverted if left-handed). The picks
-    ! refer to the cell as it was: a change of the geometry after them
-    ! closes the tool.
+    ! the new cell of the cell tool on display, and its preview in the
+    ! view. Orient: the cell that the plane or direction makes, if it
+    ! is not the current one. Pick Cell: the lattice points to pick
+    ! from and the cell that the picks make so far (as they are picked,
+    ! not inverted if left-handed); the picks refer to the cell as it
+    ! was, so a change of the geometry after them closes the tool.
     pok = .false.
-    if (w%builder_tool == it_pickcell .and. havesys) then
+    if (w%builder_tool == it_orient .and. havesys) then
+       call cellform_pending_cell(w,isys,pm,pt,pok,pmsg)
+       if (pok .and. any(abs(pm - eye) > 1d-8)) call cellform_newcell_preview(w,iview,isys,pm,pt)
+    elseif (w%builder_tool == it_pickcell .and. havesys) then
        if (w%geometry_lvpick%is_stale(sysc(isys)%timelastchange_geometry)) then
           call cellpick_stop()
           w%builder_tool = it_none
@@ -865,6 +877,8 @@ contains
              if (havesys) call panel_repeat()
           case (it_pickcell)
              if (havesys) call panel_pickcell()
+          case (it_orient)
+             if (havesys) call panel_orient()
           case (it_none)
              call panel_text("Choose a tool from the panel above to edit the structure. Press "//&
                 trim(get_bind_keyname(BIND_CANCEL))//" to cancel the edit.")
@@ -1227,21 +1241,7 @@ contains
             " them again.")
          call panel_text(celltool_exits(),faded=.true.)
       end if
-      call cellform_newcell_summary(isys,pm,pok,pmsg,split=.true.)
-
-      ok = pok .and. w%geometry_lvpick_row == 0
-      if (ok) ok = any(abs(pm - eye) > 1d-8)
-      if (iw_button("Apply##bldpickapply",danger=.true.,disabled=.not.ok)) then
-         call cellpick_stop()
-         call sysc(isys)%transform_cell_matrix(pm,pt,.false.,errmsg=w%errmsg)
-         call cell_hold()
-         ! the picks described a transformation of the cell that was replaced
-         if (len_trim(w%errmsg) == 0) then
-            call cellform_reset_matrix(w)
-            w%builder_tool = it_none
-         end if
-      end if
-      call iw_tooltip("Transform the crystal to the new cell",ttshown,whendisabled=.true.)
+      call panel_newcell(w%geometry_lvpick_row == 0)
       if (iw_button("Reset##bldpickreset",sameline=.true.)) then
          w%errmsg = ""
          call pickcell_restart()
@@ -1249,6 +1249,59 @@ contains
       call iw_tooltip("Forget the lattice vectors picked and pick the three again",ttshown)
 
     end subroutine panel_pickcell
+
+    ! Panel of the Orient tool: the plane or the direction, with the
+    ! controls of the orient mode of the cell tab of the geometry
+    ! window, the cell that it makes, and the buttons to make it the
+    ! cell of the crystal or to start over.
+    subroutine panel_orient()
+
+      call panel_text("A new cell with two of its axes in a family of lattice planes, or with"//&
+         " one axis along a lattice direction. Apply makes it the cell of the crystal; Reset"//&
+         " starts over.")
+      call panel_text(celltool_exits(),faded=.true.)
+      call cellform_orient(w,ttshown)
+      call panel_newcell(.true.)
+      if (iw_button("Reset##bldorientreset",sameline=.true.)) then
+         w%errmsg = ""
+         call orient_restart()
+      end if
+      call iw_tooltip("Reset the plane or direction",ttshown)
+
+    end subroutine panel_orient
+
+    ! Start the Orient tool over: the plane and the axis are the
+    ! defaults.
+    subroutine orient_restart()
+
+      w%geometry_cell%mode = cellmode_orient
+      call cellform_reset_orient(w)
+
+    end subroutine orient_restart
+
+    ! The cell that the cell tool on display makes (pm, pt): its
+    ! summary and the Apply button, which transforms the crystal to it
+    ! and closes the tool (the tool starts over when it is opened
+    ! again). The button is enabled if it is a cell other than the
+    ! current one and okapply.
+    subroutine panel_newcell(okapply)
+      logical, intent(in) :: okapply
+
+      logical :: okb
+
+      call cellform_newcell_summary(isys,pm,pok,pmsg,split=.true.)
+
+      okb = pok .and. okapply
+      if (okb) okb = any(abs(pm - eye) > 1d-8)
+      if (iw_button("Apply##bldnewcellapply",danger=.true.,disabled=.not.okb)) then
+         call cellpick_stop()
+         call sysc(isys)%transform_cell_matrix(pm,pt,.false.,errmsg=w%errmsg)
+         call cell_hold()
+         if (len_trim(w%errmsg) == 0) w%builder_tool = it_none
+      end if
+      call iw_tooltip("Transform the crystal to the new cell",ttshown,whendisabled=.true.)
+
+    end subroutine panel_newcell
 
     ! Start the Pick Cell tool over: the new cell is the current one,
     ! and the three lattice vectors are picked in the parent view, one

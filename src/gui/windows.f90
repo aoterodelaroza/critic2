@@ -172,7 +172,8 @@ module windows
   ! instead; it_none is no tool. The constants above it_edit are the
   ! cell tools that have a panel and no view mode of their own
   ! (it_repeat repeats the cell, it_pickcell makes a cell of lattice
-  ! vectors picked in the view, it_lattice has the lattice parameters):
+  ! vectors picked in the view, it_lattice has the lattice parameters,
+  ! it_orient makes a cell along a plane or a direction):
   ! the panel stays on display until it is closed, while the system is
   ! a crystal. They all sit above the view modes so that the two sets
   ! of constants never collide.
@@ -181,6 +182,7 @@ module windows
   integer, parameter, public :: it_repeat = vm_NUM + 2
   integer, parameter, public :: it_pickcell = vm_NUM + 3
   integer, parameter, public :: it_lattice = vm_NUM + 4
+  integer, parameter, public :: it_orient = vm_NUM + 5
 
   ! highest n-mer order the extract window can be asked for
   integer, parameter, public :: nmer_max = 10
@@ -3083,6 +3085,13 @@ module windows
      module subroutine cellform_reset_matrix(w)
        class(window), intent(inout), target :: w
      end subroutine cellform_reset_matrix
+     module subroutine cellform_orient(w,ttshown)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+     end subroutine cellform_orient
+     module subroutine cellform_reset_orient(w)
+       class(window), intent(inout), target :: w
+     end subroutine cellform_reset_orient
      module subroutine cellform_pending_cell(w,isys,m,t,isok,msg,noflip)
        class(window), intent(in) :: w
        integer, intent(in) :: isys

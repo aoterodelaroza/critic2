@@ -40,10 +40,13 @@ Undo in the Edit menu (by default Control-z) reverts a change.
   makes a crystal of a molecule, with the box of the molecule as the
   unit cell. "To Molecule" makes a new system, a molecule, with the
   atoms of a crystal selected in the view.
-- Slab (crystals only): "Origin" moves the origin of the cell to the
+- Slab (crystals only): "Orient" makes a new cell with two axes in a
+  family of lattice planes (hkl), or with one axis along a lattice
+  direction [uvw]: choose plane or direction, give the indices and the
+  axis, then "Apply". "Origin" moves the origin of the cell to the
   atom clicked in the view. "Center Slab" moves the origin so that the
-  atoms are in the middle of the cell, along the axes that have vacuum;
-  it is disabled if there is none.
+  atoms are in the middle of the cell, along the axes that have
+  vacuum; it is disabled if there is none.
 - Symmetry: moves the atoms onto their symmetry positions exactly; the
   point group or space group is shown next to the button.
 - Relax: relaxes the geometry to the nearest minimum with the chosen force field until
