@@ -2279,6 +2279,36 @@ module windows
      module subroutine window_draw(w)
        class(window), intent(inout), target :: w
      end subroutine window_draw
+     module subroutine print_image_size(szmap,scale,wsz,xs,npix)
+       real(c_float), intent(in) :: szmap(2), scale
+       real(c_float), intent(out) :: wsz(2), xs
+       integer(c_int), intent(out) :: npix(2)
+     end subroutine print_image_size
+     module subroutine print_image_write(dd,npix,file,errmsg)
+       type(c_ptr), intent(in) :: dd
+       integer(c_int), intent(in) :: npix(2)
+       character(len=*), intent(in) :: file
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine print_image_write
+     module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,sfx,place,pts,ttshown,fieldw) result(changed)
+       integer, intent(in) :: isys
+       logical, intent(inout) :: isexpr
+       type(field_ref), intent(inout) :: fref
+       integer, intent(inout) :: nti
+       character(len=*), intent(inout) :: expr, exprerr
+       character(len=*), intent(in) :: sfx, place, pts
+       logical, intent(inout) :: ttshown
+       integer, intent(in), optional :: fieldw
+       logical :: changed
+     end function quantity_form
+     module function quantity_combo(strid,isys,ifield,nti,ttshown,sameline) result(changed)
+       character(len=*), intent(in) :: strid
+       integer, intent(in) :: isys, ifield
+       integer, intent(inout) :: nti
+       logical, intent(inout) :: ttshown
+       logical, intent(in), optional :: sameline
+       logical :: changed
+     end function quantity_combo
      !xx! tree submodule !xx!
      module subroutine draw_tree(w)
        class(window), intent(inout), target :: w
@@ -2488,6 +2518,42 @@ module windows
        integer, intent(out) :: width, height
        integer, intent(out), optional :: origin(2)
      end subroutine export_image_size
+     !xx! view_objedit submodule !xx!
+     module subroutine planar_events(w,r,inp)
+       class(window), intent(inout), target :: w
+       type(representation), intent(inout) :: r
+       type(objedit_input), intent(inout) :: inp
+     end subroutine planar_events
+     module subroutine shapes_events(w,r,inp)
+       class(window), intent(inout), target :: w
+       type(representation), intent(inout) :: r
+       type(objedit_input), intent(inout) :: inp
+     end subroutine shapes_events
+     module subroutine text_events(w,r,inp)
+       class(window), intent(inout), target :: w
+       type(representation), intent(inout) :: r
+       type(objedit_input), intent(inout) :: inp
+     end subroutine text_events
+     module subroutine measure_events(w,r,inp)
+       class(window), intent(inout), target :: w
+       type(representation), intent(inout) :: r
+       type(objedit_input), intent(inout) :: inp
+     end subroutine measure_events
+     module subroutine axes_events(w,r,inp)
+       class(window), intent(inout), target :: w
+       type(representation), intent(inout) :: r
+       type(objedit_input), intent(inout) :: inp
+     end subroutine axes_events
+     module subroutine atomtool_events(w,inp)
+       class(window), intent(inout), target :: w
+       type(objedit_input), intent(inout) :: inp
+     end subroutine atomtool_events
+     module function objedit_hit(w,r,inp) result(ok)
+       class(window), intent(inout), target :: w
+       type(representation), intent(in) :: r
+       type(objedit_input), intent(in) :: inp
+       logical :: ok
+     end function objedit_hit
      !xx! dialog submodule !xx!
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
@@ -2728,41 +2794,6 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_colorbar
-     module subroutine planar_events(w,r,inp)
-       class(window), intent(inout), target :: w
-       type(representation), intent(inout) :: r
-       type(objedit_input), intent(inout) :: inp
-     end subroutine planar_events
-     module subroutine shapes_events(w,r,inp)
-       class(window), intent(inout), target :: w
-       type(representation), intent(inout) :: r
-       type(objedit_input), intent(inout) :: inp
-     end subroutine shapes_events
-     module subroutine text_events(w,r,inp)
-       class(window), intent(inout), target :: w
-       type(representation), intent(inout) :: r
-       type(objedit_input), intent(inout) :: inp
-     end subroutine text_events
-     module subroutine measure_events(w,r,inp)
-       class(window), intent(inout), target :: w
-       type(representation), intent(inout) :: r
-       type(objedit_input), intent(inout) :: inp
-     end subroutine measure_events
-     module subroutine axes_events(w,r,inp)
-       class(window), intent(inout), target :: w
-       type(representation), intent(inout) :: r
-       type(objedit_input), intent(inout) :: inp
-     end subroutine axes_events
-     module subroutine atomtool_events(w,inp)
-       class(window), intent(inout), target :: w
-       type(objedit_input), intent(inout) :: inp
-     end subroutine atomtool_events
-     module function objedit_hit(w,r,inp) result(ok)
-       class(window), intent(inout), target :: w
-       type(representation), intent(in) :: r
-       type(objedit_input), intent(in) :: inp
-       logical :: ok
-     end function objedit_hit
      module subroutine editrep_toolbar(w,ttshown)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown
@@ -2939,21 +2970,10 @@ module windows
      module subroutine draw_line(w)
        class(window), intent(inout), target :: w
      end subroutine draw_line
-     !xx! plane submodule !xx!
+     !xx! editrep_plane submodule !xx!
      module subroutine plane_free_texture(w)
        class(window), intent(inout), target :: w
      end subroutine plane_free_texture
-     module subroutine plane_image_size(szmap,scale,wsz,xs,npix)
-       real(c_float), intent(in) :: szmap(2), scale
-       real(c_float), intent(out) :: wsz(2), xs
-       integer(c_int), intent(out) :: npix(2)
-     end subroutine plane_image_size
-     module subroutine print_image_write(dd,npix,file,errmsg)
-       type(c_ptr), intent(in) :: dd
-       integer(c_int), intent(in) :: npix(2)
-       character(len=*), intent(in) :: file
-       character(len=:), allocatable, intent(inout) :: errmsg
-     end subroutine print_image_write
      module function draw_editrep_slice(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown
@@ -2970,25 +2990,6 @@ module windows
        type(iw_section), intent(inout) :: sec(plane_nsec)
        logical :: changed
      end function plane_def_form
-     module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,sfx,place,pts,ttshown,fieldw) result(changed)
-       integer, intent(in) :: isys
-       logical, intent(inout) :: isexpr
-       type(field_ref), intent(inout) :: fref
-       integer, intent(inout) :: nti
-       character(len=*), intent(inout) :: expr, exprerr
-       character(len=*), intent(in) :: sfx, place, pts
-       logical, intent(inout) :: ttshown
-       integer, intent(in), optional :: fieldw
-       logical :: changed
-     end function quantity_form
-     module function quantity_combo(strid,isys,ifield,nti,ttshown,sameline) result(changed)
-       character(len=*), intent(in) :: strid
-       integer, intent(in) :: isys, ifield
-       integer, intent(inout) :: nti
-       logical, intent(inout) :: ttshown
-       logical, intent(in), optional :: sameline
-       logical :: changed
-     end function quantity_combo
      !xx! cube submodule !xx!
      module subroutine draw_cube(w)
        class(window), intent(inout), target :: w

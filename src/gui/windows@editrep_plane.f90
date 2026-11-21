@@ -17,12 +17,12 @@
 
 ! The editor of the plane map objects (the PLANE keyword): the form
 ! of the map and the plot of its values.
-submodule (windows) plane
+submodule (windows) editrep_plane
   use interfaces_cimgui
   use param, only: bohrtoa
   use tools_math, only: niso_lin, niso_log, niso_atan, niso_bader, niso_manual
   use representations, only: plane_npts_min, plane_npts_max, plane_nlev_max, plane_auto_spacing,&
-     plane_auto_ntot, plane_auto_tmax, nquant, quant_chem, quant_label
+     plane_auto_ntot, plane_auto_tmax, quant_label
   implicit none
 
   ! transient markers in the view: the three points (origin, end of
@@ -893,7 +893,7 @@ contains
 
       ! the map in the print context, at its size in the window (two
       ! frames: the plot lays itself out in the first)
-      call plane_image_size(w%smap%szmap,w%smap%imgscale,wsz,xs,npix)
+      call print_image_size(w%smap%szmap,w%smap%imgscale,wsz,xs,npix)
       str = shader_version
       pc = ipPrintContextCreate(igGetFontSize(),xs,print_bakemax,font_dejavu_base85_ptr,c_loc(font_ranges),c_loc(str))
       do i = 1, 2
@@ -1538,80 +1538,6 @@ contains
 
   end subroutine plane_free_texture
 
-  !> Size of the image exported from the editor of a plane map whose plot and
-  !> color bar take szmap (pixels of the window), at the given scale:
-  !> its size in the window, with the padding of the print context
-  !> (wsz), the scale used (xs, from 1 to scale, so the image fits in
-  !> maxpix), and its size in pixels (npix).
-  module subroutine plane_image_size(szmap,scale,wsz,xs,npix)
-    real(c_float), intent(in) :: szmap(2), scale
-    real(c_float), intent(out) :: wsz(2), xs
-    integer(c_int), intent(out) :: npix(2)
-
-    real(c_float), parameter :: pad = 8._c_float ! window padding of the print context (ImGui default)
-    real(c_float), parameter :: spc = 8._c_float ! item spacing of the print context (ImGui default)
-    real(c_float), parameter :: maxpix = 8192._c_float ! largest side of the image (pixels)
-
-    wsz = szmap + (/spc + 2 * pad,2 * pad/)
-    xs = max(1._c_float,min(scale,maxpix / maxval(wsz)))
-    npix = nint(xs * wsz)
-
-  end subroutine plane_image_size
-
-  !> Render the draw data dd of a frame of a print context (the
-  !> current one) to an image of npix pixels on white and write it to
-  !> the PNG file. errmsg is empty on success.
-  module subroutine print_image_write(dd,npix,file,errmsg)
-    use interfaces_opengl3
-    use interfaces_stb
-    type(c_ptr), intent(in) :: dd
-    integer(c_int), intent(in) :: npix(2)
-    character(len=*), intent(in) :: file
-    character(len=:), allocatable, intent(inout) :: errmsg
-
-    character(kind=c_char,len=:), allocatable, target :: str
-    character(kind=c_char), allocatable, target :: pix(:)
-    integer(c_int), target :: fbo, rbo
-    integer(c_int) :: idum
-
-    ! render it to a framebuffer and read it back
-    call glGenFramebuffers(1_c_int,c_loc(fbo))
-    call glGenRenderbuffers(1_c_int,c_loc(rbo))
-    call glBindRenderbuffer(GL_RENDERBUFFER,rbo)
-    call glRenderbufferStorage(GL_RENDERBUFFER,GL_RGBA8,npix(1),npix(2))
-    call glBindRenderbuffer(GL_RENDERBUFFER,0_c_int)
-    call glBindFramebuffer(GL_FRAMEBUFFER,fbo)
-    call glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_RENDERBUFFER,rbo)
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) then
-       call glViewport(0_c_int,0_c_int,npix(1),npix(2))
-       call glClearColor(1._c_float,1._c_float,1._c_float,1._c_float)
-       call glClear(GL_COLOR_BUFFER_BIT)
-       call ImGui_ImplOpenGL3_RenderDrawData(dd)
-       allocate(pix(4*npix(1)*npix(2)))
-       call glReadPixels(0_c_int,0_c_int,npix(1),npix(2),GL_RGBA,GL_UNSIGNED_BYTE,c_loc(pix))
-    end if
-    call glBindFramebuffer(GL_FRAMEBUFFER,0_c_int)
-    call glDeleteFramebuffers(1_c_int,c_loc(fbo))
-    call glDeleteRenderbuffers(1_c_int,c_loc(rbo))
-
-    ! write the file (the rows of the framebuffer go bottom to top)
-    if (.not.allocated(pix)) then
-       errmsg = "Could not create the framebuffer for the image (too large?)"
-       return
-    end if
-    pix(4::4) = char(255,c_char)
-    str = trim(file) // c_null_char
-    call stbi_flip_vertically_on_write(1_c_int)
-    idum = stbi_write_png(c_loc(str),npix(1),npix(2),4_c_int,c_loc(pix),4_c_int*npix(1))
-    call stbi_flip_vertically_on_write(0_c_int)
-    if (idum == 0) then
-       errmsg = "Error writing the image file: " // trim(file)
-    else
-       errmsg = ""
-    end if
-
-  end subroutine print_image_write
-
   !> The checkbox of the relief of a plane map in the view (rl, of a
   !> rep_slice), after the previous pair in the line if gap. id makes
   !> the widget ID unique. Returns whether it changed.
@@ -1689,147 +1615,4 @@ contains
 
   end function relief_form
 
-  !> The quantity of a form (the plane map and the cube windows, the
-  !> plane map object editor) in system isys: quantity nti of a field
-  !> fref, or an arithmetic expression expr (if isexpr; checked as it
-  !> is typed, into exprerr). sfx = the prefix of the widget IDs;
-  !> place = where the quantity is (for the tooltips: "the map"), and
-  !> pts = whose points the expression is evaluated at ("the
-  !> plane"). Returns whether it changed.
-  module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,sfx,place,pts,ttshown,fieldw) result(changed)
-    use systems, only: sys
-    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_combo_simple, iw_field_combo, iw_inputtext,&
-       iw_expression_helper, iw_exprctx_point
-    integer, intent(in) :: isys
-    logical, intent(inout) :: isexpr
-    type(field_ref), intent(inout) :: fref
-    integer, intent(inout) :: nti
-    character(len=*), intent(inout) :: expr, exprerr
-    character(len=*), intent(in) :: sfx, place, pts
-    logical, intent(inout) :: ttshown
-    integer, intent(in), optional :: fieldw
-    logical :: changed
-
-    integer :: ikind, ifield, fw
-    logical :: echanged
-    character(len=:), allocatable :: lerr
-
-    changed = .false.
-
-    call iw_text("Kind",alignframe=.true.)
-    ikind = merge(1,0,isexpr)
-    call iw_combo_simple("##" // sfx // "kind","Field" // c_null_char // "Expression" // c_null_char,ikind,&
-       sameline=.true.)
-    call iw_tooltip("A quantity of a field, or an arithmetic expression of the fields",ttshown)
-    changed = changed .or. (isexpr .neqv. (ikind == 1))
-    isexpr = (ikind == 1)
-    if (.not.isexpr) then
-       ! the field and its quantity, in the same line as the kind
-       ifield = fref%id
-       ! the field combo is as wide as the window allows (fieldw characters)
-       fw = 24
-       if (present(fieldw)) fw = fieldw
-       if (iw_field_combo("##" // sfx // "field",isys,ifield,width=iw_calcwidth(fw,1),&
-          nonestr="<field not available>",sameline=.true.)) then
-          call fref%set(sys(isys),ifield)
-          changed = .true.
-       end if
-       call iw_tooltip("Field on " // place,ttshown)
-       if (quantity_combo("##" // sfx // "quant",isys,fref%id,nti,ttshown,sameline=.true.)) changed = .true.
-    else
-       ! on its own line, with room for the Insert button
-       call iw_text("Expression",alignframe=.true.)
-       echanged = iw_inputtext("##" // sfx // "expr",bufsize=1023,textf=expr,width=36,sameline=.true.)
-       call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
-          & ""$1 - $2"" or ""$1:l""), evaluated at the points of " // pts,ttshown)
-       if (iw_expression_helper("##" // sfx // "help",isys,iw_exprctx_point,textf=expr,&
-          ttshown=ttshown,ifield=sys(isys)%iref)) echanged = .true.
-       if (echanged) then
-          changed = .true.
-          exprerr = ""
-          if (len_trim(expr) > 0) then
-             call sys(isys)%check_expression(trim(expr),lerr)
-             exprerr = lerr
-          end if
-       end if
-       if (len_trim(expr) == 0) then
-          call iw_text("The expression is empty",danger=.true.,wrap=.true.)
-       elseif (len_trim(exprerr) > 0) then
-          call iw_text(trim(exprerr),danger=.true.,wrap=.true.)
-       end if
-    end if
-
-  end function quantity_form
-
-  !> A combo for quantity nti of field ifield of system isys: its value
-  !> and derivatives, and the chemical functions the field can
-  !> evaluate (elf, lol,...), with their descriptions as tooltips. A
-  !> chemical function the field cannot evaluate goes back to the
-  !> value; while the field is not available, the choice is kept.
-  !> strid = the widget ID. Returns whether nti changed.
-  module function quantity_combo(strid,isys,ifield,nti,ttshown,sameline) result(changed)
-    use systems, only: sys
-    use arithmetic, only: arith_names
-    use types, only: field_evaluation_avail
-    use utils, only: iw_combo_simple, chemfun_avail
-    character(len=*), intent(in) :: strid
-    integer, intent(in) :: isys, ifield
-    integer, intent(inout) :: nti
-    logical, intent(inout) :: ttshown
-    logical, intent(in), optional :: sameline
-    logical :: changed
-
-    integer :: j, n, ic, nti0
-    integer :: map(0:nquant+size(arith_names,1)-1)
-    logical :: good, ch
-    character(len=:), allocatable :: str, tips, why
-    type(field_evaluation_avail) :: av
-
-    ! the value and the derivatives (nti = 0 to nquant-1), and their
-    ! descriptions
-    character(len=*,kind=c_char), parameter :: quant_combo = &
-       "Value (f)" // c_null_char // "Gradient, x" // c_null_char // "Gradient, y" // c_null_char //&
-       "Gradient, z" // c_null_char // "Gradient norm" // c_null_char // "Hessian, xx" // c_null_char //&
-       "Hessian, xy" // c_null_char // "Hessian, xz" // c_null_char // "Hessian, yy" // c_null_char //&
-       "Hessian, yz" // c_null_char // "Hessian, zz" // c_null_char // "Laplacian" // c_null_char
-    character(len=*,kind=c_char), parameter :: quant_tips = &
-       "Value of the field" // c_null_char // "x component of the gradient" // c_null_char //&
-       "y component of the gradient" // c_null_char // "z component of the gradient" // c_null_char //&
-       "Norm of the gradient" // c_null_char // "xx component of the Hessian" // c_null_char //&
-       "xy component of the Hessian" // c_null_char // "xz component of the Hessian" // c_null_char //&
-       "yy component of the Hessian" // c_null_char // "yz component of the Hessian" // c_null_char //&
-       "zz component of the Hessian" // c_null_char // "Laplacian of the field" // c_null_char
-
-    ! the entries: the properties, then the chemical functions
-    nti0 = nti
-    str = quant_combo
-    tips = quant_tips
-    do j = 0, nquant-1
-       map(j) = j
-    end do
-    n = nquant
-    good = sys(isys)%goodfield(ifield)
-    if (good) then
-       call sys(isys)%f(ifield)%eval_avail(av)
-       do j = 1, size(arith_names,1)
-          if (quant_chem(nquant+j) == 0) cycle
-          if (.not.chemfun_avail(arith_names(j),sys(isys)%f(ifield),av,why)) cycle
-          str = str // trim(arith_names(j)%name) // c_null_char
-          tips = tips // trim(arith_names(j)%desc) // " (" // trim(arith_names(j)%name) // ")" // c_null_char
-          map(n) = nquant + j
-          n = n + 1
-       end do
-    end if
-
-    ! the combo
-    ic = 0
-    do j = 0, n-1
-       if (map(j) == nti) ic = j
-    end do
-    call iw_combo_simple(strid,str,ic,sameline=sameline,changed=ch,tooltips=tips,ttshown=ttshown)
-    if (good .or. ch) nti = map(max(min(ic,n-1),0))
-    changed = (nti /= nti0)
-
-  end function quantity_combo
-
-end submodule plane
+end submodule editrep_plane

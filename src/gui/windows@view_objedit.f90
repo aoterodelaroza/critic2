@@ -17,12 +17,13 @@
 
 ! Object editing in the view (vm_objedit): the handlers of the object
 ! types edited with the mouse in the view (2D drawings, 3D shapes,
-! text), and their helpers. The 2D handler works in the NDC of the render buffer.
+! text, measurements, axes) and of the atom tools, and their helpers.
+! The 2D handler works in the NDC of the render buffer.
 ! The 3D handlers work on the screen projection of the objects:
 ! a point under the mouse is the atom under it (unless the no-snap bind
 ! is held) or the point at a given depth, and the objects and their
 ! handles are hit in texture pixels.
-submodule (windows) objedit
+submodule (windows) view_objedit
   use interfaces_cimgui
   implicit none
 
@@ -2319,4 +2320,4 @@ contains
 
   end subroutine draw_handle
 
-end submodule objedit
+end submodule view_objedit

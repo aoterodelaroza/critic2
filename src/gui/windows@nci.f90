@@ -971,7 +971,7 @@ contains
     !> publication: drawn again in a separate ImGui context, black on
     !> white, at its size and with its axes in the window, and rendered
     !> into a framebuffer w%smap%imgscale times larger (see export_map
-    !> in the plane submodule).
+    !> in the editrep_plane submodule).
     subroutine export_plot()
       use gui_main, only: shader_version, font_ranges
       use tools_io, only: uout
@@ -989,7 +989,7 @@ contains
 
       ! the plot in the print context (two frames: the plot lays
       ! itself out in the first)
-      call plane_image_size(w%smap%szmap,w%smap%imgscale,wsz,xs,npix)
+      call print_image_size(w%smap%szmap,w%smap%imgscale,wsz,xs,npix)
       str = shader_version
       pc = ipPrintContextCreate(igGetFontSize(),xs,print_bakemax,font_dejavu_base85_ptr,c_loc(font_ranges),c_loc(str))
       do i = 1, 2
