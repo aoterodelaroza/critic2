@@ -46,7 +46,8 @@ contains
        iw_atom_button, iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8,&
        iw_checkbox, iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper,&
        iw_inputint, iw_inputint3, iw_icon_togglebutton, iw_setpos_bottomright, iw_table_column,&
-       iw_beginmenu, iw_begintabitem, iw_separatortext, iw_separatortext_height
+       iw_beginmenu, iw_begintabitem, iw_separatortext, iw_separatortext_height,&
+       iw_push_iconrow_frame, iw_pop_iconrow_frame
     use types, only: realloc, molsymop_rotation, molsymop_plane, molsymop_imp_rotation
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
     use tools_math, only: det3, matinv, cellpar_from_metric
@@ -1961,18 +1962,22 @@ contains
           ! and shown as the same icon toggles (highlighted while armed)
           call iw_separatortext("Bond operations",w%geometry_sec(geomsec_bondops))
           if (w%geometry_sec(geomsec_bondops)%open) then
+             ! the label and the note, centered on the framed icon buttons
+             call iw_push_iconrow_frame(framed=.true.)
              call iw_text("In the view",alignframe=.true.)
-             call bondmode_button("##geombondcreate",vm_builder_bond,&
+             call igSameLine(0._c_float,-1._c_float)
+             call bondmode_button("##geombondcreate",.false.,vm_builder_bond,&
                 "Create bonds: bond two atoms clicked one after the other in the view"//&
                 " window. Only the connectivity changes: no atom is moved or deleted")
-             call bondmode_button("##geombondremove",vm_builder_bondremove,&
+             call bondmode_button("##geombondremove",.true.,vm_builder_bondremove,&
                 "Remove bonds: remove the bond clicked in the view window")
-             call bondmode_button("##geombondorder",vm_builder_bondorder,&
+             call bondmode_button("##geombondorder",.true.,vm_builder_bondorder,&
                 "Bond order: cycle the order of the bond clicked in the view window:"//&
                 " single, double, triple, aromatic, dashed")
              if (iview == 0) &
                 call iw_text("(no view window open for this system)",sameline=.true.,&
                    alignframe=.true.)
+             call iw_pop_iconrow_frame()
           end if
 
           ! the bonds of the system
@@ -2905,9 +2910,11 @@ contains
   contains
     ! One of the bond operations driven by clicking in the view window:
     ! an icon toggle showing the mode's own glyph, highlighted while the
-    ! mode is armed on the view showing this system.
-    subroutine bondmode_button(strid,mode,ttip)
+    ! mode is armed on the view showing this system. sameline: after
+    ! another of these buttons, in the same line.
+    subroutine bondmode_button(strid,sameline,mode,ttip)
       character(len=*), intent(in) :: strid, ttip
+      logical, intent(in) :: sameline
       integer, intent(in) :: mode
 
       logical :: lstate
@@ -2917,7 +2924,7 @@ contains
       call viewmode_icon(mode,itex,fallback)
       lstate = (w%builder_vm == mode)
       if (iw_icon_togglebutton(strid,itex,fallback,state=lstate,disabled=(iview == 0),&
-         sameline=.true.)) then
+         sameline=sameline,framed=.true.)) then
          w%errmsg = ""
          w%geometry_lvpick_row = 0
          call bondmode_toggle(w,iview,isys,mode)

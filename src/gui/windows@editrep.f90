@@ -5148,8 +5148,7 @@ contains
   !> view. The cancel bind turns the tool off while this window has the
   !> focus (the view handles it when it does).
   module subroutine editrep_toolbar(w,ttshown)
-    use utils, only: iw_tooltip, iw_icon_togglebutton, iw_push_iconrow_frame,&
-       iw_pop_iconrow_frame, iw_separatortext
+    use utils, only: iw_tooltip, iw_icon_togglebutton, iw_separatortext
     use gui_main, only: tooltip_enabled
     use keybindings, only: is_bind_event, BIND_CANCEL
     use icons, only: icon_tex
@@ -5178,13 +5177,12 @@ contains
     end if
 
     call iw_separatortext("Toolbar")
-    call iw_push_iconrow_frame()
     call objtool_list(itype,tools,icons,falls)
     do i = 1, size(tools)
        k = tools(i)
        ldum = (itool == k)
        if (iw_icon_togglebutton("##objtool" // string(k),icon_tex(icons(i)),trim(falls(i)),&
-          state=ldum,sameline=(i > 1))) then
+          state=ldum,sameline=(i > 1),framed=.true.)) then
           ! a tool takes the view from a pick commanded by this window's
           ! tables, which is then abandoned
           w%editrep_pick_item = 0
@@ -5198,7 +5196,6 @@ contains
           if (igIsItemHovered(ImGuiHoveredFlags_None)) call iw_tooltip(objtool_hint(itype,k),ttshown)
        end if
     end do
-    call iw_pop_iconrow_frame()
 
   end subroutine editrep_toolbar
 

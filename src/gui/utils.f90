@@ -46,6 +46,10 @@ module utils
   ! iw_text and iw_checkbox), in characters
   integer, parameter :: pair_gap = 3
 
+  ! the space between the framed icon buttons of a row
+  ! (iw_icon_togglebutton with framed and sameline), in pixels
+  real(c_float), parameter, public :: iw_framed_gap = 5._c_float
+
   ! the state of a section of a form (iw_separatortext): shown, and
   ! showing its less common settings (More/Less)
   type, public :: iw_section
@@ -533,7 +537,7 @@ module utils
        logical :: pressed
      end function iw_icon_button
      module function iw_icon_togglebutton(strid,tex,fallback,state,disabled,sameline,&
-        popupcontext,popupflags,danger,scale,caption) result(changed)
+        popupcontext,popupflags,danger,caption,framed) result(changed)
        character(len=*,kind=c_char), intent(in) :: strid
        integer(c_int), intent(in) :: tex
        character(len=*,kind=c_char), intent(in) :: fallback
@@ -543,12 +547,12 @@ module utils
        logical, intent(inout), optional :: popupcontext
        integer(c_int), intent(in), optional :: popupflags
        logical, intent(in), optional :: danger
-       real(c_float), intent(in), optional :: scale
        character(len=*), intent(in), optional :: caption
+       logical, intent(in), optional :: framed
        logical :: changed
      end function iw_icon_togglebutton
-     module subroutine iw_push_iconrow_frame(scale)
-       real(c_float), intent(in), optional :: scale
+     module subroutine iw_push_iconrow_frame(framed)
+       logical, intent(in), optional :: framed
      end subroutine iw_push_iconrow_frame
      module subroutine iw_pop_iconrow_frame()
      end subroutine iw_pop_iconrow_frame
@@ -565,8 +569,8 @@ module utils
        logical, intent(in), optional :: disabled
        logical :: pressed
      end function iw_flyout_button
-     module function iw_iconbutton_height(scale) result(h)
-       real(c_float), intent(in), optional :: scale
+     module function iw_iconbutton_height(framed) result(h)
+       logical, intent(in), optional :: framed
        real(c_float) :: h
      end function iw_iconbutton_height
      module subroutine iw_cell_right(str)

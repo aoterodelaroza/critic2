@@ -24,6 +24,11 @@ submodule (utils) proc
   ! interface font
   real(c_float), parameter :: caption_scale = 0.6_c_float
 
+  ! framed icon buttons (iw_icon_togglebutton and its row companions)
+  real(c_float), parameter :: framed_padfac = 0.125_c_float ! extra padding on each side, in icon sides
+  real(c_float), parameter :: framed_fillalpha = 0.4_c_float ! fill while off, as a fraction of the button color alpha
+  real(c_float), parameter :: framed_bordalpha = 0.35_c_float ! alpha of the border (text color)
+
   ! deferred-commit state for the iw_inputtext/iw_inputint/iw_inputint3/iw_inputfloat/
   ! iw_inputfloat3 widgets (notlive): the ImGui ID and in-progress value of the input
   ! currently being edited. Only one item is active at a time, so the edit ID is shared
@@ -2365,10 +2370,14 @@ contains
   !> the off style). If popupcontext and popupflags are given, open a
   !> context popup attached to the button and return whether it is
   !> open. If danger, tint the icon red (fallback: danger button
-  !> color). scale further multiplies the icon side (default 1), for
-  !> palettes where the glyph is the only label.
+  !> color). If framed, the button has a border, a faint fill while
+  !> off, and more padding around the icon, the same in both
+  !> directions (a square button), so the glyph reads as a button, and
+  !> with sameline it sits iw_framed_gap from the previous item;
+  !> whatever lines up with a row of these passes framed to
+  !> iw_iconbutton_height and iw_push_iconrow_frame as well.
   module function iw_icon_togglebutton(strid,tex,fallback,state,disabled,sameline,&
-     popupcontext,popupflags,danger,scale,caption) result(changed)
+     popupcontext,popupflags,danger,caption,framed) result(changed)
     use interfaces_cimgui
     use gui_main, only: g, fontsize, iconscale, ColorDangerButton
     character(len=*,kind=c_char), intent(in) :: strid
@@ -2380,14 +2389,14 @@ contains
     logical, intent(inout), optional :: popupcontext
     integer(c_int), intent(in), optional :: popupflags
     logical, intent(in), optional :: danger
-    real(c_float), intent(in), optional :: scale
     character(len=*), intent(in), optional :: caption
+    logical, intent(in), optional :: framed
     logical :: changed
 
-    logical :: disabled_, danger_, state_
+    logical :: disabled_, danger_, state_, framed_
     real(c_float) :: side
-    type(ImVec2) :: sz, uv0, uv1
-    type(ImVec4) :: bgcol, tintcol
+    type(ImVec2) :: sz, uv0, uv1, pad
+    type(ImVec4) :: bgcol, tintcol, bordcol
     character(kind=c_char,len=:), allocatable, target :: strl
 
     disabled_ = .false.
@@ -2397,17 +2406,41 @@ contains
     state_ = .false.
     if (present(state)) state_ = state
     side = iconscale * fontsize%y
-    if (present(scale)) side = scale * iconscale * fontsize%y
+    framed_ = .false.
+    if (present(framed)) framed_ = framed
     if (present(sameline)) then
-       if (sameline) call igSameLine(0._c_float,-1._c_float)
+       if (sameline .and. framed_) then
+          call igSameLine(0._c_float,iw_framed_gap)
+       elseif (sameline) then
+          call igSameLine(0._c_float,-1._c_float)
+       end if
     end if
 
-    ! button background: pressed-button color when on, transparent when off
+    ! framed: more room around the icon, the same in both directions
+    ! so the button is square
+    pad = g%Style%FramePadding
+    if (framed_) then
+       pad%x = 0.5_c_float * (iw_iconbutton_height(framed=.true.) - side)
+       pad%y = pad%x
+    end if
+
+    ! button background: pressed-button color when on; when off,
+    ! transparent, or a faint button color if framed
     if (state_) then
        call igPushStyleColor_Vec4(ImGuiCol_Button,g%Style%Colors(ImGuiCol_ButtonActive+1))
     else
        bgcol = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
+       if (framed_) then
+          bgcol = g%Style%Colors(ImGuiCol_Button+1)
+          bgcol%w = framed_fillalpha * bgcol%w
+       end if
        call igPushStyleColor_Vec4(ImGuiCol_Button,bgcol)
+    end if
+    if (framed_) then
+       bordcol = g%Style%Colors(ImGuiCol_Text+1)
+       bordcol%w = framed_bordalpha
+       call igPushStyleColor_Vec4(ImGuiCol_Border,bordcol)
+       call igPushStyleVar_Float(ImGuiStyleVar_FrameBorderSize,1._c_float)
     end if
     call igBeginDisabled(logical(disabled_,c_bool))
     if (tex /= 0) then
@@ -2422,13 +2455,12 @@ contains
        end if
        strl = strid // c_null_char
        changed = logical(igImageButtonEx(igGetID_Str(c_loc(strl)),int(tex,c_intptr_t),sz,uv0,uv1,&
-          g%Style%FramePadding,bgcol,tintcol))
+          pad,bgcol,tintcol))
     else
        ! same footprint as the icon branch, so a row of these lays out
        ! identically whether or not the assets loaded (a zero height
        ! would give the default frame height, ignoring the scale)
-       sz = ImVec2(side + 2._c_float*g%Style%FramePadding%x,&
-          side + 2._c_float*g%Style%FramePadding%y)
+       sz = ImVec2(side + 2._c_float*pad%x,side + 2._c_float*pad%y)
        strl = fallback // "###" // strid // c_null_char
        if (danger_) &
           call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
@@ -2437,6 +2469,10 @@ contains
           call igPopStyleColor(1)
     end if
     call igEndDisabled()
+    if (framed_) then
+       call igPopStyleVar(1)
+       call igPopStyleColor(1)
+    end if
     call igPopStyleColor(1)
     if (changed .and. present(state)) state = .not.state
     if (present(caption)) call iw_caption_below(caption)
@@ -2543,36 +2579,42 @@ contains
 
   !> Height of the frame that iw_icon_togglebutton draws, for laying
   !> out whatever has to line up with a row of them (a row label, say).
-  !> scale is the same optional multiplier that function takes.
-  module function iw_iconbutton_height(scale) result(h)
+  !> framed is the same option that function takes: the height then
+  !> comes from the horizontal frame padding, which
+  !> iw_push_iconrow_frame leaves alone, plus the extra room.
+  module function iw_iconbutton_height(framed) result(h)
     use interfaces_cimgui
     use gui_main, only: g, fontsize, iconscale
-    real(c_float), intent(in), optional :: scale
+    logical, intent(in), optional :: framed
     real(c_float) :: h
 
-    h = iconscale * fontsize%y
-    if (present(scale)) h = scale * h
-    h = h + 2._c_float * g%Style%FramePadding%y
+    real(c_float) :: side
+
+    side = iconscale * fontsize%y
+    h = side + 2._c_float * g%Style%FramePadding%y
+    if (present(framed)) then
+       if (framed) h = side + 2._c_float * (g%Style%FramePadding%x + framed_padfac * side)
+    end if
 
   end function iw_iconbutton_height
 
   !> Push a frame padding that makes the standard-height framed
   !> widgets of a toolbar row (buttons, combos, inputs) as tall as the
   !> icon buttons they sit next to, so their frames line up instead of
-  !> the shorter one floating inside the row. scale is the same
-  !> optional multiplier iw_icon_togglebutton takes. Pair with
+  !> the shorter one floating inside the row. framed is the same
+  !> option iw_icon_togglebutton takes. Pair with
   !> iw_pop_iconrow_frame, and pop before drawing anything the row
   !> itself does not contain (the contents of a popup the button
   !> opens, say).
-  module subroutine iw_push_iconrow_frame(scale)
+  module subroutine iw_push_iconrow_frame(framed)
     use interfaces_cimgui
     use gui_main, only: g, fontsize
-    real(c_float), intent(in), optional :: scale
+    logical, intent(in), optional :: framed
 
     type(ImVec2) :: sz
 
     sz%x = g%Style%FramePadding%x
-    sz%y = max(0.5_c_float * (iw_iconbutton_height(scale) - fontsize%y),0._c_float)
+    sz%y = max(0.5_c_float * (iw_iconbutton_height(framed) - fontsize%y),0._c_float)
     call igPushStyleVar_Vec2(ImGuiStyleVar_FramePadding,sz)
 
   end subroutine iw_push_iconrow_frame

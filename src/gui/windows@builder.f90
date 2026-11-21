@@ -272,7 +272,8 @@ contains
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_textwidth,&
        file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
-       iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
+       iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu,&
+       iw_framed_gap
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS, BIND_NAV_MEASURE,&
        BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT, BIND_CANCEL,&
        BIND_NAV_MEASURE, BIND_NAV_MEASURE_TOGGLE, BIND_EDIT_WHEEL
@@ -303,8 +304,7 @@ contains
     real*8, parameter :: wheel_commit_delay = 0.3d0
     ! bond order for each bond-combo index >= 1 (single, double, triple, dashed, aromatic)
     integer, parameter :: bondorder(5) = (/1,2,3,0,-1/)
-    real(c_float), parameter :: palscale = 1.25_c_float ! palette icons, in standard icon sides
-    real(c_float), parameter :: rowspacing = 2._c_float ! vertical gap between toolbar rows (pixels)
+    real(c_float), parameter :: rowspacing = 3._c_float ! vertical gap between toolbar rows (pixels)
     real(c_float), parameter :: geomscale = 1.9_c_float ! local-geometry and recent squares, in text line heights
     real(c_float), parameter :: recent_bg(3) = 1._c_float ! ground of the recent squares (the fragment diagrams are white)
     real(c_float), parameter :: geom_sub = 0.68_c_float ! geometry diagram, as a fraction of the recent square
@@ -490,7 +490,7 @@ contains
 
     ! the tools, one labelled row per group
     xicon = iw_calcwidth(10,0)
-    hicon = iw_iconbutton_height(palscale)
+    hicon = iw_iconbutton_height(framed=.true.)
     szrow%x = g%Style%ItemSpacing%x
     szrow%y = rowspacing
     call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,szrow)
@@ -533,7 +533,7 @@ contains
     call row_label("Symmetry")
     call row_cursor(.true.)
     if (iw_icon_togglebutton("##buildersymm",icon_tex(icon_ui_symmetry),"Sy",&
-       disabled=.not.havesys,scale=palscale)) then
+       disabled=.not.havesys,framed=.true.)) then
        w%errmsg = ""
        call sysc(isys)%refine_symmetry(w%errmsg)
        ! hold the camera on the parent view's scene (the main scene when
@@ -577,7 +577,7 @@ contains
     ok = havesys
     if (ok) ok = relaxing .or. .not.sysc(isys)%md_run
     if (iw_icon_togglebutton("##builderrelax",icon_tex(icon_ui_relax),"Rx",state=lstate,&
-       disabled=.not.ok,danger=relaxing,scale=palscale)) then
+       disabled=.not.ok,danger=relaxing,framed=.true.)) then
        if (relaxing) then
           call sysc(isys)%md_stop(errmsg=w%errmsg)
           if (associated(win(iview)%sc)) win(iview)%forcerender = .true.
@@ -816,15 +816,19 @@ contains
 
     ! Place the cursor for the next widget of the current toolbar row: at
     ! the icon column for the first one, after the previous one
-    ! otherwise, and always at the top of the row. Without the last part
-    ! they would line up with the label, which sits lower to center it on
-    ! the buttons (igSameLine restores the y of the previous line, not of
-    ! the previous item).
-    subroutine row_cursor(first)
+    ! otherwise (gap pixels away; default: the item spacing), and always
+    ! at the top of the row. Without the last part they would line up
+    ! with the label, which sits lower to center it on the buttons
+    ! (igSameLine restores the y of the previous line, not of the
+    ! previous item).
+    subroutine row_cursor(first,gap)
       logical, intent(in) :: first
+      real(c_float), intent(in), optional :: gap
 
       if (first) then
          call igSameLine(xicon,0._c_float)
+      elseif (present(gap)) then
+         call igSameLine(0._c_float,gap)
       else
          call igSameLine(0._c_float,-1._c_float)
       end if
@@ -850,7 +854,7 @@ contains
       integer(c_int) :: itex
       character(len=:), allocatable :: fallback
 
-      call row_cursor(first)
+      call row_cursor(first,iw_framed_gap)
       if (itool == it_edit) then
          ! the geometry editor needs the atoms selected in the view
          state = (w%edit_kind /= 0)
@@ -873,8 +877,8 @@ contains
          ! the button opens the list of what the tool adds, the periodic
          ! table or the fragment library, whether or not it is armed
          ldum_ = iw_icon_togglebutton("##bldtool"//string(itool),itex,fallback,&
-            state=state,disabled=disabled,scale=palscale,popupcontext=lpop,&
-            popupflags=ImGuiPopupFlags_MouseButtonLeft)
+            state=state,disabled=disabled,popupcontext=lpop,&
+            popupflags=ImGuiPopupFlags_MouseButtonLeft,framed=.true.)
          if (lpop) then
             if (itool == vm_builder_addatom) then
                iz = iw_periodictable()
@@ -894,7 +898,7 @@ contains
             call igEndPopup()
          end if
       elseif (iw_icon_togglebutton("##bldtool"//string(itool),itex,fallback,&
-         state=state,disabled=disabled,scale=palscale)) then
+         state=state,disabled=disabled,framed=.true.)) then
          call pal_click(itool)
       end if
       ! the tooltip text is only built when it is about to be shown: a
