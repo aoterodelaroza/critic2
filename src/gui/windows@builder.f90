@@ -458,10 +458,10 @@ contains
     ! the pending pick of a cell tool in the parent view: the atom at
     ! the new origin (Slab row), one click; the lattice points at the
     ! ends of the vectors of the new cell (Pick Cell tool), one after
-    ! the other, while the tool is on display; or the atom at the cut
-    ! of the Vacuum tool, one click, while the tool is on display (the
-    ! vacuum form places the cut). It ends if another tool has started
-    ! since. The camera of the main view is held for
+    ! the other, while the tool is on display; or the cut of the
+    ! Vacuum tool, an atom or a point, one click, while the tool is on
+    ! display (the vacuum form places the cut). It ends if another tool
+    ! has started since. The camera of the main view is held for
     ! the move of the origin, if it is made, as in the other cell
     ! actions. A pick of lattice points that ends without one (the
     ! cancel key, the alternate click, the exit click on empty space,
@@ -1305,15 +1305,24 @@ contains
     end subroutine orient_restart
 
     ! Panel of the Vacuum tool: the vacuum along an axis of the cell,
-    ! with the controls of the vacuum section of the cell tab of the
-    ! geometry window, its options on display. The edits apply as they
-    ! do there.
+    ! with the vacuum form of the cell tab of the geometry window in
+    ! its layout for the builder (the cut is picked in the view; no
+    ! choice of the position of the slab), its options on display. The
+    ! edits apply as they do there. While the cut is picked, what the
+    ! click does and how the pick stops.
     subroutine panel_vacuum()
 
-      call panel_text("The vacuum along an axis: the cell is cut by a plane parallel to the other"//&
-         " two axes and made longer or shorter there. A new vacuum changes the cell at once if"//&
-         " the cut is at the largest gap; otherwise, when Apply is pressed.")
-      call panel_text(celltool_exits(),faded=.true.)
+      if (w%geometry_lvpick_row == lvpick_vaccut) then
+         call panel_text("Click the atom or the point where the cell is cut; the plane follows"//&
+            " the mouse.")
+         call panel_text(mode_exits(vm_pick_atom),faded=.true.)
+      else
+         call panel_text("The vacuum along an axis: the cell is cut by a plane parallel to the"//&
+            " other two axes and made longer or shorter there. The cut is at the largest gap,"//&
+            " and a new vacuum applies at once; Pick chooses another cut in the view, made"//&
+            " with Apply.")
+         call panel_text(celltool_exits(),faded=.true.)
+      end if
       if (cellform_vacuum(w,iview,isys,ttshown,.true.,.true.)) then
          call cellform_vacuum_apply(w,iview,isys,.true.)
          call cell_hold()

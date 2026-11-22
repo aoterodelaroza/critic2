@@ -3696,7 +3696,8 @@ contains
   !> lattice vector in row irow of the matrix cell transformation (the
   !> pick goes on to the next rows up to ilast), or the atom at the new
   !> origin of the cell (irow = lvpick_origin), or the atom at the cut
-  !> of the vacuum (irow = lvpick_vaccut). It replaces a pending
+  !> of the vacuum (irow = lvpick_vaccut; in the builder, the atom or
+  !> the point of the view where the cell is cut). It replaces a pending
   !> add-bond pick and the other pick of the cell form.
   module subroutine cellform_lvpick_start(w,iview,irow,ilast)
     class(window), intent(inout), target :: w
@@ -3712,7 +3713,13 @@ contains
        if (w%errmsg == errorigin) w%errmsg = ""
        call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the atom at the new origin",w%id)
     elseif (irow == lvpick_vaccut) then
-       call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the atom at the bottom of the slab",w%id)
+       ! in the builder the cut is at the click: an atom, or any point
+       if (w%type == wintype_builder) then
+          call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the atom or the point where the&
+             & cell is cut",w%id,acceptempty=.true.)
+       else
+          call win(iview)%viewmode_set_forced(vm_pick_atom,"Click the atom at the bottom of the slab",w%id)
+       end if
     else
        ! in the builder, the pick is a tool: a click on anything else
        ! does not end it
@@ -3740,9 +3747,11 @@ contains
   !> origin is not a lattice vector: picking it keeps the pick waiting.
   !> The pick of the atom at the new origin: iat is the atom (cell
   !> index; zero if there is no pick, or no atom yet), and moving the
-  !> origin there is up to the caller. The pick of the atom at the cut
-  !> of the vacuum: the atom is noted for the vacuum form, which places
-  !> the cut there (see cellform_vacuum). istat is the state of the pick
+  !> origin there is up to the caller. The pick of the cut of the
+  !> vacuum: the atom is noted for the vacuum form, which places the
+  !> cut there (see cellform_vacuum); a click on no atom, which only
+  !> the pick of the builder delivers, puts the cut at the clicked
+  !> point. istat is the state of the pick
   !> (ipick_*; pending if there is none): a pick that ended without a
   !> lattice point or an atom is cancelled.
   module subroutine cellform_lvpick_poll(w,iview,isys,istat,iat)
@@ -3758,18 +3767,32 @@ contains
     iat = 0
     if (w%geometry_lvpick_row <= 0) return
 
-    ! an atom: at the new origin, or at the cut of the vacuum
+    ! an atom: at the new origin, or at the cut of the vacuum (or a
+    ! point in space, for the cut)
     if (w%geometry_lvpick_row >= lvpick_origin) then
        call view_pick_result(iview,w%id,isys,w%geometry_lvpick,istat,xpick,atidx=atpick)
        if (istat == ipick_point) then
-          if (atpick(1) <= 0) then
-             istat = ipick_cancelled
-          elseif (w%geometry_lvpick_row == lvpick_origin) then
-             iat = atpick(1)
-          else
-             w%geometry_cell%vac_cutatom = atpick(1)
-             w%geometry_cell%vac_cutpicked = .true.
-          end if
+          associate (gc => w%geometry_cell)
+            if (w%geometry_lvpick_row == lvpick_origin) then
+               if (atpick(1) > 0) then
+                  iat = atpick(1)
+               else
+                  istat = ipick_cancelled
+               end if
+            elseif (atpick(1) > 0) then
+               gc%vac_cutmode = vaccut_atom
+               gc%vac_cutatom = atpick(1)
+               gc%vac_cutpicked = .true.
+            elseif (w%type == wintype_builder .and. gc%vac_axis >= 1 .and. gc%vac_axis <= 3) then
+               xpick = sys(isys)%c%c2x(xpick)
+               gc%vac_cutmode = vaccut_position
+               gc%vac_cut = xpick(gc%vac_axis) - floor(xpick(gc%vac_axis))
+               gc%vac_cutatom = 0
+               gc%vac_cutpicked = .true.
+            else
+               istat = ipick_cancelled
+            end if
+          end associate
        end if
        if (istat /= ipick_pending) w%geometry_lvpick_row = 0
        return
@@ -3875,7 +3898,10 @@ contains
   !> cutting the cell and making it longer or shorter there, at
   !> constant atomic positions. The cell is cut at the largest gap, at
   !> a position, or at an atom picked in the view (a pick of the cell
-  !> form, see cellform_lvpick_start). The widgets are drawn if open
+  !> form, see cellform_lvpick_start). In the builder the cut is at the
+  !> largest gap unless picked in the view (Pick: an atom or a point,
+  !> the plane following the mouse), and there is no choice of the
+  !> position of the slab. The widgets are drawn if open
   !> (those of the options, if more or if an option is on). The plane
   !> of the cut, the outline of the new cell and the centers of the
   !> molecules kept whole are shown in the view whether it is open or
@@ -3896,6 +3922,13 @@ contains
     logical :: apply
 
     logical :: lch
+    logical :: lbld ! the form of the builder
+    logical :: lpicking ! builder: the cut is being picked in the view
+    logical :: lhover ! builder: the mouse is over the view during the pick
+    real*8 :: ucut ! the cut on display: that of the form or, during the pick, that under the mouse
+    real*8 :: uplane ! builder: the cut under the mouse in the period of the lattice the mouse is in
+    real*8 :: xh(3), vdum, tdum
+    integer :: iath
     integer :: im
     logical :: lvac ! the vacuum starts over: the axis was chosen, or the lattice changed elsewhere
     logical :: lcut ! the cut of the vacuum changed
@@ -3935,6 +3968,26 @@ contains
          lvac = .true.
       end if
 
+      ! the builder, while the cut is picked in the view: the cut that
+      ! a click would make now (at the atom under the mouse, as the
+      ! pick places it, or at the point under it), and where its
+      ! plane is drawn (under the mouse, not in the cell)
+      lbld = (w%type == wintype_builder)
+      lpicking = (lbld .and. w%geometry_lvpick_row == lvpick_vaccut)
+      ucut = gc%vac_cut
+      lhover = .false.
+      if (lpicking) call view_hover_point(iview,isys,xh,iath,lhover)
+      if (lhover) then
+         xh = sys(isys)%c%c2x(xh)
+         if (iath > 0) then
+            call sys(isys)%c%vacuum_info(gc%vac_axis,gc%vac_keepmol,vdum,tdum,cutpos=ucut,cutat=iath)
+            uplane = ucut + nint(xh(gc%vac_axis) - ucut)
+         else
+            uplane = xh(gc%vac_axis)
+            ucut = uplane - floor(uplane)
+         end if
+      end if
+
       if (open) then
          call iw_text("Axis",alignframe=.true.)
          call iw_combo_simple("##cellvacaxis","a" // c_null_char // "b" // c_null_char // "c" // c_null_char,&
@@ -3947,48 +4000,64 @@ contains
             gc%vac_cutmode = vaccut_gap
             lvac = .true.
          end if
-         call iw_text("Slab position",alignframe=.true.,gap=.true.)
-         call iw_combo_simple("##cellvacpos","Center" // c_null_char // "Bottom" // c_null_char,&
-            gc%vac_pos,changed=lch,sameline=.true.,startsatone=.true.,tooltips=&
-            "The atoms are in the middle of the new cell, with half of the vacuum on each side" //&
-            c_null_char //&
-            "The lowest atom is at the bottom of the new cell, with all the vacuum above" // c_null_char,&
-            ttshown=ttshown)
-         lwid = lwid .or. lch
-         if (lch) lvacapply = .true.
-
-         ! where the cell is cut
-         call iw_text("Cut",alignframe=.true.)
-         call iw_combo_simple("##cellvaccutmode","Largest gap" // c_null_char // "Position" // c_null_char //&
-            "Atom" // c_null_char,gc%vac_cutmode,changed=lch,sameline=.true.,startsatone=.true.,tooltips=&
-            "Cut the cell in the middle of the largest empty gap along the axis: the vacuum of a&
-            & slab, or the widest spacing between atomic planes" // c_null_char //&
-            "Cut the cell at the given position along the axis: choose the position, the vacuum&
-            & and the options, then press Apply" // c_null_char //&
-            "Cut the cell at an atom, which is left at the bottom of the slab: click the atom in&
-            & the view, choose the vacuum and the options, then press Apply" // c_null_char,&
-            ttshown=ttshown)
-         lcut = lch
-         ! the atom is picked in the view (not during a run: the
-         ! pick would be lost at the next step)
-         if (lch .and. gc%vac_cutmode == vaccut_atom .and. .not.sysc(isys)%md_run) &
-            call cellform_lvpick_start(w,iview,lvpick_vaccut,lvpick_vaccut)
-         if (gc%vac_cutmode == vaccut_position) then
-            lch = iw_dragfloat_real8("##cellvaccut",x1=gc%vac_cut,speed=0.002d0,min=0d0,max=1d0,decimal=4,&
-               sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-            lcut = lcut .or. lch
-         else
-            call iw_text("at " // string(gc%vac_cut,'f',decimal=4),sameline=.true.)
-         end if
-         call iw_tooltip("Fractional coordinate along the axis at which the cell is cut. The atoms&
-            & below it go to the top of the slab, and an atom at the cut stays at the bottom",ttshown)
-         if (gc%vac_cutmode == vaccut_atom) then
-            if (iw_button("Pick Atom##cellvacpick",sameline=.true.,&
-               disabled=(w%geometry_lvpick_row == lvpick_vaccut .or. sysc(isys)%md_run))) &
+         if (lbld) then
+            ! the builder: the cut on the same line, and a button to
+            ! choose it in the view
+            call iw_text("Cut",alignframe=.true.,gap=.true.)
+            call iw_text(string(ucut,'f',decimal=4),sameline=.true.)
+            call iw_tooltip("Fractional coordinate along the axis at which the cell is cut: the&
+               & middle of the largest empty gap, unless another cut is chosen with Pick. The atoms&
+               & below it go to the top of the slab, and an atom at the cut stays at the bottom",ttshown)
+            if (iw_button("Pick##cellvacpick",sameline=.true.,disabled=(lpicking .or. sysc(isys)%md_run))) &
                call cellform_lvpick_start(w,iview,lvpick_vaccut,lvpick_vaccut)
-            call iw_tooltip("Cut the cell at an atom: click it in the view (a click anywhere else&
-               & cancels; not during a run). With the molecules kept whole, the cut is at the&
-               & center of its molecule",ttshown,whendisabled=.true.)
+            call iw_tooltip("Pick the cut in the view: the plane follows the mouse, and a click cuts&
+               & the cell there or at the clicked atom (the center of its molecule if molecules are&
+               & kept whole), which is left at the bottom of the slab. Apply makes the cut (not&
+               & during a run)",ttshown,whendisabled=.true.)
+         else
+            call iw_text("Slab position",alignframe=.true.,gap=.true.)
+            call iw_combo_simple("##cellvacpos","Center" // c_null_char // "Bottom" // c_null_char,&
+               gc%vac_pos,changed=lch,sameline=.true.,startsatone=.true.,tooltips=&
+               "The atoms are in the middle of the new cell, with half of the vacuum on each side" //&
+               c_null_char //&
+               "The lowest atom is at the bottom of the new cell, with all the vacuum above" // c_null_char,&
+               ttshown=ttshown)
+            lwid = lwid .or. lch
+            if (lch) lvacapply = .true.
+
+            ! where the cell is cut
+            call iw_text("Cut",alignframe=.true.)
+            call iw_combo_simple("##cellvaccutmode","Largest gap" // c_null_char // "Position" // c_null_char //&
+               "Atom" // c_null_char,gc%vac_cutmode,changed=lch,sameline=.true.,startsatone=.true.,tooltips=&
+               "Cut the cell in the middle of the largest empty gap along the axis: the vacuum of a&
+               & slab, or the widest spacing between atomic planes" // c_null_char //&
+               "Cut the cell at the given position along the axis: choose the position, the vacuum&
+               & and the options, then press Apply" // c_null_char //&
+               "Cut the cell at an atom, which is left at the bottom of the slab: click the atom in&
+               & the view, choose the vacuum and the options, then press Apply" // c_null_char,&
+               ttshown=ttshown)
+            lcut = lch
+            ! the atom is picked in the view (not during a run: the
+            ! pick would be lost at the next step)
+            if (lch .and. gc%vac_cutmode == vaccut_atom .and. .not.sysc(isys)%md_run) &
+               call cellform_lvpick_start(w,iview,lvpick_vaccut,lvpick_vaccut)
+            if (gc%vac_cutmode == vaccut_position) then
+               lch = iw_dragfloat_real8("##cellvaccut",x1=gc%vac_cut,speed=0.002d0,min=0d0,max=1d0,decimal=4,&
+                  sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+               lcut = lcut .or. lch
+            else
+               call iw_text("at " // string(gc%vac_cut,'f',decimal=4),sameline=.true.)
+            end if
+            call iw_tooltip("Fractional coordinate along the axis at which the cell is cut. The atoms&
+               & below it go to the top of the slab, and an atom at the cut stays at the bottom",ttshown)
+            if (gc%vac_cutmode == vaccut_atom) then
+               if (iw_button("Pick Atom##cellvacpick",sameline=.true.,&
+                  disabled=(w%geometry_lvpick_row == lvpick_vaccut .or. sysc(isys)%md_run))) &
+                  call cellform_lvpick_start(w,iview,lvpick_vaccut,lvpick_vaccut)
+               call iw_tooltip("Cut the cell at an atom: click it in the view (a click anywhere else&
+                  & cancels; not during a run). With the molecules kept whole, the cut is at the&
+                  & center of its molecule",ttshown,whendisabled=.true.)
+            end if
          end if
 
          ! the options (one that is on stays in view when More is
@@ -4058,10 +4127,17 @@ contains
          gc%vac_time = glfwGetTime()
       end if
 
-      ! the pick of the atom at the cut ends if the cut is not at an
-      ! atom any more (another choice, another axis, another lattice)
-      if (w%geometry_lvpick_row == lvpick_vaccut .and. gc%vac_cutmode /= vaccut_atom) &
-         call cellform_lvpick_cancel(w,iview)
+      ! the pick of the cut ends if the cut is not at an atom any more
+      ! (another choice, another axis, another lattice); in the
+      ! builder, where the pick starts with the cut at the gap, if the
+      ! vacuum starts over
+      if (w%geometry_lvpick_row == lvpick_vaccut) then
+         if (lbld) then
+            if (lvac) call cellform_lvpick_cancel(w,iview)
+         elseif (gc%vac_cutmode /= vaccut_atom) then
+            call cellform_lvpick_cancel(w,iview)
+         end if
+      end if
 
       if (open) then
          ! the vacuum: the outline of the new cell follows the value,
@@ -4085,18 +4161,31 @@ contains
             string(gc%vac_cur*bohrtoa,'f',decimal=4) // " Å at this cut)"
          call iw_tooltip(vactip,ttshown)
 
-         ! back to the vacuum that gives the cell its height at the start
+         ! back to the vacuum that gives the cell its height at the
+         ! start; in the builder, with a cut picked in the view (which
+         ! has not changed the cell), back to the cut at the largest gap
          vacini = gc%vac_hini - gc%vac_thick
+         lch = (lbld .and. gc%vac_cutmode /= vaccut_gap)
          if (iw_button("Reset##cellvacreset",danger=.true.,sameline=.true.,&
-            disabled=(abs(gc%vac_new - vacini) * bohrtoa <= vacsame))) then
-            gc%vac_new = vacini
+            disabled=(.not.lch .and. abs(gc%vac_new - vacini) * bohrtoa <= vacsame))) then
+            if (lch) then
+               call cellform_lvpick_cancel(w,iview)
+               call cellform_reset_vacuum(w)
+            else
+               gc%vac_new = vacini
+               lvaccommit = .true.
+            end if
             lwid = .true.
-            lvaccommit = .true.
          end if
-         call iw_tooltip("Go back to the starting vacuum (" // string(vacini*bohrtoa,'f',decimal=4) //&
-            " Å): the cell gets the height it had along this axis when the system or the axis was&
-            & chosen here, or when the lattice was last changed by another tool or by undo",ttshown,&
-            whendisabled=.true.)
+         if (lch) then
+            call iw_tooltip("Go back to the cut at the largest gap, with the vacuum the cell has&
+               & there",ttshown)
+         else
+            call iw_tooltip("Go back to the starting vacuum (" // string(vacini*bohrtoa,'f',decimal=4) //&
+               " Å): the cell gets the height it had along this axis when the system or the axis was&
+               & chosen here, or when the lattice was last changed by another tool or by undo",ttshown,&
+               whendisabled=.true.)
+         end if
 
          ! a new value is applied; one that the field shows as the
          ! current one is the current one
@@ -4112,9 +4201,10 @@ contains
          ! once (the position refers to the atoms as they are);
          ! otherwise the edits apply at once
          if (gc%vac_cutmode /= vaccut_gap) then
-            if (iw_button("Apply##cellvacapply",danger=.true.)) apply = .true.
+            ! (not while the cut is picked again: the new cell is not shown)
+            if (iw_button("Apply##cellvacapply",danger=.true.,disabled=lpicking)) apply = .true.
             call iw_tooltip("Cut the cell at this cut and set the vacuum, keeping the positions&
-               & of the atoms relative to each other",ttshown)
+               & of the atoms relative to each other",ttshown,whendisabled=.true.)
          elseif (lvacapply) then
             apply = .true.
          end if
@@ -4125,12 +4215,14 @@ contains
 
       ! the plane of the cut and the outline of the new cell in the
       ! view, when the cut is chosen by hand or a new vacuum is
-      ! being prepared, while the values of the section are those
-      ! of this lattice. Both are drawn as the cell is (its origin,
+      ! being prepared, while the values of the form are those of
+      ! this lattice. Both are drawn as the cell is (its origin,
       ! not the origin of the Display, along the other two axes).
+      ! While the cut is picked in the view (builder), only the
+      ! plane, at the cut that a click would make.
       lch = (gc%vac_axis > 0 .and. gc%vac_time >= 0d0)
       if (lch) lch = associated(win(iview)%sc) .and. all(abs(sys(isys)%c%m_x2c - gc%vac_m) < 1d-8) .and.&
-         (gc%vac_cutmode /= vaccut_gap .or. abs(gc%vac_new - gc%vac_cur) > 1d-6)
+         (lpicking .or. gc%vac_cutmode /= vaccut_gap .or. abs(gc%vac_new - gc%vac_cur) > 1d-6)
       if (lch) then
          ivj = mod(gc%vac_axis,3) + 1
          ivk = mod(ivj,3) + 1
@@ -4144,6 +4236,7 @@ contains
          xb = 0d0
          xb(gc%vac_axis) = gc%vac_cut
          if (abs(vacz - nint(vacz)) > 1d-6) xb(gc%vac_axis) = gc%vac_cut - floor(vacz)
+         if (lhover) xb(gc%vac_axis) = uplane
          cutshp(1) = rep_shape(kind=shapekind_box,x1=sys(isys)%c%x2c(xb),&
             rad=pv_edger*latvec_rad_def,rgb=pv_edge_rgb,alpha=pv_cut_alpha)
          cutshp(1)%v(:,ivj) = sys(isys)%c%m_x2c(:,ivj)
@@ -4153,7 +4246,7 @@ contains
          ! cell too flat to be made, see set_vacuum)
          call vacuum_newcell(w,iview,isys,vacx0,vacm,vachnew)
          cutshp(2) = rep_shape(kind=shapekind_box,x1=vacx0,v=vacm,rad=pv_edger*latvec_rad_def,&
-            rgb=pv_edge_rgb,alpha=0._c_float,shown=(vachnew >= 1d0))
+            rgb=pv_edge_rgb,alpha=0._c_float,shown=(vachnew >= 1d0 .and. .not.lpicking))
          call win(iview)%sc%show_transient_shapes(w%uid,tag_vaccut,cutshp)
       end if
 

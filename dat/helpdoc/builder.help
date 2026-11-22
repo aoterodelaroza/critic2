@@ -46,10 +46,11 @@ Undo in the Edit menu (by default Control-z) reverts a change.
   axis, then "Apply". "Vacuum" sets the empty space along an axis: the
   cell is cut by a plane parallel to the other two axes and made
   longer or shorter there, keeping the distances between the atoms.
-  The cut is at the largest gap along the axis, at a given position,
-  or at an atom clicked in the view ("Atom"), which is left at the
-  bottom of the slab; a cut that is not at the largest gap is made
-  with "Apply". "Origin" moves the origin of the cell to the atom
+  The cut is at the largest gap along the axis. "Pick" chooses another
+  one in the view: the plane follows the mouse, and a click puts the
+  cut there, or at the clicked atom, which is left at the bottom of
+  the slab; "Apply" makes that cut, and "Reset" goes back to the
+  largest gap. "Origin" moves the origin of the cell to the atom
   clicked in the view. "Center Slab" moves the origin so that the
   atoms are in the middle of the cell, along the axes that have
   vacuum; it is disabled if there is none.

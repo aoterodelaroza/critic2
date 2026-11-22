@@ -2139,6 +2139,7 @@ contains
           ! time it is undocked, long after the user has sized it
           w%needwidth = 0._c_float
           if (w%type == wintype_builder) w%builder_shown = .false.
+          if (w%type == wintype_view) w%mousepos_hover = .false.
           ! with detachable windows, a new window that does not fit in
           ! the main window (a tall initial size) would open as an OS
           ! window of its own; start it in the main window instead, where

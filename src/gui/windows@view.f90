@@ -1044,6 +1044,10 @@ contains
     hover = goodsys .and. w%ilock == ilock_no
     if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
 
+    ! the mouse over the canvas, for the windows that follow it
+    ! (view_hover_point)
+    w%mousepos_hover = hover
+
     ! set view modes based on user's key presses. The mode modifiers are
     ! honored while this view holds a drag lock, while the canvas is the
     ! active item (a left press on it: ImGui then hovers no window, and
@@ -4782,7 +4786,6 @@ contains
   !> nothing (it was cancelled) or the unprojection failed. Does not
   !> retire the pick.
   module subroutine view_pick_point(iview,isys,xc,ok)
-    use systems, only: sys
     integer, intent(in) :: iview
     integer, intent(in) :: isys
     real*8, intent(out) :: xc(3)
@@ -4792,40 +4795,42 @@ contains
     ok = .false.
     associate(v => win(iview))
       if (v%vmdata%flag /= 1) return
-      if (v%vmdata%idx(1) > 0) then
-         ! an atom was clicked: use its position
-         xc = sys(isys)%c%x2c(sys(isys)%c%atcel(v%vmdata%idx(1))%x + v%vmdata%idx(2:4))
-         ok = .true.
-      elseif (v%vmdata%bidx(1) > 0) then
-         ! a bond was clicked: the midpoint of its two atom images
-         associate(c => sys(isys)%c, b => v%vmdata%bidx)
-           xc = 0.5d0 * (c%x2c(c%atcel(b(1))%x + b(2:4)) + c%x2c(c%atcel(b(5))%x + b(6:8)))
-         end associate
-         ok = .true.
-      elseif (v%vmdata%latidx(4) > 0) then
-         ! a lattice point was clicked: its position
-         associate(c => sys(isys)%c, l => v%vmdata%latidx)
-           ok = (l(4) <= c%ncv)
-           if (ok) xc = c%x2c(l(1:3) + c%cen(:,l(4)))
-         end associate
-         if (.not.ok) call view_click_frame(iview,v%vmdata%xpos,xc,ok)
-      else
-         ! a critical point was clicked: its position (cpidx is a cell
-         ! CP of the field, possibly stale)
-         if (v%vmdata%cpidx(1) > 0 .and. sys(isys)%goodfield(v%vmdata%cpidx(5))) then
-            associate(f => sys(isys)%f(v%vmdata%cpidx(5)), cp => v%vmdata%cpidx)
-              ok = (cp(1) <= f%ncpcel)
-              if (ok) xc = sys(isys)%c%x2c(f%cpcel(cp(1))%x + cp(2:4))
-            end associate
-         end if
-
-         ! empty space (or a stale CP): unproject the click onto the
-         ! plane of the scene center
-         if (.not.ok) call view_click_frame(iview,v%vmdata%xpos,xc,ok)
-      end if
+      call pick_position(iview,isys,v%vmdata%idx,v%vmdata%bidx,v%vmdata%latidx,v%vmdata%cpidx,&
+         v%vmdata%xpos,xc,ok)
     end associate
 
   end subroutine view_pick_point
+
+  !> Point under the mouse in view iview, which shows system isys: the
+  !> point that a click of a vm_pick_atom pick that accepts positions
+  !> would deliver now (see view_pick_point), in cell-frame Cartesian
+  !> bohr, and the cell atom under the mouse (iat; zero if there is
+  !> none). ok = .false. if the mouse is not over the canvas of the
+  !> view, the view shows another system or the unprojection failed.
+  module subroutine view_hover_point(iview,isys,xc,iat,ok)
+    use interfaces_cimgui
+    use systems, only: sys
+    integer, intent(in) :: iview
+    integer, intent(in) :: isys
+    real*8, intent(out) :: xc(3)
+    integer, intent(out) :: iat
+    logical, intent(out) :: ok
+
+    type(ImVec2) :: pos
+
+    xc = 0d0
+    iat = 0
+    ok = .false.
+    if (.not.win(iview)%mousepos_hover .or. win(iview)%isys /= isys) return
+    call igGetMousePos(pos)
+    call win(iview)%mousepos_to_texpos(pos)
+    associate(v => win(iview))
+      if (v%mousepos_idx(1) > 0 .and. v%mousepos_idx(1) <= sys(isys)%c%ncel) iat = v%mousepos_idx(1)
+      call pick_position(iview,isys,v%mousepos_idx(1:4),v%mousepos_bidx,v%mousepos_lat,v%mousepos_cp,&
+         (/pos%x,pos%y/),xc,ok)
+    end associate
+
+  end subroutine view_hover_point
 
   !> Read and retire the result of a forced atom/point pick that window
   !> idcaller commanded on view iview (viewmode_set_forced with
@@ -5719,5 +5724,62 @@ contains
 
   end subroutine annot_unselect
 
+  !xx! private procedures
+
+  !> Position of what a pick in view iview identifies, for system
+  !> isys: the atom idx (cell atom and lattice translation), the bond
+  !> bidx (the midpoint of its two atom images), the lattice point
+  !> latidx, the critical point cpidx (a cell CP of its field,
+  !> possibly stale) or, with none of them, the texture position xpos
+  !> unprojected onto the plane of the scene center. xc is in
+  !> cell-frame Cartesian bohr; ok = .false. if the unprojection
+  !> failed.
+  subroutine pick_position(iview,isys,idx,bidx,latidx,cpidx,xpos,xc,ok)
+    use systems, only: sys
+    integer, intent(in) :: iview
+    integer, intent(in) :: isys
+    integer(c_int), intent(in) :: idx(4)
+    integer(c_int), intent(in) :: bidx(8)
+    integer(c_int), intent(in) :: latidx(4)
+    integer(c_int), intent(in) :: cpidx(5)
+    real(c_float), intent(in) :: xpos(2)
+    real*8, intent(out) :: xc(3)
+    logical, intent(out) :: ok
+
+    xc = 0d0
+    ok = .false.
+    if (idx(1) > 0 .and. idx(1) <= sys(isys)%c%ncel) then
+       ! an atom was clicked: use its position
+       xc = sys(isys)%c%x2c(sys(isys)%c%atcel(idx(1))%x + idx(2:4))
+       ok = .true.
+    elseif (bidx(1) > 0) then
+       ! a bond was clicked: the midpoint of its two atom images
+       associate(c => sys(isys)%c, b => bidx)
+         xc = 0.5d0 * (c%x2c(c%atcel(b(1))%x + b(2:4)) + c%x2c(c%atcel(b(5))%x + b(6:8)))
+       end associate
+       ok = .true.
+    elseif (latidx(4) > 0) then
+       ! a lattice point was clicked: its position
+       associate(c => sys(isys)%c, l => latidx)
+         ok = (l(4) <= c%ncv)
+         if (ok) xc = c%x2c(l(1:3) + c%cen(:,l(4)))
+       end associate
+       if (.not.ok) call view_click_frame(iview,xpos,xc,ok)
+    else
+       ! a critical point was clicked: its position (cpidx is a cell
+       ! CP of the field, possibly stale)
+       if (cpidx(1) > 0 .and. sys(isys)%goodfield(cpidx(5))) then
+          associate(f => sys(isys)%f(cpidx(5)), cp => cpidx)
+            ok = (cp(1) <= f%ncpcel)
+            if (ok) xc = sys(isys)%c%x2c(f%cpcel(cp(1))%x + cp(2:4))
+          end associate
+       end if
+
+       ! empty space (or a stale CP): unproject the click onto the
+       ! plane of the scene center
+       if (.not.ok) call view_click_frame(iview,xpos,xc,ok)
+    end if
+
+  end subroutine pick_position
 
 end submodule view

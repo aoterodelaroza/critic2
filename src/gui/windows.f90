@@ -1525,6 +1525,7 @@ module windows
      type(annot_state) :: annot ! the annotation row and the tool of the object editing mode
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
+     logical :: mousepos_hover = .false. ! the mouse is over the canvas of the view (false if the view is not drawn)
      integer(c_int) :: mousepos_cp(5) = 0 ! critical point under mouse position (dl_sphere%cpidx; 0 = none)
      integer(c_int) :: mousepos_lat(4) = 0 ! lattice point under mouse position (dl_sphere%latidx; 0 = none)
      integer(c_int) :: mousepos_kp(2) = 0 ! special k-point under mouse position (dl_sphere%kpidx; 0 = none)
@@ -2498,6 +2499,13 @@ module windows
        real*8, intent(out) :: xc(3)
        logical, intent(out) :: ok
      end subroutine view_pick_point
+     module subroutine view_hover_point(iview,isys,xc,iat,ok)
+       integer, intent(in) :: iview
+       integer, intent(in) :: isys
+       real*8, intent(out) :: xc(3)
+       integer, intent(out) :: iat
+       logical, intent(out) :: ok
+     end subroutine view_hover_point
      module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx,latidx,kpidx,atidx)
        integer, intent(in) :: iview
        integer, intent(in) :: idcaller
