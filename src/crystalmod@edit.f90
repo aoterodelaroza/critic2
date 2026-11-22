@@ -1930,21 +1930,11 @@ contains
     integer, intent(in) :: icel
     real*8, intent(in) :: dx(3)
 
-    integer :: im
-
     if (icel < 1 .or. icel > c%ncel) return
     call set_cellatom_r(c,icel,c%atcel(icel)%r + dx)
 
-    ! moving a single atom is not a rigid motion of its fragment, so the
-    ! lazily cached molecular data (center of mass, inertia, standard frame,
-    ! point group) is stale: drop it and let it be recomputed on demand
-    if (allocated(c%idatcelmol) .and. allocated(c%mol)) then
-       im = c%idatcelmol(1,icel)
-       if (im >= 1 .and. im <= c%nmol) then
-          c%mol(im)%axes_computed = .false.
-          c%mol(im)%pg_computed = .false.
-       end if
-    end if
+    ! moving a single atom is not a rigid motion of its fragment
+    call atomlist_drop_molcache(c,(/icel/))
     call refresh_after_inplace_move(c)
 
   end subroutine move_atom_inplace
@@ -2001,6 +1991,160 @@ contains
     call refresh_after_inplace_move(c)
 
   end subroutine rotate_molecule_inplace
+
+  !> Rigidly translate the distinct cell atoms in the list idx by dx
+  !> (Cartesian, bohr) in place. Same notes as move_atom_inplace. The
+  !> caller must call rebuild_after_move when the interactive edit is
+  !> over.
+  module subroutine move_atoms_inplace(c,idx,dx)
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: idx(:)
+    real*8, intent(in) :: dx(3)
+
+    integer :: k
+
+    if (.not.atomlist_ok(c,idx)) return
+    do k = 1, size(idx)
+       call set_cellatom_r(c,idx(k),c%atcel(idx(k))%r + dx)
+    end do
+    call atomlist_drop_molcache(c,idx)
+    call refresh_after_inplace_move(c)
+
+  end subroutine move_atoms_inplace
+
+  !> Rigidly rotate the distinct cell atoms in the list idx about
+  !> their center of mass in place, each at the image given by the
+  !> lattice vectors lvec (see atoms_images), not as they are in the
+  !> main cell. drot is the incremental rotation to apply (Cartesian).
+  !> The same lvec serves for all the steps of an interactive edit: the
+  !> in-place editors do not wrap the atoms into the main cell. Same
+  !> notes as move_atom_inplace. The caller must call
+  !> rebuild_after_move when the interactive edit is over.
+  module subroutine rotate_atoms_inplace(c,idx,lvec,drot)
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: idx(:)
+    integer, intent(in) :: lvec(:,:)
+    real*8, intent(in) :: drot(3,3)
+
+    integer :: k
+    real*8 :: xcm(3), rlvec(3)
+
+    if (.not.atomlist_ok(c,idx) .or. size(lvec,2) < size(idx)) return
+    xcm = c%atoms_center(idx,lvec)
+    do k = 1, size(idx)
+       rlvec = c%x2c(real(lvec(:,k),8))
+       call set_cellatom_r(c,idx(k),xcm + matmul(drot,c%atcel(idx(k))%r + rlvec - xcm) - rlvec)
+    end do
+    call atomlist_drop_molcache(c,idx)
+    call refresh_after_inplace_move(c)
+
+  end subroutine rotate_atoms_inplace
+
+  !> Lattice vectors lvec(:,k) that make a compact image of the
+  !> distinct cell atoms in the list idx, at c%atcel(idx(k))%x +
+  !> lvec(:,k). The atoms of the list bonded to each other (c%nstar)
+  !> are contiguous. A group of bonded atoms is where its first atom
+  !> is in its molecular fragment if that is discrete (so a whole
+  !> molecule is where its fragment is), or in the main cell
+  !> otherwise; in a crystal, each group after the first is then moved
+  !> to the lattice image whose center is nearest the center of the
+  !> atoms placed before it, if there is a nearer one, so groups that
+  !> are next to each other across a cell face stay together. Zero for
+  !> an empty or invalid list.
+  module subroutine atoms_images(c,idx,lvec)
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: idx(:)
+    integer, allocatable, intent(out) :: lvec(:,:)
+
+    integer :: n, k, j, im, nat, nplaced, lv0(3), ish(3)
+    integer, allocatable :: imap(:), imem(:), id(:), lv(:,:)
+    logical, allocatable :: skip(:)
+    logical :: disc
+    real*8 :: xrun(3), xg(3)
+
+    n = size(idx)
+    allocate(lvec(3,n))
+    lvec = 0
+    if (.not.atomlist_ok(c,idx) .or. .not.allocated(c%nstar)) return
+
+    ! the walks stay inside the list
+    allocate(imap(c%ncel),imem(c%ncel),skip(c%ncel))
+    imap = 0
+    skip = .true.
+    do k = 1, n
+       imap(idx(k)) = k
+       skip(idx(k)) = .false.
+    end do
+
+    imem = 0
+    nplaced = 0
+    xrun = 0d0
+    do k = 1, n
+       if (imem(idx(k)) /= 0) cycle
+
+       ! the group of this atom, from its image in the fragment
+       lv0 = 0
+       if (allocated(c%idatcelmol) .and. allocated(c%mol)) then
+          im = c%idatcelmol(1,idx(k))
+          if (im >= 1 .and. im <= c%nmol) then
+             if (c%mol(im)%discrete) lv0 = c%mol(im)%at(c%idatcelmol(2,idx(k)))%lvec
+          end if
+       end if
+       call c%walk_component(idx(k),lv0,imem,nat,id,lv,disc,skipatom=skip)
+       if (nat == 0) cycle
+
+       ! next to the atoms placed before it (it stays where it is if
+       ! another image is just as near)
+       xg = 0d0
+       do j = 1, nat
+          xg = xg + c%atcel(id(j))%x + real(lv(:,j),8)
+       end do
+       ish = 0
+       if (nplaced > 0 .and. .not.c%ismolecule) &
+          ish = nint((xg / real(nat,8) - xrun / real(nplaced,8)) * (1d0 - 1d-6))
+       do j = 1, nat
+          lvec(:,imap(id(j))) = lv(:,j) - ish
+       end do
+       xrun = xrun + xg - real(nat * ish,8)
+       nplaced = nplaced + nat
+    end do
+
+  end subroutine atoms_images
+
+  !> Center of mass (Cartesian, bohr) of the distinct cell atoms in
+  !> the list idx, each at the image given by the lattice vectors lvec
+  !> (see atoms_images); the plain average if they have no mass.
+  !> Returns zero for an empty or invalid list.
+  module function atoms_center(c,idx,lvec) result(xcm)
+    use param, only: atmass
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: idx(:)
+    integer, intent(in) :: lvec(:,:)
+    real*8 :: xcm(3)
+
+    integer :: k, iz
+    real*8 :: wk, mtot, x(3), xsum(3)
+
+    xcm = 0d0
+    if (.not.atomlist_ok(c,idx) .or. size(lvec,2) < size(idx)) return
+    xsum = 0d0
+    mtot = 0d0
+    do k = 1, size(idx)
+       x = c%atcel(idx(k))%x + real(lvec(:,k),8)
+       iz = c%spc(c%atcel(idx(k))%is)%z
+       wk = 0d0
+       if (iz > 0) wk = atmass(iz)
+       xsum = xsum + x
+       xcm = xcm + wk * x
+       mtot = mtot + wk
+    end do
+    if (mtot > 0d0) then
+       xcm = c%x2c(xcm / mtot)
+    else
+       xcm = c%x2c(xsum / real(size(idx),8))
+    end if
+
+  end function atoms_center
 
   !> Overwrite the Cartesian positions of all atoms in the main cell
   !> with rnew (3,ncel, bohr), updating the fractional coordinates
@@ -3777,6 +3921,38 @@ contains
     end do
 
   end subroutine vacuum_layout
+
+  ! Whether idx is a list of cell atoms: not empty, all in range.
+  function atomlist_ok(c,idx)
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: idx(:)
+    logical :: atomlist_ok
+
+    atomlist_ok = (size(idx) > 0)
+    if (atomlist_ok) atomlist_ok = all(idx >= 1 .and. idx <= c%ncel)
+
+  end function atomlist_ok
+
+  ! The cell atoms in the list idx moved, in general not as their
+  ! molecular fragments do: drop the lazily cached molecular data of
+  ! those fragments (center of mass, inertia, standard frame, point
+  ! group), to be recomputed on demand.
+  subroutine atomlist_drop_molcache(c,idx)
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: idx(:)
+
+    integer :: k, im
+
+    if (.not.allocated(c%idatcelmol) .or. .not.allocated(c%mol)) return
+    do k = 1, size(idx)
+       im = c%idatcelmol(1,idx(k))
+       if (im >= 1 .and. im <= c%nmol) then
+          c%mol(im)%axes_computed = .false.
+          c%mol(im)%pg_computed = .false.
+       end if
+    end do
+
+  end subroutine atomlist_drop_molcache
 
   ! Refresh the derived data after an in-place edit. For a molecule,
   ! grow the encompassing cell first if the edit pushed an atom out of

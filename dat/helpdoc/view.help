@@ -35,7 +35,9 @@ The combo at the bottom sets the view mode; its tooltip lists the bindings.
 - "Select" (or hold Shift in Navigate): click or drag a rectangle to select atoms,
   right-click to select a molecule.
 - "Move Molecules" (hold Ctrl) drags a molecule as a rigid body; "Move Atoms"
-  (Ctrl+Shift) drags one atom.
+  (Ctrl+Shift) drags one atom. While atoms are selected, "Move Molecules"
+  becomes "Move Selection": a drag anywhere in the view translates or rotates
+  the selected atoms as a rigid body, and the selection is kept.
 - The pick, builder, "Interact (MD)" and "Edit Object" modes are set by the window that
   needs them and return to Navigate when done. Escape exits the mode and clears the
   selection.

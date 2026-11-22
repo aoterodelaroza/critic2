@@ -1543,6 +1543,9 @@ module windows
      integer :: moveobj_imol = 0 ! molecule in a move drag
      logical :: moveobj_isdiscrete = .false. ! whether the move fragment is discrete
      logical :: moveobj_dirty = .false. ! in-place move drag pending a rebuild (see moveobj_end_drag)
+     integer :: moveobj_nsel = 0 ! move-molecules drag: number of selected atoms at the press; if any, the drag moves them
+     integer, allocatable :: moveobj_isel(:) ! move-molecules drag: the selected cell atoms at the press (1:moveobj_nsel)
+     integer, allocatable :: moveobj_lsel(:,:) ! move-molecules drag: lattice vectors of the compact image of those atoms (crystal%atoms_images)
      type(sys_ref) :: moveobj_sys ! system the pending in-place drag belongs to (may not be the one shown)
      logical :: selrect_active = .false. ! rubber-band selection drag in progress (vm_select)
      type(ImVec2) :: press_p0 ! press position (mouse/screen coords): click-vs-drag test and rubber-band anchor

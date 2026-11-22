@@ -1200,11 +1200,7 @@ contains
     ! the user is typing. A reciprocal-space view does not show the atoms.
     if (w%focused() .and. ok_system(w%isys,sys_init) .and. .not.w%kspace) then
        is = w%isys
-       if (allocated(sysc(is)%highlight_rgba)) then
-          ok = any(sysc(is)%highlight_rgba >= 0._c_float)
-       else
-          ok = .false.
-       end if
+       ok = selection_active(w)
        ! in the object editing mode, Delete goes to the object being edited
        if (ok .and. w%viewmode /= vm_objedit .and. is_bind_event(BIND_EDITSELECT_REMOVE)) then
           ! delete the selected atoms
@@ -1467,6 +1463,7 @@ contains
     w%moveobj_icel = 0
     w%moveobj_imol = 0
     w%moveobj_isdiscrete = .false.
+    w%moveobj_nsel = 0
 
     ! select and render the new scene, in the space the view shows (a
     ! molecule has only the real-space one); an alternate view drops
@@ -1798,7 +1795,8 @@ contains
   !> that system is gone, even if another took its slot): rebuild the
   !> crystal once (symmetry, environment, molecular fragments) keeping
   !> the bonds, then post the geometry event that resets the fields and
-  !> captures the undo state. A no-op if no in-place edit is pending.
+  !> captures the undo state (and clears the selection, unless the drag
+  !> moved it). A no-op if no in-place edit is pending.
   subroutine moveobj_end_drag(w)
     use systems, only: sys, sysc, sys_init, lastchange_geometry
     class(window), intent(inout) :: w
@@ -1816,7 +1814,13 @@ contains
     ! the rebuild failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(w%errmsg) > 0) return
-    call sysc(isys)%post_event(lastchange_geometry,label="Move atoms")
+    ! the selection that was moved is kept, to move it again (the
+    ! rebuild keeps the order of the atoms)
+    if (w%moveobj_nsel > 0) then
+       call sysc(isys)%post_event(lastchange_geometry,keepsel=.true.,label="Move selection")
+    else
+       call sysc(isys)%post_event(lastchange_geometry,label="Move atoms")
+    end if
     w%forcerender = .true.
 
   end subroutine moveobj_end_drag
@@ -1858,10 +1862,18 @@ contains
        descr = "Click or drag a rectangle to select atoms. Select a "//&
           "molecule clicking "//kn(BIND_SELECT_MOLECULES)//"."
     case (vm_movemol)
-       hint = "Translate and rotate molecules"
-       descr = "Drag a molecule to translate ("//kn(BIND_MOVEMOL_TRANSLATE)//") or rotate ("//&
-          kn(BIND_MOVEMOL_ROTATE)//") it as a rigid body, leaving its internal geometry "//&
-          "untouched."
+       if (selection_active(w)) then
+          hint = "Translate and rotate the selected atoms"
+          descr = "Drag anywhere in the view to translate ("//kn(BIND_MOVEMOL_TRANSLATE)//&
+             ") or rotate ("//kn(BIND_MOVEMOL_ROTATE)//") the selected atoms as a rigid body; "//&
+             "the selection is kept. Without a selection, the mode moves the molecule under "//&
+             "the cursor."
+       else
+          hint = "Translate and rotate molecules"
+          descr = "Drag a molecule to translate ("//kn(BIND_MOVEMOL_TRANSLATE)//") or rotate ("//&
+             kn(BIND_MOVEMOL_ROTATE)//") it as a rigid body, leaving its internal geometry "//&
+             "untouched. With atoms selected, the mode moves the selection instead."
+       end if
     case (vm_moveatom)
        hint = "Translate atoms"
        descr = "Drag a single atom to move it."
@@ -2305,7 +2317,7 @@ contains
     viewmode_items = ""
     viewmode_tips = ""
     do i = 0, vm_NUM
-       viewmode_items = viewmode_items // trim(vmnames(i)) // c_null_char
+       viewmode_items = viewmode_items // vm_label(i) // c_null_char
        viewmode_tips = viewmode_tips // mode_tooltip(i) // c_null_char
     end do
 
@@ -2476,7 +2488,8 @@ contains
 
     end function mode_tooltip
 
-    !> The name of view mode mode: in the current object editing mode,
+    !> The name of view mode mode. Move Molecules is shown as Move
+    !> Selection while atoms are selected. In the current object editing mode,
     !> the type of the object the tool works on (select and remove), or
     !> of the objects it draws; the name of the mode otherwise.
     function vm_label(mode) result(str)
@@ -2487,6 +2500,9 @@ contains
       integer :: irep
 
       str = trim(vmnames(mode))
+      if (mode == vm_movemol) then
+         if (selection_active(w)) str = "Move Selection"
+      end if
       if (mode /= vm_objedit .or. mode /= w%viewmode) return
       if (w%annot%itool <= objtool_kind0) then
          irep = annot_irep(w)
@@ -2980,7 +2996,8 @@ contains
        end if
     elseif (w%viewmode == vm_movemol) then
        ! move-molecules mode: rigidly drag the molecule/atom under the cursor,
-       ! preserving the bonding
+       ! preserving the bonding; with atoms selected at the press, the drag
+       ! moves the selection instead, wherever it starts
 
        ! the exit bind on empty space exits back to navigation
        if (exit_on_empty(BIND_MOVEMOL_EXIT)) then
@@ -3654,7 +3671,8 @@ contains
     ! ilockval and anchor are the per-button lock state and drag anchor. With
     ! domol, a discrete fragment moves as a whole (move-molecules mode);
     ! otherwise only the grabbed atom moves (move-atoms mode). Either way the
-    ! grabbed atom stays under the cursor.
+    ! grabbed atom stays under the cursor. With a selection latched
+    ! (move-molecules mode), the drag starts anywhere and moves the selection.
     subroutine moveobj_translate(bindid,ilockval,anchor,domol)
       integer, intent(in) :: bindid, ilockval
       real(c_float), intent(inout) :: anchor(3)
@@ -3664,17 +3682,23 @@ contains
       if (hover.and.is_bind_event(bindid,.false.,iview=w%id).and.&
          (w%ilock == ilock_no.or.w%ilock == ilockval)) then
          call moveobj_latch()
-         if (w%moveobj_icel > 0) then
-            call depth_anchor(anchor)
+         if (moveobj_hastarget()) then
+            if (w%moveobj_nsel > 0) then
+               call movesel_depth_anchor(anchor)
+            else
+               call depth_anchor(anchor)
+            end if
             w%ilock = ilockval
             w%mposlast = mousepos
          end if
       elseif (w%ilock == ilockval) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (w%moveobj_icel > 0 .and. is_bind_event(bindid,.true.,iview=w%id)) then
-            if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
+         if (moveobj_hastarget() .and. is_bind_event(bindid,.true.,iview=w%id)) then
+            if (moveobj_moved(mousepos%x - w%mposlast%x,mousepos%y - w%mposlast%y)) then
                call drag_delta_world(anchor,dxbohr)
-               if (domol .and. w%moveobj_isdiscrete) then
+               if (w%moveobj_nsel > 0) then
+                  call sys(isys)%c%move_atoms_inplace(w%moveobj_isel(1:w%moveobj_nsel),dxbohr)
+               elseif (domol .and. w%moveobj_isdiscrete) then
                   call sys(isys)%c%move_molecule_inplace(w%moveobj_imol,dxbohr)
                else
                   call sys(isys)%c%move_atom_inplace(w%moveobj_icel,dxbohr)
@@ -3691,22 +3715,22 @@ contains
     end subroutine moveobj_translate
 
     ! move-molecules mode: rotate the latched molecule about its COM by
-    ! dragging with the left mouse bind, arcball-style; discrete fragments only
+    ! dragging with the left mouse bind, arcball-style; discrete fragments
+    ! only. With a selection latched, the selection about its COM.
     subroutine movemol_rotate()
       real(c_float) :: axis(3), ang
 
       if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE,.false.,iview=w%id).and.&
          (w%ilock == ilock_no.or.w%ilock == ilock_left)) then
          call moveobj_latch()
-         if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete) then
+         if (movemol_canrotate()) then
             call arcball_anchor(w%mpos0_l,w%cpos0_l)
             w%ilock = ilock_left
          end if
       elseif (w%ilock == ilock_left) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
-            is_bind_event(BIND_MOVEMOL_ROTATE,.true.,iview=w%id)) then
-            if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
+         if (movemol_canrotate() .and. is_bind_event(BIND_MOVEMOL_ROTATE,.true.,iview=w%id)) then
+            if (moveobj_moved(texpos%x - w%mpos0_l(1),texpos%y - w%mpos0_l(2))) then
                call arcball_axis_angle(w%mpos0_l,w%cpos0_l,axis,ang)
                call movemol_rotate_molecule(axis,ang)
                call arcball_anchor(w%mpos0_l,w%cpos0_l)
@@ -3720,7 +3744,8 @@ contains
 
     ! move-molecules mode: rotate the latched molecule about the
     ! screen-perpendicular axis through its COM by dragging with the middle
-    ! mouse bind; discrete fragments only
+    ! mouse bind; discrete fragments only. With a selection latched, the
+    ! selection about its COM.
     subroutine movemol_rotate_perp()
       real(c_float) :: comc(3), comt(3), axis(3), ang
       logical :: okrot
@@ -3728,17 +3753,21 @@ contains
       if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.false.,iview=w%id).and.&
          (w%ilock == ilock_no.or.w%ilock == ilock_middle)) then
          call moveobj_latch()
-         if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete) then
-            ! project the molecule center of mass to screen
-            comc = real(sys(isys)%c%mol(w%moveobj_imol)%cmass(),c_float)
+         if (movemol_canrotate()) then
+            ! project the center of mass of the molecule (or of the
+            ! selection) to screen
+            if (w%moveobj_nsel > 0) then
+               comc = real(sys(isys)%c%atoms_center(w%moveobj_isel(1:w%moveobj_nsel),w%moveobj_lsel),c_float)
+            else
+               comc = real(sys(isys)%c%mol(w%moveobj_imol)%cmass(),c_float)
+            end if
             call mult(comt,w%sc%world,comc)
             call perp_anchor(comt)
             w%ilock = ilock_middle
          end if
       elseif (w%ilock == ilock_middle) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
-            is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.true.,iview=w%id)) then
+         if (movemol_canrotate() .and. is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.true.,iview=w%id)) then
             call perp_axis_angle(axis,ang,okrot)
             if (okrot) call movemol_rotate_molecule(axis,ang)
          else
@@ -4029,7 +4058,10 @@ contains
     end subroutine md_rotate_fragment
 
     ! latch the cell atom and its molecular fragment under the cursor at the
-    ! start of a move drag
+    ! start of a move drag and, in the move-molecules mode, the selected
+    ! atoms: if there are any, the drag moves them and not the molecule,
+    ! as the compact image they have now (the images are not chosen again
+    ! during the drag, or a rotation would not be rigid)
     subroutine moveobj_latch()
       integer :: jmol
 
@@ -4037,6 +4069,11 @@ contains
       w%moveobj_icel = 0
       w%moveobj_imol = 0
       w%moveobj_isdiscrete = .false.
+      w%moveobj_nsel = 0
+      if (w%viewmode == vm_movemol) &
+         call sysc(isys)%highlighted_atom_list(w%moveobj_nsel,w%moveobj_isel)
+      if (w%moveobj_nsel > 0) &
+         call sys(isys)%c%atoms_images(w%moveobj_isel(1:w%moveobj_nsel),w%moveobj_lsel)
       if (w%mousepos_idx(1) <= 0) return
       w%moveobj_icel = w%mousepos_idx(1)
       if (allocated(sys(isys)%c%idatcelmol)) then
@@ -4047,7 +4084,58 @@ contains
       end if
     end subroutine moveobj_latch
 
-    ! rotate the latched molecule rigidly about its center of mass.
+    ! whether a move drag has something to move: the latched selection,
+    ! or the latched atom
+    function moveobj_hastarget()
+      logical :: moveobj_hastarget
+
+      moveobj_hastarget = (w%moveobj_nsel > 0 .or. w%moveobj_icel > 0)
+
+    end function moveobj_hastarget
+
+    ! whether a move-molecules drag has something to rotate: the latched
+    ! selection, or the latched molecule if it is a discrete fragment
+    function movemol_canrotate()
+      logical :: movemol_canrotate
+
+      movemol_canrotate = (w%moveobj_nsel > 0) .or. (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete)
+
+    end function movemol_canrotate
+
+    ! whether the cursor has moved by (dx,dy) enough for a move drag to
+    ! act. A selection drag starts anywhere, also with the click that
+    ! exits the mode on empty space: it does nothing until the cursor
+    ! is past the click threshold.
+    function moveobj_moved(dx,dy)
+      real(c_float), intent(in) :: dx, dy
+      logical :: moveobj_moved
+
+      moveobj_moved = (dx /= 0._c_float .or. dy /= 0._c_float)
+      if (moveobj_moved .and. w%moveobj_nsel > 0 .and. .not.w%moveobj_dirty) &
+         moveobj_moved = (abs(dx) > selrect_thr .or. abs(dy) > selrect_thr)
+
+    end function moveobj_moved
+
+    ! set the translation-drag anchor of a selection drag at the current
+    ! cursor position: at the depth of the selected atom under the cursor,
+    ! which then stays under it, or, with none there, at the depth of
+    ! the center of mass of the selection
+    subroutine movesel_depth_anchor(anchor)
+      real(c_float), intent(out) :: anchor(3)
+
+      real(c_float) :: comc(3), comt(3)
+
+      call depth_anchor(anchor)
+      if (cellatom_selected(w%mousepos_idx(1))) return
+      comc = real(sys(isys)%c%atoms_center(w%moveobj_isel(1:w%moveobj_nsel),w%moveobj_lsel),c_float)
+      call mult(comt,w%sc%world,comc)
+      call w%world_to_texpos(comt)
+      if (comt(3) > 0._c_float .and. comt(3) < 1._c_float) anchor(3) = comt(3)
+
+    end subroutine movesel_depth_anchor
+
+    ! rotate the latched molecule rigidly about its center of mass, or
+    ! the latched selection about its own.
     ! axis0 is in eye/view coordinates (as produced by the navigation
     ! arcball math); ang0 is the rotation angle (radians).
     subroutine movemol_rotate_molecule(axis0,ang0)
@@ -4061,7 +4149,7 @@ contains
       logical :: okax
 
       imol = w%moveobj_imol
-      if (imol < 1) return
+      if (imol < 1 .and. w%moveobj_nsel == 0) return
 
       ! axis from eye/view to world (bohr), matching scene_cam_rotate
       call axis_eye_to_world(axis0,axisw,okax)
@@ -4070,7 +4158,11 @@ contains
       ! incremental rotation (Rodrigues) about the world-space axis; the
       ! in-place rotation carries the cached standard frame along with it
       rinc = axisangle2mat(real(axisw,8),real(ang0,8))
-      call sys(isys)%c%rotate_molecule_inplace(imol,rinc)
+      if (w%moveobj_nsel > 0) then
+         call sys(isys)%c%rotate_atoms_inplace(w%moveobj_isel(1:w%moveobj_nsel),w%moveobj_lsel,rinc)
+      else
+         call sys(isys)%c%rotate_molecule_inplace(imol,rinc)
+      end if
       call moveobj_frame_event()
 
     end subroutine movemol_rotate_molecule
@@ -5725,6 +5817,19 @@ contains
   end subroutine annot_unselect
 
   !xx! private procedures
+
+  !> Whether the system shown in view w has atoms selected.
+  function selection_active(w)
+    use systems, only: sysc, nsys
+    class(window), intent(in) :: w
+    logical :: selection_active
+
+    selection_active = .false.
+    if (w%isys < 1 .or. w%isys > nsys) return
+    if (allocated(sysc(w%isys)%highlight_rgba)) &
+       selection_active = any(sysc(w%isys)%highlight_rgba >= 0._c_float)
+
+  end function selection_active
 
   !> Position of what a pick in view iview identifies, for system
   !> isys: the atom idx (cell atom and lattice translation), the bond

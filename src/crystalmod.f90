@@ -485,6 +485,10 @@ module crystalmod
      procedure :: move_atom_inplace !< Displace one atom in place (fast, no rebuild)
      procedure :: move_molecule_inplace !< Translate a molecular fragment in place (fast, no rebuild)
      procedure :: rotate_molecule_inplace !< Rotate a molecular fragment in place, incrementally (fast, no rebuild)
+     procedure :: move_atoms_inplace !< Translate a list of cell atoms in place (fast, no rebuild)
+     procedure :: rotate_atoms_inplace !< Rotate a list of cell atoms at given images in place about their center of mass (fast, no rebuild)
+     procedure :: atoms_images !< Lattice vectors that make a compact image of a list of cell atoms
+     procedure :: atoms_center !< Center of mass of a list of cell atoms at given images
      procedure :: update_positions !< Overwrite all cell-atom positions in place (fast, no rebuild)
      procedure :: update_env_after_move !< Refresh rxc and the environment block hash after update_positions
      procedure :: rebuild_after_move !< Rebuild the crystal from the current (moved) cell positions
@@ -1294,6 +1298,28 @@ module crystalmod
        integer, intent(in) :: imol
        real*8, intent(in) :: drot(3,3)
      end subroutine rotate_molecule_inplace
+     module subroutine move_atoms_inplace(c,idx,dx)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: idx(:)
+       real*8, intent(in) :: dx(3)
+     end subroutine move_atoms_inplace
+     module subroutine rotate_atoms_inplace(c,idx,lvec,drot)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: idx(:)
+       integer, intent(in) :: lvec(:,:)
+       real*8, intent(in) :: drot(3,3)
+     end subroutine rotate_atoms_inplace
+     module subroutine atoms_images(c,idx,lvec)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: idx(:)
+       integer, allocatable, intent(out) :: lvec(:,:)
+     end subroutine atoms_images
+     module function atoms_center(c,idx,lvec) result(xcm)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: idx(:)
+       integer, intent(in) :: lvec(:,:)
+       real*8 :: xcm(3)
+     end function atoms_center
      module subroutine update_positions(c,rnew)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: rnew(:,:)
