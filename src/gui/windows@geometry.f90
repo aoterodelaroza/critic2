@@ -4458,8 +4458,11 @@ contains
   !> window w. If picked is given, the lattice vectors are being picked
   !> in the view and only those with picked true have been: the others,
   !> still the ones of the current cell, are an arrow in a pale tint of
-  !> the axis color, with no sphere.
-  module subroutine cellform_newcell_preview(w,iview,isys,m,t,picked)
+  !> the axis color, with no sphere, and the origin of the vectors is a
+  !> sphere in the outline color. If nocell, m does not make a cell (the
+  !> vectors picked so far and the current ones are in a plane): the
+  !> outline and the vectors not picked yet are not shown.
+  module subroutine cellform_newcell_preview(w,iview,isys,m,t,picked,nocell)
     use systems, only: sys
     use representations, only: rep_shape, shapekind_sphere, shapekind_arrow, shapekind_box,&
        arrow_headl_fraction,&
@@ -4469,24 +4472,28 @@ contains
     integer, intent(in) :: iview, isys
     real*8, intent(in) :: m(3,3), t(3)
     logical, intent(in), optional :: picked(3)
+    logical, intent(in), optional :: nocell
 
     integer :: im
     real*8 :: xb(3), rsph
     real(c_float) :: rgb(3)
-    logical :: picked_(3)
-    type(rep_shape) :: lvshp(7)
+    logical :: picked_(3), nocell_
+    type(rep_shape) :: lvshp(8)
 
     if (.not.associated(win(iview)%sc)) return
 
     picked_ = .true.
     if (present(picked)) picked_ = picked
+    nocell_ = .false.
+    if (present(nocell)) nocell_ = nocell
     rsph = pv_radfac * latvec_rad_def
     do im = 1, 3
        xb = sys(isys)%c%x2c(m(:,im))
        rgb = ColorAxes_def(:,im)
        if (.not.picked_(im)) rgb = rgb + pv_oldtint * (1._c_float - rgb)
        lvshp(im) = rep_shape(kind=shapekind_sphere,shown=picked_(im),x1=xb,rad=rsph,rgb=rgb)
-       lvshp(3+im) = rep_shape(kind=shapekind_arrow,shown=(norm2(xb) > 2d0*rsph),&
+       lvshp(3+im) = rep_shape(kind=shapekind_arrow,&
+          shown=(norm2(xb) > 2d0*rsph .and. (picked_(im) .or. .not.nocell_)),&
           rad=pv_arrowr*latvec_rad_def,headr=pv_headr,rgb=rgb)
        if (lvshp(3+im)%shown) then
           ! up to the sphere, if there is one; the head is as long in the
@@ -4496,8 +4503,9 @@ contains
           lvshp(3+im)%headl = arrow_headl_fraction(norm2(lvshp(3+im)%v(:,1)),pv_headr*lvshp(3+im)%rad)
        end if
     end do
-    lvshp(7) = rep_shape(kind=shapekind_box,x1=sys(isys)%c%x2c(t),&
+    lvshp(7) = rep_shape(kind=shapekind_box,shown=.not.nocell_,x1=sys(isys)%c%x2c(t),&
        v=matmul(sys(isys)%c%m_x2c,m),rad=pv_edger*latvec_rad_def,rgb=pv_edge_rgb,alpha=0._c_float)
+    lvshp(8) = rep_shape(kind=shapekind_sphere,shown=present(picked),x1=0d0,rad=rsph,rgb=pv_edge_rgb)
     call win(iview)%sc%show_transient_shapes(w%uid,0,lvshp)
 
   end subroutine cellform_newcell_preview

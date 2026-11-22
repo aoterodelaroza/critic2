@@ -866,9 +866,10 @@ contains
           if (.not.pok .and. w%geometry_lvpick_row > 0) pmsg = "Pick the remaining lattice vectors"
           if (associated(win(iview)%sc)) then
              call win(iview)%sc%show_transient_latvec(w%uid,1,replat_primitive,1)
-             ! the vectors picked so far (all of them, when the pick is over)
-             if (pok) call cellform_newcell_preview(w,iview,isys,pm,pt,&
-                picked=(w%geometry_lvpick_row == 0 .or. (/1,2,3/) < w%geometry_lvpick_row))
+             ! the vectors picked so far (all of them, when the pick is over),
+             ! without the cell if they and the current ones do not make one
+             if (pok .or. w%geometry_lvpick_row > 0) call cellform_newcell_preview(w,iview,isys,pm,pt,&
+                picked=(w%geometry_lvpick_row == 0 .or. (/1,2,3/) < w%geometry_lvpick_row),nocell=.not.pok)
           end if
        end if
     end if
