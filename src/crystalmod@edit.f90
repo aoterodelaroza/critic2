@@ -2911,7 +2911,10 @@ contains
   !> slab parallel to the other two axes. The cell is cut at the
   !> fractional coordinate cut along the axis or, if cut is not
   !> present, at the largest empty gap along it; with keepmol, the
-  !> molecules are kept whole and the cut divides their centers.
+  !> molecules are kept whole and the cut divides their centers. If
+  !> cutat is present and a cell atom, the cell is cut at that atom
+  !> instead (with keepmol, at the center of its molecule), which is
+  !> then at the bottom of the slab.
   !> Returns the distance between the two faces of the slab (thick)
   !> and between the slab and its next periodic image (vac), both
   !> measured along the perpendicular to the other two axes, in bohr.
@@ -2920,7 +2923,7 @@ contains
   !> coordinate at which the cell was cut, and ubot is the fractional
   !> coordinate along the axis of the lowest atom of the slab as it is
   !> laid out (see vacuum_layout).
-  module subroutine vacuum_info(c,iaxis,keepmol,vac,thick,cut,cutpos,ubot)
+  module subroutine vacuum_info(c,iaxis,keepmol,vac,thick,cut,cutpos,ubot,cutat)
     class(crystal), intent(in) :: c
     integer, intent(in) :: iaxis
     logical, intent(in) :: keepmol
@@ -2928,6 +2931,7 @@ contains
     real*8, intent(in), optional :: cut
     real*8, intent(out), optional :: cutpos
     real*8, intent(out), optional :: ubot
+    integer, intent(in), optional :: cutat
 
     integer, allocatable :: lsh(:)
     real*8 :: umin, umax, h
@@ -2940,7 +2944,7 @@ contains
 
     ! height of the cell along the perpendicular to the other two axes
     h = 1d0 / c%ar(iaxis)
-    call vacuum_layout(c,iaxis,keepmol,lsh,umin,umax,cut,cutpos)
+    call vacuum_layout(c,iaxis,keepmol,lsh,umin,umax,cut,cutpos,cutat)
     thick = (umax - umin) * h
     vac = h - thick
     if (present(ubot)) ubot = umin
@@ -3641,13 +3645,15 @@ contains
   ! others, and a unit at the cut stays at the bottom. If cut is not
   ! present, the cell is cut in the middle of the largest gap between
   ! the centers of the units (the first one, if several have the same
-  ! length, as in calc_vacuum_lengths). On output, lsh(i) is the
+  ! length, as in calc_vacuum_lengths). If cutat is present and a cell
+  ! atom, the cell is cut at the center of the unit of that atom
+  ! instead, whatever cut is. On output, lsh(i) is the
   ! number of lattice translations along the axis that put the cell
   ! atom i in the slab (up to a translation of the whole slab), umin
   ! and umax are the lowest and highest fractional coordinates of the
   ! shifted atoms and, if present, cutpos is the fractional coordinate
   ! of the cut, between 0 and 1.
-  subroutine vacuum_layout(c,iaxis,keepmol,lsh,umin,umax,cut,cutpos)
+  subroutine vacuum_layout(c,iaxis,keepmol,lsh,umin,umax,cut,cutpos,cutat)
     use tools, only: qcksort
     class(crystal), intent(in) :: c
     integer, intent(in) :: iaxis
@@ -3656,6 +3662,7 @@ contains
     real*8, intent(out) :: umin, umax
     real*8, intent(in), optional :: cut
     real*8, intent(out), optional :: cutpos
+    integer, intent(in), optional :: cutat
 
     ! same criterion as calc_vacuum_lengths (bohr)
     real*8, parameter :: eps = 1d-6
@@ -3664,7 +3671,7 @@ contains
     integer, allocatable :: iunit(:), iord(:), nat(:), ish(:)
     real*8, allocatable :: ucen(:)
     real*8 :: u, epsf, gap, gapbest, ucut
-    logical :: whole
+    logical :: whole, atcut
 
     allocate(lsh(c%ncel))
     lsh = 0
@@ -3721,7 +3728,11 @@ contains
     end do
 
     ! the position of the cut
-    if (present(cut)) then
+    atcut = .false.
+    if (present(cutat)) atcut = (cutat >= 1 .and. cutat <= c%ncel)
+    if (atcut) then
+       ucut = max(ucen(iunit(cutat)),0d0)
+    elseif (present(cut)) then
        ucut = cut - floor(cut)
        if (ucut > 1d0 - epsf) ucut = 0d0
     else

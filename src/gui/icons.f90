@@ -110,7 +110,8 @@ module icons
   integer, parameter, public :: icon_ui_cellpick = 74 ! pick a cell (a cell between lattice points)
   integer, parameter, public :: icon_ui_celllattice = 75 ! lattice parameters (two cell edges and the angle between them)
   integer, parameter, public :: icon_ui_slaborient = 76 ! orient the cell (a cell cut by a plane)
-  integer, parameter, public :: icon_NUM = 76
+  integer, parameter, public :: icon_ui_slabvacuum = 77 ! set the vacuum (a slab in a cell, with the vacuum marked)
+  integer, parameter, public :: icon_NUM = 77
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

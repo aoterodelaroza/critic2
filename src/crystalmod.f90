@@ -1387,7 +1387,7 @@ module crystalmod
        real*8, intent(out) :: t0(3)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine cell_origin
-     module subroutine vacuum_info(c,iaxis,keepmol,vac,thick,cut,cutpos,ubot)
+     module subroutine vacuum_info(c,iaxis,keepmol,vac,thick,cut,cutpos,ubot,cutat)
        class(crystal), intent(in) :: c
        integer, intent(in) :: iaxis
        logical, intent(in) :: keepmol
@@ -1395,6 +1395,7 @@ module crystalmod
        real*8, intent(in), optional :: cut
        real*8, intent(out), optional :: cutpos
        real*8, intent(out), optional :: ubot
+       integer, intent(in), optional :: cutat
      end subroutine vacuum_info
      module subroutine set_vacuum(c,iaxis,vac,ipos,orthogonal,keepmol,cut,copybonding,errmsg,changed,ti)
        class(crystal), intent(inout) :: c

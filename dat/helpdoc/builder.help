@@ -43,8 +43,14 @@ Undo in the Edit menu (by default Control-z) reverts a change.
 - Slab (crystals only): "Orient" makes a new cell with two axes in a
   family of lattice planes (hkl), or with one axis along a lattice
   direction [uvw]: choose plane or direction, give the indices and the
-  axis, then "Apply". "Origin" moves the origin of the cell to the
-  atom clicked in the view. "Center Slab" moves the origin so that the
+  axis, then "Apply". "Vacuum" sets the empty space along an axis: the
+  cell is cut by a plane parallel to the other two axes and made
+  longer or shorter there, keeping the distances between the atoms.
+  The cut is at the largest gap along the axis, at a given position,
+  or at an atom clicked in the view ("Atom"), which is left at the
+  bottom of the slab; a cut that is not at the largest gap is made
+  with "Apply". "Origin" moves the origin of the cell to the atom
+  clicked in the view. "Center Slab" moves the origin so that the
   atoms are in the middle of the cell, along the axes that have
   vacuum; it is disabled if there is none.
 - Symmetry: moves the atoms onto their symmetry positions exactly; the

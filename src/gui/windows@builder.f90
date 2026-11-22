@@ -274,7 +274,7 @@ contains
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax,&
        icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter, icon_ui_slaborigin,&
        icon_ui_tocrystal, icon_ui_tomolecule, icon_ui_cellrepeat, icon_ui_cellpick,&
-       icon_ui_celllattice, icon_ui_slaborient
+       icon_ui_celllattice, icon_ui_slaborient, icon_ui_slabvacuum
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_textwidth,&
        file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
@@ -351,12 +351,12 @@ contains
     ! A mode armed on the outgoing system makes no sense on the new one; release
     ! it and commit any pending edit to the system it was made on. The tool on
     ! display follows from builder_vm/edit_kind and is cleared further down;
-    ! the Pick Cell and Orient tools close, their picks and indices being
-    ! of the outgoing system.
+    ! the Pick Cell, Orient and Vacuum tools close, their picks, indices
+    ! and cut being of the outgoing system.
     if (goodparent .and. syschanged .and. .not.w%firstpass) then
        call bondmode_stop(w,iview,.true.)
        call cellpick_stop()
-       if (w%builder_tool == it_pickcell .or. w%builder_tool == it_orient) w%builder_tool = it_none
+       if (any(w%builder_tool == (/it_pickcell,it_orient,it_vacuum/))) w%builder_tool = it_none
        call w%edit_stop()
     end if
 
@@ -456,10 +456,12 @@ contains
     end if
 
     ! the pending pick of a cell tool in the parent view: the atom at
-    ! the new origin (Slab row), one click, or the lattice points at
-    ! the ends of the vectors of the new cell (Pick Cell tool), one
-    ! after the other, while the tool is on display. It ends if another
-    ! tool has started since. The camera of the main view is held for
+    ! the new origin (Slab row), one click; the lattice points at the
+    ! ends of the vectors of the new cell (Pick Cell tool), one after
+    ! the other, while the tool is on display; or the atom at the cut
+    ! of the Vacuum tool, one click, while the tool is on display (the
+    ! vacuum form places the cut). It ends if another tool has started
+    ! since. The camera of the main view is held for
     ! the move of the origin, if it is made, as in the other cell
     ! actions. A pick of lattice points that ends without one (the
     ! cancel key, the alternate click, the exit click on empty space,
@@ -469,7 +471,13 @@ contains
     ! puts the cell on the other side of the origin from the points
     ! that were picked.
     if (w%geometry_lvpick_row > 0) then
-       ok = (w%geometry_lvpick_row == lvpick_origin .or. w%builder_tool == it_pickcell)
+       if (w%geometry_lvpick_row == lvpick_origin) then
+          ok = .true.
+       elseif (w%geometry_lvpick_row == lvpick_vaccut) then
+          ok = (w%builder_tool == it_vacuum)
+       else
+          ok = (w%builder_tool == it_pickcell)
+       end if
        if (.not.havesys .or. .not.ok .or. w%builder_vm /= 0 .or. w%edit_kind /= 0) then
           call cellpick_stop()
        else
@@ -664,6 +672,13 @@ contains
        call celltool_toggle(it_orient)
        if (w%builder_tool == it_orient) call orient_restart()
     end if
+    lstate = (w%builder_tool == it_vacuum)
+    if (cell_button("##bldslabvacuum",icon_ui_slabvacuum,"Va",.false.,&
+       "Vacuum: set the vacuum along an axis of the cell, which is cut and made longer or"//&
+       " shorter there",offcrys,state=lstate)) then
+       call celltool_toggle(it_vacuum)
+       if (w%builder_tool == it_vacuum) call vacuum_restart()
+    end if
     lstate = (w%geometry_lvpick_row == lvpick_origin)
     if (cell_button("##bldslaborigin",icon_ui_slaborigin,"Or",.false.,&
        "Origin: move the origin of the cell to an atom, chosen by clicking it in the view",&
@@ -679,6 +694,9 @@ contains
        " along the axes that have vacuum",offvac)) then
        call sysc(isys)%shift_origin(origin_center,0,w%errmsg)
        call cell_hold()
+       ! the cut of the Vacuum tool, if it is on display, referred to
+       ! the old origin
+       if (len_trim(w%errmsg) == 0) call cellform_reset_vacuum(w)
     end if
 
     call row_label("Symmetry")
@@ -829,8 +847,13 @@ contains
     ! from and the cell that the picks make so far (as they are picked,
     ! not inverted if left-handed); the picks refer to the cell as it
     ! was, so a change of the geometry after them closes the tool.
+    ! Vacuum: the view shows the whole cell in the vacuum directions,
+    ! as with the cell tab of the geometry window (the previews are
+    ! drawn with the panel).
     pok = .false.
-    if (w%builder_tool == it_orient .and. havesys) then
+    if (w%builder_tool == it_vacuum .and. havesys) then
+       if (associated(win(iview)%sc) .and. win(iview)%isys == isys) call win(iview)%sc%show_full_cell()
+    elseif (w%builder_tool == it_orient .and. havesys) then
        call cellform_pending_cell(w,isys,pm,pt,pok,pmsg)
        if (pok .and. any(abs(pm - eye) > 1d-8)) call cellform_newcell_preview(w,iview,isys,pm,pt)
     elseif (w%builder_tool == it_pickcell .and. havesys) then
@@ -879,6 +902,8 @@ contains
              if (havesys) call panel_pickcell()
           case (it_orient)
              if (havesys) call panel_orient()
+          case (it_vacuum)
+             if (havesys) call panel_vacuum()
           case (it_none)
              call panel_text("Choose a tool from the panel above to edit the structure. Press "//&
                 trim(get_bind_keyname(BIND_CANCEL))//" to cancel the edit.")
@@ -1279,6 +1304,32 @@ contains
 
     end subroutine orient_restart
 
+    ! Panel of the Vacuum tool: the vacuum along an axis of the cell,
+    ! with the controls of the vacuum section of the cell tab of the
+    ! geometry window, its options on display. The edits apply as they
+    ! do there.
+    subroutine panel_vacuum()
+
+      call panel_text("The vacuum along an axis: the cell is cut by a plane parallel to the other"//&
+         " two axes and made longer or shorter there. A new vacuum changes the cell at once if"//&
+         " the cut is at the largest gap; otherwise, when Apply is pressed.")
+      call panel_text(celltool_exits(),faded=.true.)
+      if (cellform_vacuum(w,iview,isys,ttshown,.true.,.true.)) then
+         call cellform_vacuum_apply(w,iview,isys,.true.)
+         call cell_hold()
+      end if
+
+    end subroutine panel_vacuum
+
+    ! Start the Vacuum tool over: the axis with the most vacuum, the
+    ! cut at the largest gap.
+    subroutine vacuum_restart()
+
+      w%geometry_cell%vac_axis = 0
+      call cellform_reset_vacuum(w)
+
+    end subroutine vacuum_restart
+
     ! The cell that the cell tool on display makes (pm, pt): its
     ! summary and the Apply button, which transforms the crystal to it
     ! and closes the tool (the tool starts over when it is opened
@@ -1326,8 +1377,8 @@ contains
     end subroutine origin_pick_start
 
     ! Stop the pending pick of a cell tool (the atom at the new origin,
-    ! the lattice points of Pick Cell), releasing the parent view (if
-    ! alive and still in the pick).
+    ! the lattice points of Pick Cell, the atom at the cut of Vacuum),
+    ! releasing the parent view (if alive and still in the pick).
     subroutine cellpick_stop()
 
       if (goodparent) call win(iview)%viewmode_release_forced(w%id,vm_pick_atom)

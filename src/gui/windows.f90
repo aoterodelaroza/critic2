@@ -173,7 +173,8 @@ module windows
   ! cell tools that have a panel and no view mode of their own
   ! (it_repeat repeats the cell, it_pickcell makes a cell of lattice
   ! vectors picked in the view, it_lattice has the lattice parameters,
-  ! it_orient makes a cell along a plane or a direction):
+  ! it_orient makes a cell along a plane or a direction, it_vacuum sets
+  ! the vacuum along an axis):
   ! the panel stays on display until it is closed, while the system is
   ! a crystal. They all sit above the view modes so that the two sets
   ! of constants never collide.
@@ -183,6 +184,7 @@ module windows
   integer, parameter, public :: it_pickcell = vm_NUM + 3
   integer, parameter, public :: it_lattice = vm_NUM + 4
   integer, parameter, public :: it_orient = vm_NUM + 5
+  integer, parameter, public :: it_vacuum = vm_NUM + 6
 
   ! highest n-mer order the extract window can be asked for
   integer, parameter, public :: nmer_max = 10
@@ -209,18 +211,22 @@ module windows
   integer, parameter :: geomsec_origin = 12 ! origin
   integer, parameter :: geomsec_vacuum = 13 ! vacuum
   integer, parameter :: geometry_nsec = 13
-  ! where the cell is cut to set the vacuum in the geometry window
+  ! where the cell is cut to set the vacuum, in the cell form of the
+  ! geometry window and of the builder (a cut that is not at the
+  ! largest gap is prepared with its settings and made with Apply)
   integer, parameter :: vaccut_gap = 1 ! at the largest gap
   integer, parameter :: vaccut_position = 2 ! at a given position
+  integer, parameter :: vaccut_atom = 3 ! at an atom picked in the view
   ! how the supercell transformation of the geometry window is given
   integer(c_int), parameter :: cellmode_simple = 0 ! integer multiples of a/b/c
   integer(c_int), parameter :: cellmode_matrix = 1 ! lattice vectors typed or picked
   integer(c_int), parameter :: cellmode_search = 2 ! chosen from the supercell search
   integer(c_int), parameter :: cellmode_orient = 3 ! an axis along a direction or perpendicular to a plane
-  ! value of window%geometry_lvpick_row while the atom at the new
-  ! origin is being picked (the lattice vectors are rows 1 to 3), in
-  ! the cell form of the geometry window and of the builder
-  integer, parameter :: lvpick_origin = 4
+  ! values of window%geometry_lvpick_row while an atom is being picked
+  ! (the lattice vectors are rows 1 to 3: lvpick_origin and up is an
+  ! atom), in the cell form of the geometry window and of the builder
+  integer, parameter :: lvpick_origin = 4 ! the atom at the new origin
+  integer, parameter :: lvpick_vaccut = 5 ! the atom at the cut of the vacuum
   ! criteria of the supercell search (the options of its combo)
   integer, parameter :: cellcrit_nice = 1 ! largest inscribed sphere (NEWCELL NICE)
   integer, parameter :: cellcrit_reach = 2 ! longest shortest lattice vector (NEWCELL REACH)
@@ -1065,6 +1071,8 @@ module windows
      logical :: vac_keepmol = .false. ! vacuum: keep the molecules whole (on at the start in a molecular crystal)
      integer :: vac_cutmode = vaccut_gap ! vacuum: where the cell is cut (vaccut_*)
      real*8 :: vac_cut = 0d0 ! vacuum: fractional coordinate of the cut along the axis
+     integer :: vac_cutatom = 0 ! vacuum: atom of the cut, while it is at an atom and the geometry is the one it was picked in (cell index; 0 = none)
+     logical :: vac_cutpicked = .false. ! vacuum: the atom of the cut was picked, and the form has not placed the cut there yet
      real*8 :: vac_cur = 0d0 ! vacuum: current vacuum at the cut (bohr)
      real*8 :: vac_hini = 0d0 ! vacuum: height of the cell over the other two axes at the start (bohr; Reset goes back to it)
      real*8 :: vac_thick = 0d0 ! vacuum: thickness of the slab along the axis (bohr)
@@ -1735,7 +1743,7 @@ module windows
      real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
      type(cellform_state) :: geometry_cell ! cell form (cell tab, cell tools of the builder): the cell transformation, the supercell search and the vacuum
      type(pairpick) :: geometry_lvpick ! cell form: session stamp of the lattice-vector pick (matrix transformation) and of the origin pick
-     integer :: geometry_lvpick_row = 0 ! cell form: row of the matrix transformation being picked (1-3; lvpick_origin = the atom at the new origin; 0 = none)
+     integer :: geometry_lvpick_row = 0 ! cell form: row of the matrix transformation being picked (1-3; lvpick_origin, lvpick_vaccut = an atom; 0 = none)
      integer :: geometry_lvpick_last = 0 ! last row of the pick: it goes on to the next rows up to this one (Pick All: 3)
      character(len=mlen), allocatable :: geometry_sym_ops(:) ! cached symmetry operations (crystallographic notation)
      character(len=mlen), allocatable :: geometry_sym_hm(:) ! cached Hermann-Mauguin symbols of the operations
@@ -3092,6 +3100,21 @@ module windows
      module subroutine cellform_reset_orient(w)
        class(window), intent(inout), target :: w
      end subroutine cellform_reset_orient
+     module function cellform_vacuum(w,iview,isys,ttshown,open,more) result(apply)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: iview, isys
+       logical, intent(inout) :: ttshown
+       logical, intent(in) :: open, more
+       logical :: apply
+     end function cellform_vacuum
+     module subroutine cellform_vacuum_apply(w,iview,isys,copybonding)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: iview, isys
+       logical, intent(in) :: copybonding
+     end subroutine cellform_vacuum_apply
+     module subroutine cellform_reset_vacuum(w)
+       class(window), intent(inout), target :: w
+     end subroutine cellform_reset_vacuum
      module subroutine cellform_pending_cell(w,isys,m,t,isok,msg,noflip)
        class(window), intent(in) :: w
        integer, intent(in) :: isys

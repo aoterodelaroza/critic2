@@ -35,16 +35,18 @@ the bond connectivity when the geometry changes.
   a plane parallel to the other two axes and grows or shrinks there, without changing the
   distances between the atoms. The cut is in the middle of the largest gap along the axis
   or, with "Position", at the given fractional coordinate (the atoms below it go to the
-  top of the slab); the plane of the cut is shown in the view. The slab is left in the
+  top of the slab) or, with "Atom", at an atom clicked in the view, which is left at the
+  bottom of the slab; the plane of the cut is shown in the view. The slab is left in the
   center or at the bottom of the new cell; under More, "Orthogonal axis" makes the axis
   perpendicular to the other two and "Keep molecules whole" avoids cutting molecules
   (the cut then divides their centers, shown as spheres in the view; it is on at the
   start in a molecular crystal).
   The view shows the outline of the new cell while the vacuum is dragged or typed, and
   the cell changes when the drag ends or the value is entered; the slab position and the
-  options apply at once. A cut at a position is prepared with all its settings and made
-  with "Apply". "Reset" returns to the vacuum the cell had when the system or the axis
-  was chosen here, or when the lattice was last changed by another tool or by undo.
+  options apply at once. A cut at a position or at an atom is prepared with all its
+  settings and made with "Apply". "Reset" returns to the vacuum the cell had when the
+  system or the axis was chosen here, or when the lattice was last changed by another
+  tool or by undo.
   "Origin" moves the origin of the cell, with the same lattice vectors, to an atom picked
   in the view, to the center of mass, to the closest inversion center, or to the point
   that centers the atoms along the axes that have vacuum. While this tab is open, the view
