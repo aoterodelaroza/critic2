@@ -27,6 +27,7 @@ submodule (windows) geometry
   real*8, parameter :: pv_radfac = 1.5d0 ! the new lattice vectors' spheres
   real*8, parameter :: pv_arrowr = 0.3d0 ! arrow shaft radius
   real*8, parameter :: pv_headr = 2.5d0 ! arrowhead radius (shaft radii)
+  real(c_float), parameter :: pv_oldtint = 0.6_c_float ! a vector not picked yet: this much white in its axis color
   real*8, parameter :: pv_edger = 0.25d0 ! outline radius
   real(c_float), parameter :: pv_edge_rgb(3) = (/1._c_float,0.6_c_float,0._c_float/) ! outline color
 
@@ -4454,8 +4455,11 @@ contains
   !> iview, for this frame: its lattice vectors (spheres in the axis
   !> colors at their ends, and arrows from the origin ending at their
   !> surface) and its outline, at its origin. The shapes belong to
-  !> window w.
-  module subroutine cellform_newcell_preview(w,iview,isys,m,t)
+  !> window w. If picked is given, the lattice vectors are being picked
+  !> in the view and only those with picked true have been: the others,
+  !> still the ones of the current cell, are an arrow in a pale tint of
+  !> the axis color, with no sphere.
+  module subroutine cellform_newcell_preview(w,iview,isys,m,t,picked)
     use systems, only: sys
     use representations, only: rep_shape, shapekind_sphere, shapekind_arrow, shapekind_box,&
        arrow_headl_fraction,&
@@ -4464,22 +4468,31 @@ contains
     class(window), intent(in) :: w
     integer, intent(in) :: iview, isys
     real*8, intent(in) :: m(3,3), t(3)
+    logical, intent(in), optional :: picked(3)
 
     integer :: im
-    real*8 :: xb(3)
+    real*8 :: xb(3), rsph
+    real(c_float) :: rgb(3)
+    logical :: picked_(3)
     type(rep_shape) :: lvshp(7)
 
     if (.not.associated(win(iview)%sc)) return
 
+    picked_ = .true.
+    if (present(picked)) picked_ = picked
+    rsph = pv_radfac * latvec_rad_def
     do im = 1, 3
        xb = sys(isys)%c%x2c(m(:,im))
-       lvshp(im) = rep_shape(kind=shapekind_sphere,x1=xb,rad=pv_radfac*latvec_rad_def,&
-          rgb=ColorAxes_def(:,im))
-       lvshp(3+im) = rep_shape(kind=shapekind_arrow,shown=(norm2(xb) > 2d0*lvshp(im)%rad),&
-          rad=pv_arrowr*latvec_rad_def,headr=pv_headr,rgb=ColorAxes_def(:,im))
+       rgb = ColorAxes_def(:,im)
+       if (.not.picked_(im)) rgb = rgb + pv_oldtint * (1._c_float - rgb)
+       lvshp(im) = rep_shape(kind=shapekind_sphere,shown=picked_(im),x1=xb,rad=rsph,rgb=rgb)
+       lvshp(3+im) = rep_shape(kind=shapekind_arrow,shown=(norm2(xb) > 2d0*rsph),&
+          rad=pv_arrowr*latvec_rad_def,headr=pv_headr,rgb=rgb)
        if (lvshp(3+im)%shown) then
-          ! up to the sphere; the head is as long in the three arrows
-          lvshp(3+im)%v(:,1) = xb * (1d0 - lvshp(im)%rad / norm2(xb))
+          ! up to the sphere, if there is one; the head is as long in the
+          ! three arrows
+          lvshp(3+im)%v(:,1) = xb
+          if (picked_(im)) lvshp(3+im)%v(:,1) = xb * (1d0 - rsph / norm2(xb))
           lvshp(3+im)%headl = arrow_headl_fraction(norm2(lvshp(3+im)%v(:,1)),pv_headr*lvshp(3+im)%rad)
        end if
     end do

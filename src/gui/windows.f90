@@ -3141,10 +3141,11 @@ module windows
        character(len=*), intent(in) :: msg
        logical, intent(in), optional :: split
      end subroutine cellform_newcell_summary
-     module subroutine cellform_newcell_preview(w,iview,isys,m,t)
+     module subroutine cellform_newcell_preview(w,iview,isys,m,t,picked)
        class(window), intent(in) :: w
        integer, intent(in) :: iview, isys
        real*8, intent(in) :: m(3,3), t(3)
+       logical, intent(in), optional :: picked(3)
      end subroutine cellform_newcell_preview
      !xx! builder submodule !xx!
      pure module function vm_is_bondmode(mode)

@@ -24,6 +24,11 @@ submodule (windows) builder
   ! add-atoms local geometries (see addatom_template for the vertex sets)
   integer, parameter :: naddgeom = 19
   integer, parameter :: maxaddsub = 10 ! largest substituent count (pentagonal prism)
+  ! Pick Cell tool: the picked lattice vectors cannot make a cell (the pick starts over)
+  character(len=*), parameter :: errpickline = &
+     "The two lattice vectors are along the same line: pick the three again"
+  character(len=*), parameter :: errpickplane = &
+     "The three lattice vectors are in the same plane: pick them again"
   character(len=*), parameter :: addgeom_names(naddgeom) = [character(len=24) ::&
      "atom","linear","bent","triangular","trigonal pyramid","T-shape",&
      "tetrahedral","square planar","trigonal bipyramid","square pyramid",&
@@ -270,7 +275,7 @@ contains
     use dynamics, only: md_relax
     use energy, only: ff_backend_applicable, ff_backend_default, ff_eam
     use gui_main, only: g, io, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
-       ColorElement, lumweights, ColorBlack, ColorWhite
+       ColorElement, lumweights, ColorBlack, ColorWhite, ColorAxes_def
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax,&
        icon_ui_cellconv, icon_ui_cellprim, icon_ui_slabcenter, icon_ui_slaborigin,&
        icon_ui_tocrystal, icon_ui_tomolecule, icon_ui_cellrepeat, icon_ui_cellpick,&
@@ -465,11 +470,8 @@ contains
     ! the move of the origin, if it is made, as in the other cell
     ! actions. A pick of lattice points that ends without one (the
     ! cancel key, the alternate click, the exit click on empty space,
-    ! a change of the geometry) closes the tool. When the last one is
-    ! in, a left-handed set has its first two vectors exchanged: the
-    ! cell form would invert the three, as crystal%newcell does, which
-    ! puts the cell on the other side of the origin from the points
-    ! that were picked.
+    ! a change of the geometry) closes the tool; a lattice point that
+    ! is picked is checked (pickcell_check).
     if (w%geometry_lvpick_row > 0) then
        if (w%geometry_lvpick_row == lvpick_origin) then
           ok = .true.
@@ -488,12 +490,9 @@ contains
           elseif (w%builder_tool == it_pickcell) then
              if (istat == ipick_cancelled .or. istat == ipick_lost) then
                 w%builder_tool = it_none
-             elseif (istat == ipick_point .and. w%geometry_lvpick_row == 0) then
-                call cellform_pending_cell(w,isys,pm,pt,pok,pmsg,noflip=.true.)
-                if (pok .and. det3(pm) < 0d0) then
-                   w%geometry_cell%intmat(:,1:2) = w%geometry_cell%intmat(:,2:1:-1)
-                   w%geometry_cell%cen(1:2) = w%geometry_cell%cen(2:1:-1)
-                end if
+                if (w%errmsg == errpickline .or. w%errmsg == errpickplane) w%errmsg = ""
+             elseif (istat == ipick_point) then
+                call pickcell_check()
              end if
           end if
        end if
@@ -862,9 +861,14 @@ contains
           w%builder_tool = it_none
        else
           call cellform_pending_cell(w,isys,pm,pt,pok,pmsg,noflip=.true.)
+          ! the vectors picked so far and the current ones do not make
+          ! a cell: nothing wrong with the picked ones (pickcell_check)
+          if (.not.pok .and. w%geometry_lvpick_row > 0) pmsg = "Pick the remaining lattice vectors"
           if (associated(win(iview)%sc)) then
              call win(iview)%sc%show_transient_latvec(w%uid,1,replat_primitive,1)
-             if (pok) call cellform_newcell_preview(w,iview,isys,pm,pt)
+             ! the vectors picked so far (all of them, when the pick is over)
+             if (pok) call cellform_newcell_preview(w,iview,isys,pm,pt,&
+                picked=(w%geometry_lvpick_row == 0 .or. (/1,2,3/) < w%geometry_lvpick_row))
           end if
        end if
     end if
@@ -1254,10 +1258,23 @@ contains
     ! of the crystal or to pick again.
     subroutine panel_pickcell()
       character(len=2), parameter :: lbl(3) = (/"a'","b'","c'"/)
+      real(c_float), parameter :: axismix = 0.6_c_float ! this much axis color in the name of the vector, the rest text color
+
+      integer :: i
+      real(c_float) :: rgb(3)
 
       if (w%geometry_lvpick_row >= 1 .and. w%geometry_lvpick_row <= 3) then
-         call panel_text("Click the lattice point at the end of the new lattice vector "//&
-            lbl(w%geometry_lvpick_row)//" in the view.")
+         ! which vector: its name, in the color it has in the view
+         ! (toward the color of the text, to read it on the background)
+         i = w%geometry_lvpick_row
+         rgb(1) = g%Style%Colors(ImGuiCol_Text+1)%x
+         rgb(2) = g%Style%Colors(ImGuiCol_Text+1)%y
+         rgb(3) = g%Style%Colors(ImGuiCol_Text+1)%z
+         rgb = rgb + axismix * (ColorAxes_def(:,i) - rgb)
+         call iw_text("Pick lattice vector")
+         call iw_text(lbl(i),rgb=rgb,sameline=.true.)
+         call iw_text("("//string(i)//" of 3)",sameline=.true.)
+         call panel_text("Click the lattice point at its end in the view.")
          call panel_text(mode_exits(vm_pick_atom,extra="with "//&
             trim(get_bind_keyname(BIND_PICKATOM_EXIT))//" on empty space"),faded=.true.)
       else
@@ -1362,6 +1379,32 @@ contains
       call iw_tooltip("Transform the crystal to the new cell",ttshown,whendisabled=.true.)
 
     end subroutine panel_newcell
+
+    ! A lattice vector of the Pick Cell tool has been picked. If the
+    ! ones picked so far cannot be in a cell (two along the same line,
+    ! three in the same plane), say so and start the pick over. When
+    ! the last one is in, a left-handed set has its first two vectors
+    ! exchanged: the cell form would invert the three, as
+    ! crystal%newcell does, which puts the cell on the other side of
+    ! the origin from the points that were picked.
+    subroutine pickcell_check()
+
+      if (w%geometry_lvpick_row /= 0 .and. w%geometry_lvpick_row /= 3) return
+      call cellform_pending_cell(w,isys,pm,pt,pok,pmsg,noflip=.true.)
+      if (w%geometry_lvpick_row == 3) then
+         if (all(abs(cross(pm(:,1),pm(:,2))) < 1d-8)) then
+            w%errmsg = errpickline
+            call pickcell_restart()
+         end if
+      elseif (.not.pok) then
+         w%errmsg = errpickplane
+         call pickcell_restart()
+      elseif (det3(pm) < 0d0) then
+         w%geometry_cell%intmat(:,1:2) = w%geometry_cell%intmat(:,2:1:-1)
+         w%geometry_cell%cen(1:2) = w%geometry_cell%cen(2:1:-1)
+      end if
+
+    end subroutine pickcell_check
 
     ! Start the Pick Cell tool over: the new cell is the current one,
     ! and the three lattice vectors are picked in the parent view, one
