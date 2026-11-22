@@ -105,7 +105,8 @@ module representations
   real*8, parameter, public :: shape_edge_def = 0.05d0 / bohrtoa ! thickness of the box edges
   real*8, parameter, public :: cone_width_frac = 0.4d0 ! base width (rad) of a new cone, as a fraction of its length
   real*8, parameter, public :: cylinder_width_frac = 0.25d0 ! thickness (rad) of a new cylinder, as a fraction of its length
-  real*8, parameter, public :: arrow_headl_width = 1.5d0 ! head length of a new arrow, in head widths (at most half the arrow)
+  real*8, parameter, public :: arrow_headl_width = 1.5d0 ! head length of a new arrow, in arrowhead radii (at most half the arrow)
+  real*8, parameter, public :: arrow_headl_auto = 3d0 ! head length of the arrows drawn automatically, in arrowhead radii (at most half the arrow)
   !--> planar shapes (lengths in the NDC of the render buffer: the square
   !    render texture spans -1 to 1 in x and y)
   real(c_float), parameter, public :: planar_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.10_c_float/) ! stroke color
@@ -124,7 +125,6 @@ module representations
   real(c_float), parameter, public :: symelem_alpha = 0.3_c_float ! mirror-plane fill opacity (axes/frames are opaque)
   real*8, parameter, public :: symelem_arrow_radius = 0.07d0 / bohrtoa ! shaft radius
   real*8, parameter, public :: symelem_arrow_headr = 2.4d0 ! arrowhead radius, in shaft radii
-  real*8, parameter, public :: symelem_arrow_headl = 0.12d0 ! arrowhead length, as a fraction of the arrow
   real*8, parameter, public :: symelem_arrow_dashlen = 0.4d0 / bohrtoa ! dash period of the arrow shaft
   real*8, parameter, public :: symelem_margin = 1.05d0 ! expansion of the box the elements are clipped to
   real*8, parameter, public :: symelem_frame_radius = rotaxis_radius_def ! radius of the plane-border cylinders
@@ -1636,6 +1636,7 @@ module representations
   public :: shapes_delete
   public :: shape_copy_style
   public :: shape_proportions
+  public :: arrow_headl_fraction
   public :: planar_isclosed
   public :: planar_haspoints
   public :: planar_path
@@ -1803,6 +1804,10 @@ module representations
        type(rep_shape), intent(inout) :: dst
        type(rep_shape), intent(in) :: src
      end subroutine shape_copy_style
+     module function arrow_headl_fraction(len,headrad) result(headl)
+       real*8, intent(in) :: len, headrad
+       real*8 :: headl
+     end function arrow_headl_fraction
      module subroutine shape_proportions(sh)
        type(rep_shape), intent(inout) :: sh
      end subroutine shape_proportions

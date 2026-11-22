@@ -27,7 +27,6 @@ submodule (windows) geometry
   real*8, parameter :: pv_radfac = 1.5d0 ! the new lattice vectors' spheres
   real*8, parameter :: pv_arrowr = 0.3d0 ! arrow shaft radius
   real*8, parameter :: pv_headr = 2.5d0 ! arrowhead radius (shaft radii)
-  real*8, parameter :: pv_headl = 0.15d0 ! arrowhead length (fraction of the arrow)
   real*8, parameter :: pv_edger = 0.25d0 ! outline radius
   real(c_float), parameter :: pv_edge_rgb(3) = (/1._c_float,0.6_c_float,0._c_float/) ! outline color
 
@@ -4459,6 +4458,7 @@ contains
   module subroutine cellform_newcell_preview(w,iview,isys,m,t)
     use systems, only: sys
     use representations, only: rep_shape, shapekind_sphere, shapekind_arrow, shapekind_box,&
+       arrow_headl_fraction,&
        latvec_rad_def
     use gui_main, only: ColorAxes_def
     class(window), intent(in) :: w
@@ -4476,8 +4476,12 @@ contains
        lvshp(im) = rep_shape(kind=shapekind_sphere,x1=xb,rad=pv_radfac*latvec_rad_def,&
           rgb=ColorAxes_def(:,im))
        lvshp(3+im) = rep_shape(kind=shapekind_arrow,shown=(norm2(xb) > 2d0*lvshp(im)%rad),&
-          rad=pv_arrowr*latvec_rad_def,headr=pv_headr,headl=pv_headl,rgb=ColorAxes_def(:,im))
-       if (lvshp(3+im)%shown) lvshp(3+im)%v(:,1) = xb * (1d0 - lvshp(im)%rad / norm2(xb))
+          rad=pv_arrowr*latvec_rad_def,headr=pv_headr,rgb=ColorAxes_def(:,im))
+       if (lvshp(3+im)%shown) then
+          ! up to the sphere; the head is as long in the three arrows
+          lvshp(3+im)%v(:,1) = xb * (1d0 - lvshp(im)%rad / norm2(xb))
+          lvshp(3+im)%headl = arrow_headl_fraction(norm2(lvshp(3+im)%v(:,1)),pv_headr*lvshp(3+im)%rad)
+       end if
     end do
     lvshp(7) = rep_shape(kind=shapekind_box,x1=sys(isys)%c%x2c(t),&
        v=matmul(sys(isys)%c%m_x2c,m),rad=pv_edger*latvec_rad_def,rgb=pv_edge_rgb,alpha=0._c_float)

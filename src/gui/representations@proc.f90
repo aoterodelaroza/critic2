@@ -3904,7 +3904,8 @@ contains
             symelem_offdir(lx0)
          ! dashed, to tell the arrow from the element it belongs to
          call append_arrow(xa,xa + stint,rgbel,symelem_arrow_radius,symelem_arrow_headr,&
-            symelem_arrow_headl,.true.,symelem_arrow_dashlen)
+            arrow_headl_fraction(norm2(stint),symelem_arrow_headr * symelem_arrow_radius),.true.,&
+            symelem_arrow_dashlen)
       end if
 
     end subroutine draw_symmetry_element
@@ -5741,7 +5742,7 @@ contains
   !> Give the new shape sh the proportions of its kind for its length
   !> (the length of v(:,1)): the base width of a cone and the thickness
   !> of a cylinder grow with it, and the head of an arrow is a fixed
-  !> multiple of its width long, whatever the length of the arrow
+  !> multiple of its radius long, whatever the length of the arrow
   !> (at most half of it). Spheres, boxes and degenerate shapes are left
   !> alone. Used when the user draws a shape or changes its kind.
   module subroutine shape_proportions(sh)
@@ -5760,6 +5761,20 @@ contains
     end if
 
   end subroutine shape_proportions
+
+  !> Arrowhead length (as a fraction of the arrow, like rep_shape%headl)
+  !> of an arrow drawn automatically (new-cell lattice vectors, vibration
+  !> displacements, symmetry-element translations), len long and with
+  !> head radius headrad: arrow_headl_auto head radii whatever its
+  !> length, at most half of it.
+  module function arrow_headl_fraction(len,headrad) result(headl)
+    real*8, intent(in) :: len, headrad
+    real*8 :: headl
+
+    headl = 0.5d0
+    if (len > 1d-6) headl = min(arrow_headl_auto * headrad / len,0.5d0)
+
+  end function arrow_headl_fraction
 
   !> Whether the two geometric shapes differ in any field.
   module function shape_differs(a,b) result(ok)
@@ -5782,9 +5797,11 @@ contains
   !> manual animation and makeseed_nudged: the displacement is the real
   !> part of the mode phasor times exp(i*pi/2*phase)). length is the
   !> length of the arrow of the largest-amplitude atom (bohr) and templ
-  !> carries the arrow style (radius, head, color). shape is allocated on return
-  !> on every path (possibly with nshape = 0, if there is no mode to
-  !> show or the mode moves no atom) and is grown as needed.
+  !> carries the arrow style (radius, head width, color; the heads have
+  !> the same length in all the arrows, see arrow_headl_fraction). shape
+  !> is allocated on return on every path (possibly with nshape = 0, if
+  !> there is no mode to show or the mode moves no atom) and is grown as
+  !> needed.
   module subroutine vibration_arrow_shapes(isys,disp,iqpt,ifreq,phase,length,templ,nshape,shape)
     use systems, only: sys, sysc, sys_ready, ok_system
     use crystalmod, only: crystal
@@ -5918,6 +5935,7 @@ contains
                 shape(nshape)%x1 = xc
                 shape(nshape)%v = 0d0
                 shape(nshape)%v(:,1) = dv
+                shape(nshape)%headl = arrow_headl_fraction(norm2(dv),templ%headr * templ%rad)
              end do
           end do
        end do
