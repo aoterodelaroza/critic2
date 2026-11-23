@@ -934,8 +934,8 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
-       wintype_rattle, wintype_mo, wintype_voids, wintype_kpoints, wintype_cp, wintype_gpaths,&
-       wintype_point, wintype_line, wintype_cube, wintype_nci, win
+       wintype_rattle, wintype_mo, wintype_voids, wintype_kpoints, wintype_environ, wintype_cp,&
+       wintype_gpaths, wintype_point, wintype_line, wintype_cube, wintype_nci, win
     use utils, only: iw_tooltip, iw_menuitem, iw_beginmenu
     use representations, only: reptype_slice, repflavor_slice, reptype_isosurface,&
        repflavor_isosurface, reptype_kpath, repflavor_kpath
@@ -1002,6 +1002,12 @@ contains
 
     ! Tools -> Structure Analysis
     if (iw_beginmenu("Structure Analysis",enabled=enabled)) then
+       ! the neighbors of one atom (ENVIRON, ECON, COORD)
+       if (iw_menuitem("Atomic Environments...")) &
+          idum = stack_create_window(wintype_environ,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("List the neighbors of an atom, with their distances, coordination and&
+          & ECoN weights (ENVIRON, ECON, COORD)",ttshown)
+
        ! measure the empty space in the crystal
        ok = .not.sys(isys)%c%ismolecule
        if (iw_menuitem("Crystal Voids...",enabled=ok)) &

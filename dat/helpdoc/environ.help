@@ -1,0 +1,38 @@
+title: Atomic Environments
+keyword: ENVIRON
+manual: structure/#c2-environ
+cite: econ_1979 econ_2016
+
+Lists the neighbors of one atom of the system in the "System" line: their distances, whether
+they are coordinated to it, and their weights in its effective coordination number (ECoN). It
+brings together, for one atom at a time, what the ENVIRON, ECON and COORD keywords calculate
+for all of them. The atom and its coordinated neighbors are marked in the view while the window
+is open, and the list is recalculated whenever the atom, the options or the geometry change.
+
+# Options
+
+- "Atom": the atom whose environment is shown, chosen from the list of non-equivalent atoms.
+  "Pick" lets you click it in the view instead; in a crystal, picking also chooses which image
+  of the atom is marked. "Cell atom" and "Lattice vector" give the atom of the unit cell and the
+  image.
+- "Up to": list the neighbors up to a distance from the atom (in Å), or up to a number of
+  shells. A shell is the group of neighbors at the same distance, which may be of different
+  kinds.
+- "Species": list only the neighbors of one species.
+- "Group by shells": one row per shell and atom (the atoms of a shell that are images of the
+  same non-equivalent atom), with their number ("Count") and how many of them are
+  coordinated.
+- "Show in view": mark the atom (orange halo) and its coordinated neighbors (blue halos) in the
+  view. The neighbors of the row under the mouse are marked in yellow, with a line from the
+  atom.
+
+# Results
+
+The "Neighbors" table has one row per neighbor, sorted by distance: its shell, name, index in
+the list of non-equivalent atoms ("Id") and in the unit cell ("Cell id"), the lattice vector of
+its image next to the marked atom (crystals), the distance, whether it is coordinated (bonded
+to the atom in the bond list of the system, which the bonds objects draw unless they use their
+own criteria), and its ECoN weight, exp(1 - (d/d_av)^6), where d_av is the mean weighted
+distance of the environment of the atom (Hoppe's formula, iterated as in ECON). Neighbors with
+a weight of at least 0.5 count as coordinated in the integer ECoN. Right-click the table header
+to copy the table or write it to a file.

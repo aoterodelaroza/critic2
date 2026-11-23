@@ -1091,6 +1091,68 @@ module windows
   end type kpoints_state
   public :: kpoints_state
 
+  !> The neighbour list of the atomic environments window
+  !> (environ_state), calculated again when what it was made from
+  !> (key*) changes: the neighbours (nat) of the centre in the main
+  !> cell (their lattice vectors do not include the image's), sorted
+  !> by distance and, within a shell, by non-equivalent atom: cell
+  !> atom, lattice vector, shell, distance (bohr), ECoN weight, and
+  !> whether it is coordinated to the centre (bonded to it). The
+  !> groups (ngroup) are the runs of neighbours in the same shell and
+  !> non-equivalent atom: group i is igroup(i) to igroup(i+1)-1. Also
+  !> cached: the mean weighted distance of the ECoN of the centre
+  !> (nd0, all species; it does not depend on the cutoff) and the
+  !> entries of the atom combo.
+  type environ_list
+     integer :: nat = 0
+     integer, allocatable :: eid(:)
+     integer, allocatable :: lvec(:,:)
+     integer, allocatable :: ishell(:)
+     real*8, allocatable :: dist(:)
+     real*8, allocatable :: wecon(:)
+     logical, allocatable :: iscoord(:)
+     integer :: ngroup = 0
+     integer, allocatable :: igroup(:)
+     integer*8 :: keysys = 0
+     integer :: keyiat = 0
+     integer :: keymode = -1
+     integer :: keyshell = 0
+     integer :: keyspc = -1
+     real*8 :: keydist = -1d0
+     real*8 :: keytime = -1d0
+     real*8 :: nd0 = 0d0
+     integer*8 :: ndkeysys = 0
+     integer :: ndkeyiat = 0
+     real*8 :: ndkeytime = -1d0
+     character(len=:), allocatable :: atomstr
+     integer*8 :: atomkeysys = 0
+     real*8 :: atomkeytime = -1d0
+  end type environ_list
+  public :: environ_list
+
+  !> Per-window state of the atomic environments window (Tools >
+  !> Structure Analysis > Atomic Environments; ENVIRON, ECON and COORD
+  !> for one atom): the centre (a cell atom and the lattice vector of
+  !> the image), the form, a pending pick in the view, and the list of
+  !> neighbours.
+  type environ_state
+     type(sys_ref) :: sys ! system the form is set up for
+     integer :: idx(4) = 0 ! the centre: cell atom and lattice vector of the image (0 = none yet)
+     integer :: upmode = 0 ! the neighbours: 0 = up to a distance, 1 = up to a number of shells
+     real*8 :: updist = 5d0 ! up to this distance (Å)
+     integer(c_int) :: upshell = 3 ! up to this number of shells
+     integer :: ispc = 0 ! only the neighbours of this species (0 = all)
+     logical :: groupshells = .false. ! one row per group (shell and atom) in the table
+     logical :: showview = .true. ! mark the centre and its neighbours in the view
+     type(iw_section) :: seccenter, secneigh ! the sections of the window
+     ! pending pick in the view
+     logical :: picking = .false.
+     integer :: pickview = 0
+     type(pairpick) :: pick
+     type(environ_list) :: ls ! the neighbours
+  end type environ_state
+  public :: environ_state
+
   !> Per-window state of the metal melting demonstration window.
   type melting_state
      ! the form
@@ -1763,6 +1825,8 @@ module windows
      type(voids_state) :: vd ! the form and results of the crystal voids window
      ! k-point grid window
      type(kpoints_state) :: kp ! the form of the k-point grid window
+     ! atomic environments window
+     type(environ_state) :: env ! the centre, form, pick, and neighbour list
      ! critical points window
      type(cp_state) :: cp ! the AUTO form, pending job, and results
      ! trace gradient paths window
@@ -1920,6 +1984,7 @@ module windows
      procedure :: draw_help
      ! k-point grid
      procedure :: draw_kpoints
+     procedure :: draw_environ
      ! critical points
      procedure :: draw_cp
      procedure :: block_cp
@@ -2019,6 +2084,7 @@ module windows
   integer, parameter, public :: wintype_kpoints = 34
   integer, parameter, public :: wintype_nci = 35
   integer, parameter, public :: wintype_help = 36
+  integer, parameter, public :: wintype_environ = 37
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -2902,6 +2968,10 @@ module windows
      module subroutine draw_kpoints(w)
        class(window), intent(inout), target :: w
      end subroutine draw_kpoints
+     !xx! environ submodule !xx!
+     module subroutine draw_environ(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_environ
      module function window_request_block(w) result(ok)
        class(window), intent(inout), target :: w
        logical :: ok

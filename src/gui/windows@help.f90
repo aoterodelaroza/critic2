@@ -31,13 +31,13 @@ submodule (windows) help
 
   ! the topics, in the order of the list; the key is the name of the
   ! file in helpdoc/ and the key window_help_topic gives
-  integer, parameter :: nhelp = 23
+  integer, parameter :: nhelp = 24
   character(len=10), parameter :: help_key(nhelp) = (/&
      "index     ",&
      "menus     ","tree      ","console   ","view      ",&
      "geometry  ","builder   ","extract   ",&
      "vibrations","dynamics  ","rattle    ",&
-     "voids     ","kpoints   ","kpath     ",&
+     "environ   ","voids     ","kpoints   ","kpath     ",&
      "point     ","line      ","planemap  ","isosurface","cube      ","nci       ","mo        ",&
      "cp        ","gpaths    "/)
 
@@ -46,7 +46,7 @@ submodule (windows) help
   character(len=18), parameter :: help_group(nhelpgroup) = (/&
      "Overview          ","Critic2 interface ","Structure         ","Dynamics          ",&
      "Structure analysis","Field plots       ","QTAIM             "/)
-  integer, parameter :: help_igroup(nhelp) = (/1, 2,2,2,2, 3,3,3, 4,4,4, 5,5,5, 6,6,6,6,6,6,6, 7,7/)
+  integer, parameter :: help_igroup(nhelp) = (/1, 2,2,2,2, 3,3,3, 4,4,4, 5,5,5,5, 6,6,6,6,6,6,6, 7,7/)
 
   ! width of the topic list (characters)
   integer, parameter :: help_list_width = 27
@@ -241,6 +241,8 @@ contains
        key = "dynamics"
     elseif (w%type == wintype_rattle) then
        key = "rattle"
+    elseif (w%type == wintype_environ) then
+       key = "environ"
     elseif (w%type == wintype_voids) then
        key = "voids"
     elseif (w%type == wintype_kpoints) then

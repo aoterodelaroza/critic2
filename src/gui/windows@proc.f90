@@ -373,6 +373,7 @@ contains
              if (ok.and.type == wintype_rattle.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_voids.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_kpoints.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_environ.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_cp.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_gpaths.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_point.and.present(idparent)) ok = (win(i)%parent() == idparent)
@@ -957,6 +958,10 @@ contains
        ! k-point grid window
        if (.not.present(idparent)) &
           call ferror('window_init','kpoints requires idparent',faterr)
+    elseif (type == wintype_environ) then
+       ! atomic environments window
+       if (.not.present(idparent)) &
+          call ferror('window_init','atomic environments requires idparent',faterr)
     elseif (type == wintype_cp) then
        ! critical points window
        if (.not.present(idparent)) &
@@ -1057,6 +1062,9 @@ contains
        if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
        if (allocated(w%vd%iso_lbl)) deallocate(w%vd%iso_lbl)
        if (allocated(w%vd%pck_rnn2)) deallocate(w%vd%pck_rnn2)
+    elseif (w%type == wintype_environ) then
+       ! the neighbour list; without its keys, it is calculated again
+       w%env%ls = environ_list()
     elseif (w%type == wintype_point) then
        ! the report at the point; without its key, it is calculated again
        if (allocated(w%pt%item)) deallocate(w%pt%item)
@@ -1960,6 +1968,8 @@ contains
           call init_window("Crystal Voids",62,35)
        elseif (w%type == wintype_kpoints) then
           call init_window("K-Point Grid",50,30)
+       elseif (w%type == wintype_environ) then
+          call init_window("Atomic Environments",80,30,grow=.true.)
        elseif (w%type == wintype_cp) then
           call init_window("Critical Points",70,30,grow=.true.)
        elseif (w%type == wintype_gpaths) then
@@ -2198,6 +2208,8 @@ contains
                 call w%draw_voids()
              elseif (w%type == wintype_kpoints) then
                 call w%draw_kpoints()
+             elseif (w%type == wintype_environ) then
+                call w%draw_environ()
              elseif (w%type == wintype_cp) then
                 call w%draw_cp()
              elseif (w%type == wintype_gpaths) then
