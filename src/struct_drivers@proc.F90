@@ -5870,28 +5870,19 @@ contains
   module subroutine struct_econ(s)
     use citations, only: cite_print, cite_econ_2016, cite_econ_1979
     use systemmod, only: system
-    use crystalmod, only: crystal
     use global, only: iunitname0, dunit0, iunit
     use tools_io, only: uout, string, ioj_left, ioj_right, ferror, faterr
     use types, only: realloc
-    use param, only: icrd_crys, bohrtoa
     type(system), intent(inout) :: s
 
-    logical :: ok
-    integer :: i, j, k, n
-    integer :: nat
-    integer, allocatable :: eid(:)
-    real*8 :: dist0, econ, up2d
-    real*8 :: wi, numer, econprev
-    real*8, allocatable :: econij(:,:), ndij(:,:), dist(:)
-    real*8, allocatable :: econij_noit(:,:), ndij_noit(:,:), mindist(:)
+    integer :: i, j, k
+    integer, allocatable :: eid(:), icn(:)
+    real*8, allocatable :: dist(:)
+    real*8, allocatable :: econij(:,:), ndij(:,:)
+    real*8, allocatable :: econij_noit(:,:), ndij_noit(:,:)
     character(len=:), allocatable :: str, namestr
     integer, allocatable :: ncoord(:)
     integer, allocatable :: idxcoord(:,:)
-
-    real*8, parameter :: up2dmax = 15d0 / bohrtoa
-    real*8, parameter :: wthresh = 1d-10
-    real*8, parameter :: epsfac = (1d0 + 14d0 * log(10d0))**(1d0/6d0)
 
     if (s%c%ismolecule) then
        call ferror('struct_econ','ECON only available for crystals',faterr,syntax=.true.)
@@ -5899,85 +5890,20 @@ contains
     end if
 
     allocate(econij(0:s%c%nspc,s%c%nneq),econij_noit(0:s%c%nspc,s%c%nneq))
-    allocate(ndij(0:s%c%nspc,s%c%nneq),ndij_noit(0:s%c%nspc,s%c%nneq),mindist(0:s%c%nspc))
+    allocate(ndij(0:s%c%nspc,s%c%nneq),ndij_noit(0:s%c%nspc,s%c%nneq))
     allocate(ncoord(s%c%nneq),idxcoord(10,s%c%nneq))
 
-    ! initialize
-    up2d = up2dmax
-
-    ! flag for restart in case the initial up2d was wrong
-10  continue
-    econij = 0d0
-    econij_noit = 0d0
-    ndij = 0d0
-    ndij_noit = 0d0
-    ncoord = 0
-
-    ! loop over non-equivalent atoms
+    ! ECoN and integer coordination number of the non-equivalent atoms
     do i = 1, s%c%nneq
-       ! skip if this is a single atom in a box
-       if (s%c%ismolecule .AND. s%c%ncel == 1) cycle
+       call s%c%econ_atom(s%c%at(i)%x,econij(:,i),econij_noit(:,i),ndij(:,i),ndij_noit(:,i),&
+          eid,dist)
 
-       ! grab the environment for this atom
-       call s%c%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,up2d=up2d,nozero=.true.)
-
-       ! get the minimum distance for all the species
-       mindist = -1d0
-       mindist(0) = dist(1)
-       do k = 1, nat
-          if (mindist(s%c%atcel(eid(k))%is) < 0d0) mindist(s%c%atcel(eid(k))%is) = dist(k)
-          if (all(mindist >= 0d0)) exit
-       end do
-
-       ! loop over species
-       do j = 0, s%c%nspc
-          econprev = -1d0
-          econ = 0d0
-          dist0 = mindist(j)
-          n = 0
-          do while (abs(econ-econprev) > wthresh .or. n <= 2)
-             n = n + 1
-             econprev = econ
-
-             ! loop over the environment atoms and consider only species j
-             numer = 0d0
-             econ = 0d0
-             do k = 1, nat
-                if (j /= 0 .and. s%c%atcel(eid(k))%is /= j) cycle
-                wi = exp(1 - (dist(k)/dist0)**6)
-                numer = numer + dist(k) * wi
-                econ = econ + wi
-             end do
-             ok = (econ > 0d0)
-             if (ok) dist0 = numer / econ
-
-             ! if dist0 is dangerously close to the up2d, increase by a factor and try again
-             if (.not.ok .or. dist0 > up2d / epsfac) then
-                up2d = 1.5d0 * up2d
-                goto 10
-             end if
-
-             ! save the non-iterative econ and average bond length values
-             if (n == 1) then
-                ndij_noit(j,i) = dist0
-             elseif (n == 2) then
-                econij_noit(j,i) = econ
-             end if
-          end do ! while (abs(econ-econprev) > wthresh)
-          econij(j,i) = econ
-          ndij(j,i) = dist0
-       end do ! j = 0, s%c%nspc
-
-       ncoord(i) = 0
-       do k = 1, nat
-          if (exp(1 - (dist(k)/ndij(0,i))**6) >= 0.5d0) then
-             ncoord(i) = ncoord(i) + 1
-             if (ncoord(i) > size(idxcoord,1)) &
-                call realloc(idxcoord,2*ncoord(i),s%c%nneq)
-             idxcoord(ncoord(i),i) = s%c%atcel(eid(k))%idx
-          end if
-       end do
-    end do ! i = 1, s%c%nneq
+       ! integer coordination number: the atoms with a weight of at least 0.5
+       icn = pack(eid,exp(1 - (dist/ndij(0,i))**6) >= 0.5d0)
+       ncoord(i) = size(icn)
+       if (ncoord(i) > size(idxcoord,1)) call realloc(idxcoord,2*ncoord(i),s%c%nneq)
+       idxcoord(1:ncoord(i),i) = s%c%atcel(icn)%idx
+    end do
 
     ! write the output
     write (uout, '("* ECON")')
@@ -6028,7 +5954,7 @@ contains
     end do
     write (uout,*)
 
-    deallocate(econij,ndij,econij_noit,ndij_noit,mindist)
+    deallocate(econij,ndij,econij_noit,ndij_noit)
 
   end subroutine struct_econ
 

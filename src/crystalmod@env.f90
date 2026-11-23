@@ -563,6 +563,123 @@ contains
 
   end subroutine nearest_atom
 
+  !> Effective coordination number (ECoN) around the point x0
+  !> (crystallographic coordinates), usually an atomic position (the
+  !> atom at x0 itself is not counted). For each species j (j = 0: all
+  !> species), returns the iterative ECoN (econ(j)), the non-iterative
+  !> ECoN using the shortest distance as the starting point (econ1(j)),
+  !> and the mean weighted distances of both variants (nd(j) and
+  !> nd1(j), bohr). Hoppe, Z. Kristallogr. 150 (1979) 23; Nespolo, Acta
+  !> Cryst. B 72 (2016) 51. In a crystal, the environment grows until
+  !> the weights of the atoms left out are negligible; in a molecule it
+  !> is the whole molecule, and a species with no atoms other than the
+  !> one at x0 gets zeros (everything is zero in a single-atom
+  !> molecule). If eid and dist are present, they return the
+  !> environment used (complete-list indices and distances in bohr,
+  !> sorted by distance), so the caller can apply its own cut to the
+  !> weights exp(1-(dist/nd(0))**6).
+  module subroutine econ_atom(c,x0,econ,econ1,nd,nd1,eid,dist)
+    use param, only: icrd_crys, bohrtoa
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: x0(3)
+    real*8, intent(out) :: econ(0:c%nspc)
+    real*8, intent(out) :: econ1(0:c%nspc)
+    real*8, intent(out) :: nd(0:c%nspc)
+    real*8, intent(out) :: nd1(0:c%nspc)
+    integer, allocatable, intent(inout), optional :: eid(:)
+    real*8, allocatable, intent(inout), optional :: dist(:)
+
+    real*8, parameter :: up2dmax = 15d0 / bohrtoa
+    real*8, parameter :: wthresh = 1d-10
+    real*8, parameter :: epsfac = (1d0 + 14d0 * log(10d0))**(1d0/6d0)
+
+    integer :: i, j, k, n, nat, ipass
+    integer, allocatable :: eid_(:)
+    real*8, allocatable :: dist_(:)
+    real*8 :: mindist(0:c%nspc), up2d0, up2d, dist0, wi, numer, ec, ecprev
+
+    econ = 0d0
+    econ1 = 0d0
+    nd = 0d0
+    nd1 = 0d0
+    if (present(eid)) eid = [integer ::]
+    if (present(dist)) dist = [real(kind(1d0)) ::]
+
+    ! starting cutoff: in a molecule, the farthest atom
+    if (c%ismolecule) then
+       if (c%ncel <= 1) return
+       up2d0 = 0d0
+       do i = 1, c%ncel
+          up2d0 = max(up2d0,norm2(c%x2c(c%atcel(i)%x - x0)))
+       end do
+       up2d0 = up2d0 * (1d0 + 1d-10)
+    else
+       up2d0 = up2dmax
+    end if
+
+    ! in a crystal, increase the cutoff while the weights of the atoms
+    ! beyond it are not negligible
+    ipass = -1
+    env: do
+       ipass = ipass + 1
+       up2d = up2d0 * 1.5d0**ipass
+       call c%list_near_atoms(x0,icrd_crys,.true.,nat,eid_,dist_,up2d=up2d,nozero=.true.)
+       if (nat == 0) then
+          if (c%ismolecule) return
+          cycle env
+       end if
+
+       ! the shortest distance to each species
+       mindist = -1d0
+       mindist(0) = dist_(1)
+       do k = 1, nat
+          if (mindist(c%atcel(eid_(k))%is) < 0d0) mindist(c%atcel(eid_(k))%is) = dist_(k)
+          if (all(mindist >= 0d0)) exit
+       end do
+
+       ! self-consistent mean weighted distance for each species
+       do j = 0, c%nspc
+          if (mindist(j) < 0d0) then
+             if (c%ismolecule) cycle
+             cycle env
+          end if
+          ecprev = -1d0
+          ec = 0d0
+          dist0 = mindist(j)
+          n = 0
+          do while (abs(ec-ecprev) > wthresh .or. n <= 2)
+             n = n + 1
+             ecprev = ec
+             numer = 0d0
+             ec = 0d0
+             do k = 1, nat
+                if (j /= 0 .and. c%atcel(eid_(k))%is /= j) cycle
+                wi = exp(1 - (dist_(k)/dist0)**6)
+                numer = numer + dist_(k) * wi
+                ec = ec + wi
+             end do
+             ! the nearest atom has a weight of at least one, so ec > 0
+             dist0 = numer / ec
+             if (.not.c%ismolecule .and. dist0 > up2d / epsfac) cycle env
+
+             ! the non-iterative variant is the first step
+             if (n == 1) then
+                nd1(j) = dist0
+             elseif (n == 2) then
+                econ1(j) = ec
+             end if
+          end do
+          econ(j) = ec
+          nd(j) = dist0
+       end do
+       exit env
+    end do env
+
+    if (present(eid)) eid = eid_(1:nat)
+    if (present(dist)) dist = dist_(1:nat)
+
+  end subroutine econ_atom
+
   !> Returns half of the nearest neighbor distance for non-equivalent
   !> atom ineq.
   module function get_rnn2(c,ineq)

@@ -566,9 +566,7 @@ contains
   !> four vertices in range is not an error: it gives nat <= 3 and a zero
   !> volume, and no polyhedron.
   module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier,dev,ispc)
-    use tools_math, only: mixed, plane_from_points
     use param, only: icrd_crys
-    use iso_c_binding, only: c_int, c_double, c_ptr
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x0(3)
     integer, intent(in) :: is0
@@ -584,37 +582,13 @@ contains
     real*8, intent(out), optional :: dev
     logical, intent(in), optional :: ispc(:)
 
-    integer :: i, j, nat0
-    integer, allocatable :: eid(:), lvec(:,:), iface(:,:)
+    integer :: i, nat0
+    integer, allocatable :: eid(:), lvec(:,:)
     real*8, allocatable :: dist(:), xstar(:,:), up2dsp(:,:)
-    real*8 :: xc(3), xp1(3), xp2(3), xp3(3), xcen(3), xnor(3)
-    type(c_ptr) :: ctx
-
-    interface
-       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
-         import c_int, c_double, c_ptr
-         integer(c_int), value :: n
-         real(c_double) :: x0(3)
-         real(c_double) :: xvert(3,n)
-         integer(c_int) :: nf
-         type(c_ptr) :: ctx
-         integer(c_int) :: ier
-       end subroutine runqhull_basintriangulate_step1
-       subroutine runqhull_basintriangulate_step2(nf,iface,ctx) bind(c)
-         import c_int, c_double, c_ptr
-         integer(c_int), value :: nf
-         integer(c_int) :: iface(3,nf)
-         type(c_ptr), value :: ctx
-       end subroutine runqhull_basintriangulate_step2
-    end interface
 
     nat = 0
     dmin = 0d0
     dmax = 0d0
-    nf = 0
-    vol = 0d0
-    ier = 0
-    if (present(dev)) dev = 0d0
 
     ! the atoms that make up the vertices
     if (present(ispc)) then
@@ -638,7 +612,6 @@ contains
 
     ! discard the atoms closer than rmin (the list comes sorted by distance)
     allocate(xstar(3,nat0))
-    xc = c%x2c(x0)
     do i = 1, nat0
        if (dist(i) < rmin) cycle
        nat = nat + 1
@@ -646,16 +619,70 @@ contains
        if (nat == 1) dmin = dist(i)
        dmax = dist(i)
     end do
-    ! a solid needs four vertices; three or fewer are not passed to the
-    ! triangulation, which cannot build an initial simplex out of them
-    if (nat <= 3) return
+
+    call polyhedron_from_points(c%x2c(x0),xstar(:,1:nat),nf,vol,ier,dev)
+
+  end subroutine coord_polyhedron
+
+  !> Convex polyhedron with vertices xv(:,1:n) around the center xc
+  !> (Cartesian, any units). Returns the number of faces (nf) and the
+  !> volume (vol, units cubed), as the sum of the tetrahedra joining
+  !> the faces to the center. If dev is present, it returns the
+  !> maximum distance from a vertex to the best-fit plane of all of
+  !> them, zero if they are coplanar and the polyhedron is therefore
+  !> flat. A solid needs four vertices: with three or fewer, nf, vol
+  !> and dev are zero, and ier is zero too. ier is non-zero if the
+  !> triangulation failed. A vertex on the center is ignored by the
+  !> triangulation (but not by dev).
+  module subroutine polyhedron_from_points(xc,xv,nf,vol,ier,dev)
+    use tools_math, only: mixed, plane_from_points
+    use iso_c_binding, only: c_int, c_double, c_ptr
+    real*8, intent(in) :: xc(3)
+    real*8, intent(in) :: xv(:,:)
+    integer, intent(out) :: nf
+    real*8, intent(out) :: vol
+    integer, intent(out) :: ier
+    real*8, intent(out), optional :: dev
+
+    integer :: j, n
+    integer, allocatable :: iface(:,:)
+    real*8 :: xp1(3), xp2(3), xp3(3), xcen(3), xnor(3)
+    type(c_ptr) :: ctx
+
+    interface
+       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
+         import c_int, c_double, c_ptr
+         integer(c_int), value :: n
+         real(c_double) :: x0(3)
+         real(c_double) :: xvert(3,n)
+         integer(c_int) :: nf
+         type(c_ptr) :: ctx
+         integer(c_int) :: ier
+       end subroutine runqhull_basintriangulate_step1
+       subroutine runqhull_basintriangulate_step2(nf,iface,ctx) bind(c)
+         import c_int, c_double, c_ptr
+         integer(c_int), value :: nf
+         integer(c_int) :: iface(3,nf)
+         type(c_ptr), value :: ctx
+       end subroutine runqhull_basintriangulate_step2
+    end interface
+
+    n = size(xv,2)
+    nf = 0
+    vol = 0d0
+    ier = 0
+    if (present(dev)) dev = 0d0
+
+    ! three or fewer points are not passed to the triangulation, which
+    ! cannot build an initial simplex out of them
+    if (n <= 3) return
 
     ! how far the vertices stray from a common plane
-    if (present(dev)) call plane_from_points(xstar(:,1:nat),nat,xcen,xnor,dev)
+    if (present(dev)) call plane_from_points(xv,n,xcen,xnor,dev)
 
     ! project on a sphere and triangulate the convex polyhedron. The context
     ! is allocated by step1 even if it fails, and freed by step2
-    call runqhull_basintriangulate_step1(nat,xc,xstar,nf,ctx,ier)
+    call runqhull_basintriangulate_step1(n,xc,xv,nf,ctx,ier)
     allocate(iface(3,max(nf,1)))
     call runqhull_basintriangulate_step2(nf,iface,ctx)
     if (ier /= 0) return
@@ -663,13 +690,13 @@ contains
     ! the volume of the polyhedron, as the sum of the tetrahedra that join
     ! its faces to the center
     do j = 1, nf
-       xp1 = xstar(:,iface(1,j)) - xc
-       xp2 = xstar(:,iface(2,j)) - xc
-       xp3 = xstar(:,iface(3,j)) - xc
+       xp1 = xv(:,iface(1,j)) - xc
+       xp2 = xv(:,iface(2,j)) - xc
+       xp3 = xv(:,iface(3,j)) - xc
        vol = vol + abs(mixed(xp1,xp2,xp3)) / 6d0
     end do
 
-  end subroutine coord_polyhedron
+  end subroutine polyhedron_from_points
 
   !> Calculate the packing ratio (in %) using the nearest-neighbor
   !> information. Each atom is assigned a ratio equal to half the distance
