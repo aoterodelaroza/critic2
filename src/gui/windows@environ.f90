@@ -49,8 +49,10 @@ contains
 
   !> Draw the atomic environments window: the neighbours of an atom of
   !> the system shown by the anchor view (chosen in a list or picked in
-  !> the view), as ENVIRON lists them, with the coordination (the bonds
-  !> of the atom) and the ECoN weight of each.
+  !> the view), as ENVIRON lists them, with the coordination (by one
+  !> of three rules) and the ECoN weight of each; the coordination
+  !> numbers and ECoN per species, as COORD and ECON calculate them; and
+  !> the coordination polyhedron.
   module subroutine draw_environ(w)
     use systems, only: sys, sysc, sys_init, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_close_event,&
@@ -60,7 +62,8 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer, parameter :: itable_neigh = 1 ! the table, for table_write_*
+    integer, parameter :: itable_neigh = 1 ! the tables, for table_write_*
+    integer, parameter :: itable_coord = 2
 
     logical :: doquit, goodsys, syschanged, ismol, ldum, changed
     integer :: i, isys, iview, istat, iwrite, ineq, nrow, ncol, ihover
@@ -97,6 +100,7 @@ contains
           w%errmsg = ""
           w%env%idx = (/1,0,0,0/)
           w%env%ispc = 0
+          w%env%ls = environ_list()
        end if
     end if
 
@@ -179,6 +183,10 @@ contains
           end associate
        end if
 
+       ! the coordination
+       call iw_separatortext("Coordination",w%env%seccoord)
+       if (w%env%seccoord%open) call draw_coord_section()
+
        ! the neighbours
        call iw_separatortext("Neighbors (" // string(w%env%ls%nat) // ")",w%env%secneigh)
        if (w%env%secneigh%open) then
@@ -219,7 +227,10 @@ contains
        ! the centre and its neighbours in the anchor view
        call draw_markers()
 
-       ! the error message from writing the table
+       ! the error message from writing the tables; the values wait
+       ! for the end of a dynamics run
+       if (sysc(isys)%md_run) call iw_text("The environment is not updated while a dynamics run&
+          & is active",danger=.true.,wrap=.true.)
        if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
     end if
 
@@ -238,108 +249,159 @@ contains
 
   contains
 
-    !> Calculate the neighbour list of the centre if anything it
-    !> depends on changed: the system, the atom, the cutoff, the
-    !> species, the geometry, or the bonds.
+    !> Calculate what the window shows about the centre, each part
+    !> again only if anything it depends on changed: the ECoN (the
+    !> atom and the geometry), the coordination set and polyhedron
+    !> (also the rule and the bonds), and the neighbour list (also the
+    !> cutoff and the species); then which neighbours are coordinated.
+    !> During a dynamics run nothing is calculated (the atoms move on
+    !> every frame without a geometry change): the values of the atom
+    !> are kept (those of another atom or system are dropped), and
+    !> everything is calculated again when the run stops.
     subroutine update_list()
       use param, only: icrd_crys
-      real*8, allocatable :: econ(:), econ1(:), nd(:), nd1(:)
+      use crystalmod, only: econ_weight, econ_wmin
       real*8, allocatable :: up2d
       integer, allocatable :: up2sh, ispc0
-      integer, allocatable :: iperm(:)
+      integer, allocatable :: iperm(:), eid(:), lvec(:,:)
+      real*8, allocatable :: dist(:)
+      logical, allocatable :: inec(:)
       integer :: i, j, k, iat
       real*8 :: time
+      logical :: newcoord, newlist
 
       iat = w%env%idx(1)
       associate(c => sys(isys)%c, ls => w%env%ls)
-        ! the mean weighted distance of the ECoN of the atom (all
-        ! species), for the weights; it does not depend on the cutoff
+        if (sysc(isys)%md_run) then
+           if (ls%ndkeysys /= w%env%sys%uid .or. ls%ndkeyiat /= iat) ls = environ_list()
+           ls%mdstale = .true.
+           return
+        end if
+        if (ls%mdstale) then
+           ls%ndkeytime = -1d0
+           ls%ckeytime = -1d0
+           ls%keytime = -1d0
+           ls%mdstale = .false.
+        end if
+
+        ! the ECoN of the atom, per species, the nearest distance to
+        ! each species, and the neighbours with a weight of at least
+        ! econ_wmin (as the integer CN of ECON); the other stages
+        ! depend on the geometry too, so they follow when it changes
         time = sysc(isys)%timelastchange_geometry
         if (ls%ndkeysys /= w%env%sys%uid .or. ls%ndkeyiat /= iat .or. ls%ndkeytime /= time) then
            ls%ndkeysys = w%env%sys%uid
            ls%ndkeyiat = iat
            ls%ndkeytime = time
-           allocate(econ(0:c%nspc),econ1(0:c%nspc),nd(0:c%nspc),nd1(0:c%nspc))
-           call c%econ_atom(c%atcel(iat)%x,econ,econ1,nd,nd1)
-           ls%nd0 = nd(0)
-           ls%keysys = 0
+           if (allocated(ls%econ)) deallocate(ls%econ,ls%econ1,ls%nd,ls%nd1,ls%dmin)
+           allocate(ls%econ(0:c%nspc),ls%econ1(0:c%nspc),ls%nd(0:c%nspc),ls%nd1(0:c%nspc))
+           allocate(ls%dmin(0:c%nspc))
+           call c%econ_atom(c%atcel(iat)%x,ls%econ,ls%econ1,ls%nd,ls%nd1,eid,dist,lvec,ls%dmin)
+           allocate(inec(size(eid)))
+           inec = .false.
+           if (ls%nd(0) > 0d0) inec = (econ_weight(dist,ls%nd(0)) >= econ_wmin)
+           ls%ecid = pack(eid,inec)
+           ls%ecdist = pack(dist,inec)
+           ls%eclvec = lvec(:,pack((/(i,i=1,size(eid))/),inec))
         end if
 
+        ! the coordination set and its polyhedron
+        ! (rule 1 reads the radii and bond factor of the system, which
+        ! the geometry window edits before they are applied)
         time = max(sysc(isys)%timelastchange_geometry,sysc(isys)%timelastchange_rebond)
-        if (ls%keysys == w%env%sys%uid .and. ls%keyiat == iat .and. ls%keymode == w%env%upmode .and.&
-           ls%keyspc == w%env%ispc .and. ls%keytime == time) then
-           if (w%env%upmode == 0 .and. ls%keydist == w%env%updist) return
-           if (w%env%upmode == 1 .and. ls%keyshell == w%env%upshell) return
+        newcoord = (ls%ckeysys /= w%env%sys%uid .or. ls%ckeyiat /= iat .or.&
+           ls%ckeyrule /= w%env%cnrule .or. ls%ckeytime /= time)
+        if (.not.newcoord .and. w%env%cnrule == 1) then
+           newcoord = (ls%ckeybf /= sysc(isys)%bondfactor)
+           if (.not.newcoord) newcoord = any(ls%ckeyrcov /= sysc(isys)%atmcov(c%spc(1:c%nspc)%z))
         end if
-        ls%keysys = w%env%sys%uid
-        ls%keyiat = iat
-        ls%keymode = w%env%upmode
-        ls%keyspc = w%env%ispc
-        ls%keytime = time
-        ls%keydist = w%env%updist
-        ls%keyshell = w%env%upshell
-
-        ! the list, around the atom in the main cell (an unallocated
-        ! criterion is an absent argument)
-        if (w%env%upmode == 0) then
-           up2d = w%env%updist / bohrtoa
-        else
-           up2sh = w%env%upshell
+        if (newcoord) then
+           ls%ckeysys = w%env%sys%uid
+           ls%ckeyiat = iat
+           ls%ckeyrule = w%env%cnrule
+           ls%ckeytime = time
+           ls%ckeybf = sysc(isys)%bondfactor
+           ls%ckeyrcov = sysc(isys)%atmcov(c%spc(1:c%nspc)%z)
+           call coordination_set(iat)
         end if
-        if (w%env%ispc > 0) ispc0 = w%env%ispc
-        call c%list_near_atoms(c%atcel(iat)%x,icrd_crys,.true.,ls%nat,ls%eid,ls%dist,ls%lvec,ls%ishell,&
-           up2d=up2d,up2sh=up2sh,ispc0=ispc0,nozero=.true.)
 
-        ! within a shell (the same distance), by non-equivalent atom
-        allocate(iperm(ls%nat))
-        do i = 1, ls%nat
-           iperm(i) = i
-        end do
-        do i = 2, ls%nat
-           k = iperm(i)
-           j = i - 1
-           do while (j >= 1)
-              if (ls%ishell(iperm(j)) /= ls%ishell(k) .or.&
-                 c%atcel(ls%eid(iperm(j)))%idx <= c%atcel(ls%eid(k))%idx) exit
-              iperm(j+1) = iperm(j)
-              j = j - 1
-           end do
-           iperm(j+1) = k
-        end do
-        ls%eid = ls%eid(iperm)
-        ls%dist = ls%dist(iperm)
-        ls%lvec = ls%lvec(:,iperm)
-        ls%ishell = ls%ishell(iperm)
+        ! the neighbour list
+        newlist = .not.(ls%keysys == w%env%sys%uid .and. ls%keyiat == iat .and.&
+           ls%keymode == w%env%upmode .and. ls%keyspc == w%env%ispc .and. ls%keytime == time)
+        if (.not.newlist) then
+           if (w%env%upmode == 0) newlist = (ls%keydist /= w%env%updist)
+           if (w%env%upmode == 1) newlist = (ls%keyshell /= w%env%upshell)
+        end if
+        if (newlist) then
+           ls%keysys = w%env%sys%uid
+           ls%keyiat = iat
+           ls%keymode = w%env%upmode
+           ls%keyspc = w%env%ispc
+           ls%keytime = time
+           ls%keydist = w%env%updist
+           ls%keyshell = w%env%upshell
 
-        ! the groups: runs in the same shell and non-equivalent atom
-        if (allocated(ls%igroup)) deallocate(ls%igroup)
-        allocate(ls%igroup(ls%nat+1))
-        ls%ngroup = 0
-        do i = 1, ls%nat
-           if (i > 1) then
-              if (ls%ishell(i) == ls%ishell(i-1) .and.&
-                 c%atcel(ls%eid(i))%idx == c%atcel(ls%eid(i-1))%idx) cycle
+           ! the list, around the atom in the main cell (an unallocated
+           ! criterion is an absent argument)
+           if (w%env%upmode == 0) then
+              up2d = w%env%updist / bohrtoa
+           else
+              up2sh = w%env%upshell
            end if
-           ls%ngroup = ls%ngroup + 1
-           ls%igroup(ls%ngroup) = i
-        end do
-        ls%igroup(ls%ngroup+1) = ls%nat + 1
+           if (w%env%ispc > 0) ispc0 = w%env%ispc
+           call c%list_near_atoms(c%atcel(iat)%x,icrd_crys,.true.,ls%nat,ls%eid,ls%dist,ls%lvec,ls%ishell,&
+              up2d=up2d,up2sh=up2sh,ispc0=ispc0,nozero=.true.)
 
-        ! the ECoN weight of each neighbour
-        if (allocated(ls%wecon)) deallocate(ls%wecon)
-        allocate(ls%wecon(ls%nat))
-        ls%wecon = 0d0
-        if (ls%nd0 > 0d0) ls%wecon = exp(1d0 - (ls%dist/ls%nd0)**6)
-
-        ! coordinated: bonded to the atom
-        if (allocated(ls%iscoord)) deallocate(ls%iscoord)
-        allocate(ls%iscoord(ls%nat))
-        ls%iscoord = .false.
-        if (allocated(c%nstar)) then
+           ! within a shell (the same distance), by non-equivalent atom
+           allocate(iperm(ls%nat))
            do i = 1, ls%nat
-              do j = 1, c%nstar(iat)%ncon
-                 if (c%nstar(iat)%idcon(j) == ls%eid(i) .and.&
-                    all(c%nstar(iat)%lcon(:,j) == ls%lvec(:,i))) then
+              iperm(i) = i
+           end do
+           do i = 2, ls%nat
+              k = iperm(i)
+              j = i - 1
+              do while (j >= 1)
+                 if (ls%ishell(iperm(j)) /= ls%ishell(k) .or.&
+                    c%atcel(ls%eid(iperm(j)))%idx <= c%atcel(ls%eid(k))%idx) exit
+                 iperm(j+1) = iperm(j)
+                 j = j - 1
+              end do
+              iperm(j+1) = k
+           end do
+           ls%eid = ls%eid(iperm)
+           ls%dist = ls%dist(iperm)
+           ls%lvec = ls%lvec(:,iperm)
+           ls%ishell = ls%ishell(iperm)
+
+           ! the groups: runs in the same shell and non-equivalent atom
+           if (allocated(ls%igroup)) deallocate(ls%igroup)
+           allocate(ls%igroup(ls%nat+1))
+           ls%ngroup = 0
+           do i = 1, ls%nat
+              if (i > 1) then
+                 if (ls%ishell(i) == ls%ishell(i-1) .and.&
+                    c%atcel(ls%eid(i))%idx == c%atcel(ls%eid(i-1))%idx) cycle
+              end if
+              ls%ngroup = ls%ngroup + 1
+              ls%igroup(ls%ngroup) = i
+           end do
+           ls%igroup(ls%ngroup+1) = ls%nat + 1
+
+           ! the ECoN weight of each neighbour
+           if (allocated(ls%wecon)) deallocate(ls%wecon)
+           allocate(ls%wecon(ls%nat))
+           ls%wecon = 0d0
+           if (ls%nd(0) > 0d0) ls%wecon = econ_weight(ls%dist,ls%nd(0))
+        end if
+
+        ! coordinated: in the coordination set
+        if (newcoord .or. newlist) then
+           if (allocated(ls%iscoord)) deallocate(ls%iscoord)
+           allocate(ls%iscoord(ls%nat))
+           ls%iscoord = .false.
+           do i = 1, ls%nat
+              do j = 1, ls%ncoord
+                 if (ls%cid(j) == ls%eid(i) .and. all(ls%clvec(:,j) == ls%lvec(:,i))) then
                     ls%iscoord(i) = .true.
                     exit
                  end if
@@ -349,6 +411,167 @@ contains
       end associate
 
     end subroutine update_list
+
+    !> The coordination set of cell atom iat by the rule of the form,
+    !> sorted by distance, and its coordination polyhedron. Bonded:
+    !> the bonds of the atom in the system; covalent radii: the atoms
+    !> closer than the bond factor times the sum of the covalent radii
+    !> (those of the system, used for its bonds); ECoN weight: the
+    !> atoms with a weight of at least econ_wmin.
+    subroutine coordination_set(iat)
+      use param, only: icrd_crys
+      use crystalmod, only: polyhedron_from_points
+      use tools, only: mergesort
+      integer, intent(in) :: iat
+      integer :: i, n
+      integer, allocatable :: iord(:)
+      real*8, allocatable :: up2dsp(:,:), xv(:,:)
+      real*8 :: rcov
+
+      associate(c => sys(isys)%c, ls => w%env%ls)
+        if (w%env%cnrule == 0) then
+           ! bonded
+           n = 0
+           if (allocated(c%nstar)) n = c%nstar(iat)%ncon
+           if (allocated(ls%cid)) deallocate(ls%cid,ls%clvec,ls%cdist)
+           allocate(ls%cid(n),ls%clvec(3,n),ls%cdist(n),iord(n))
+           do i = 1, n
+              ls%cid(i) = c%nstar(iat)%idcon(i)
+              ls%clvec(:,i) = c%nstar(iat)%lcon(:,i)
+              ls%cdist(i) = norm2(c%x2c(c%atcel(ls%cid(i))%x + ls%clvec(:,i) - c%atcel(iat)%x))
+              iord(i) = i
+           end do
+           if (n > 1) then
+              call mergesort(ls%cdist,iord,1,n)
+              ls%cid = ls%cid(iord)
+              ls%clvec = ls%clvec(:,iord)
+              ls%cdist = ls%cdist(iord)
+           end if
+           ls%ncoord = n
+        elseif (w%env%cnrule == 1) then
+           ! covalent radii
+           allocate(up2dsp(c%nspc,2))
+           up2dsp(:,1) = 0d0
+           rcov = sysc(isys)%atmcov(c%spc(c%atcel(iat)%is)%z)
+           do i = 1, c%nspc
+              up2dsp(i,2) = sysc(isys)%bondfactor * (rcov + sysc(isys)%atmcov(c%spc(i)%z))
+           end do
+           call c%list_near_atoms(c%atcel(iat)%x,icrd_crys,.true.,ls%ncoord,ls%cid,ls%cdist,ls%clvec,&
+              up2dsp=up2dsp,nozero=.true.)
+        else
+           ! ECoN weight: from the ECoN stage
+           ls%cid = ls%ecid
+           ls%clvec = ls%eclvec
+           ls%cdist = ls%ecdist
+           ls%ncoord = size(ls%cid)
+        end if
+
+        ! how many of each species
+        if (allocated(ls%cn)) deallocate(ls%cn)
+        allocate(ls%cn(0:c%nspc))
+        ls%cn = 0
+        ls%cn(0) = ls%ncoord
+        do i = 1, ls%ncoord
+           ls%cn(c%atcel(ls%cid(i))%is) = ls%cn(c%atcel(ls%cid(i))%is) + 1
+        end do
+
+        ! the coordination polyhedron
+        allocate(xv(3,ls%ncoord))
+        do i = 1, ls%ncoord
+           xv(:,i) = c%x2c(c%atcel(ls%cid(i))%x + ls%clvec(:,i))
+        end do
+        call polyhedron_from_points(c%x2c(c%atcel(iat)%x),xv,ls%pnf,ls%pvol,ls%pier,ls%pdev)
+      end associate
+
+    end subroutine coordination_set
+
+    !> The coordination section (the section is open): the rule, the
+    !> table of the coordination numbers and ECoN per species, and the
+    !> coordination polyhedron.
+    subroutine draw_coord_section()
+      use crystalmod, only: econ_wmin
+      integer :: j
+      integer(c_int) :: tflagsc
+      type(ImVec2) :: szc
+      character(len=:,kind=c_char), allocatable, target :: strc
+
+      call iw_text("Coordinated",alignframe=.true.)
+      call iw_combo_simple("##environcnrule","Bonded" // c_null_char // "Covalent radii" //&
+         c_null_char // "ECoN weight" // c_null_char,w%env%cnrule,sameline=.true.,&
+         tooltips="The neighbors bonded to the atom (as the bonds of the system)" // c_null_char //&
+         "The neighbors closer than the bond factor times the sum of the covalent radii&
+         & (those of the system, used for its bonds)" // c_null_char //&
+         "The neighbors whose weight in the ECoN of the atom is at least " //&
+         string(econ_wmin,'f',decimal=1) // c_null_char,&
+         ttshown=ttshown)
+      call iw_tooltip("Which neighbors are coordinated to the atom: they count in the coordination&
+         & numbers, are marked in blue, and are the vertices of the polyhedron",ttshown)
+      if (.not.allocated(w%env%ls%econ)) return
+
+      ! the table: all species, then each species in the environment
+      associate(c => sys(isys)%c, ls => w%env%ls)
+        tflagsc = ImGuiTableFlags_None
+        tflagsc = ior(tflagsc,ImGuiTableFlags_NoSavedSettings)
+        tflagsc = ior(tflagsc,ImGuiTableFlags_RowBg)
+        tflagsc = ior(tflagsc,ImGuiTableFlags_Borders)
+        tflagsc = ior(tflagsc,ImGuiTableFlags_SizingFixedFit)
+        strc = "##environcoordtable" // c_null_char
+        szc%x = 0._c_float
+        szc%y = 0._c_float
+        if (igBeginTable(c_loc(strc),6,tflagsc,szc,0._c_float)) then
+           call iw_table_column("Species",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+           call iw_table_column("CN",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+           call iw_table_column("ECoN",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+           call iw_table_column("ECoN (non-iter.)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+           call iw_table_column("Nearest (Å)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+           call iw_table_column("Mean (Å)",id=5_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+           call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown)
+           call w%table_write_begin(itable_coord,iwrite)
+           do j = 0, c%nspc
+              if (j > 0 .and. ls%dmin(j) <= 0d0) cycle
+              call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+              if (igTableSetColumnIndex(0_c_int)) then
+                 if (j == 0) then
+                    call iw_text("All")
+                 else
+                    call iw_text(trim(c%spc(j)%name))
+                 end if
+              end if
+              if (igTableSetColumnIndex(1_c_int)) call iw_cell_right(string(ls%cn(j)))
+              if (igTableSetColumnIndex(2_c_int)) call iw_cell_right(string(ls%econ(j),'f',decimal=4))
+              if (igTableSetColumnIndex(3_c_int)) call iw_cell_right(string(ls%econ1(j),'f',decimal=4))
+              if (igTableSetColumnIndex(4_c_int)) call iw_cell_right(string(ls%dmin(j)*bohrtoa,'f',decimal=5))
+              if (igTableSetColumnIndex(5_c_int)) call iw_cell_right(string(ls%nd(j)*bohrtoa,'f',decimal=5))
+           end do
+           call w%table_write_end(itable_coord,table_title("Coordination of atom " //&
+              string(w%env%idx(1)),isys))
+           call igEndTable()
+        end if
+
+        ! the polyhedron
+        call iw_text("Polyhedron")
+        if (ls%ncoord <= 3) then
+           call iw_text("none (" // string(ls%ncoord) // " vertices)",sameline=.true.)
+           call iw_tooltip("A polyhedron needs at least four coordinated neighbors",ttshown)
+        elseif (ls%pier /= 0) then
+           call iw_text("the triangulation failed",danger=.true.,sameline=.true.)
+        else
+           call iw_text(string(ls%ncoord) // " vertices, " // string(ls%pnf) // " faces, " //&
+              string(ls%pvol*bohrtoa**3,'f',decimal=4) // " Å³",sameline=.true.)
+           call iw_tooltip("Coordination polyhedron: the convex hull of the coordinated neighbors,&
+              & and its volume",ttshown)
+           call iw_text("Vertices at")
+           call iw_text(string(ls%cdist(1)*bohrtoa,'f',decimal=4) // " to " //&
+              string(ls%cdist(ls%ncoord)*bohrtoa,'f',decimal=4) // " Å",sameline=.true.)
+           call iw_tooltip("Shortest and longest distance from the atom to the vertices",ttshown)
+           call iw_text("Planarity (Å)",gap=.true.)
+           call iw_text(string(ls%pdev*bohrtoa,'f',decimal=4),sameline=.true.)
+           call iw_tooltip("Largest distance from a vertex to the plane that best fits all of&
+              & them: zero if they are coplanar",ttshown)
+        end if
+      end associate
+
+    end subroutine draw_coord_section
 
     !> The table of neighbours (the section is open): one row per
     !> neighbour, or one per group (shell and atom) if grouped. Sets
@@ -507,7 +730,6 @@ contains
       use representations, only: rep_shape, shapekind_sphere, shapekind_cylinder
       type(rep_shape), allocatable :: shp(:)
       integer :: i, n, i1, i2
-      logical :: inhover
       real*8 :: x0(3)
 
       if (.not.associated(win(iview)%sc)) return
@@ -520,27 +742,29 @@ contains
       i2 = 0
       if (ihover > 0) call row_range(ihover,i1,i2)
 
-      allocate(shp(1 + 2 * w%env%ls%nat))
+      allocate(shp(1 + w%env%ls%ncoord + 2 * max(i2-i1+1,0)))
       n = 1
       x0 = atpos(w%env%idx(1),(/0,0,0/))
       shp(1) = rep_shape(kind=shapekind_sphere,x1=x0,rad=halo_rad(w%env%idx(1)),&
          rgb=center_rgb,alpha=halo_alpha,rim=.true.)
-      do i = 1, w%env%ls%nat
-         inhover = (i >= i1 .and. i <= i2)
-         if (.not.inhover .and. .not.w%env%ls%iscoord(i)) cycle
+
+      ! the coordinated neighbours
+      do i = 1, w%env%ls%ncoord
          n = n + 1
-         if (inhover) then
-            shp(n) = rep_shape(kind=shapekind_sphere,x1=atpos(w%env%ls%eid(i),w%env%ls%lvec(:,i)),&
-               rad=halo_rad(w%env%ls%eid(i)),rgb=hover_rgb,alpha=hover_alpha,rim=.true.)
-            ! and a line from the centre (it shows past the bonds)
-            n = n + 1
-            shp(n) = rep_shape(kind=shapekind_cylinder,x1=x0,&
-               v=reshape((/atpos(w%env%ls%eid(i),w%env%ls%lvec(:,i))-x0,0d0,0d0,0d0,0d0,0d0,0d0/),(/3,3/)),&
-               rad=0.05d0,rgb=hover_rgb)
-         else
-            shp(n) = rep_shape(kind=shapekind_sphere,x1=atpos(w%env%ls%eid(i),w%env%ls%lvec(:,i)),&
-               rad=halo_rad(w%env%ls%eid(i)),rgb=coord_rgb,alpha=halo_alpha,rim=.true.)
-         end if
+         shp(n) = rep_shape(kind=shapekind_sphere,x1=atpos(w%env%ls%cid(i),w%env%ls%clvec(:,i)),&
+            rad=halo_rad(w%env%ls%cid(i)),rgb=coord_rgb,alpha=halo_alpha,rim=.true.)
+      end do
+
+      ! the neighbours of the hovered row, with a line from the centre
+      ! (it shows past the bonds)
+      do i = i1, i2
+         n = n + 1
+         shp(n) = rep_shape(kind=shapekind_sphere,x1=atpos(w%env%ls%eid(i),w%env%ls%lvec(:,i)),&
+            rad=halo_rad(w%env%ls%eid(i)),rgb=hover_rgb,alpha=hover_alpha,rim=.true.)
+         n = n + 1
+         shp(n) = rep_shape(kind=shapekind_cylinder,x1=x0,&
+            v=reshape((/atpos(w%env%ls%eid(i),w%env%ls%lvec(:,i))-x0,0d0,0d0,0d0,0d0,0d0,0d0/),(/3,3/)),&
+            rad=0.05d0,rgb=hover_rgb)
       end do
       call win(iview)%sc%show_transient_shapes(w%uid,1,shp(1:n))
 

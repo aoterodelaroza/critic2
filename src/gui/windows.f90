@@ -1097,12 +1097,21 @@ module windows
   !> cell (their lattice vectors do not include the image's), sorted
   !> by distance and, within a shell, by non-equivalent atom: cell
   !> atom, lattice vector, shell, distance (bohr), ECoN weight, and
-  !> whether it is coordinated to the centre (bonded to it). The
+  !> whether it is coordinated to the centre (in the coordination
+  !> set). The
   !> groups (ngroup) are the runs of neighbours in the same shell and
   !> non-equivalent atom: group i is igroup(i) to igroup(i+1)-1. Also
-  !> cached: the mean weighted distance of the ECoN of the centre
-  !> (nd0, all species; it does not depend on the cutoff) and the
-  !> entries of the atom combo.
+  !> cached, each with its own key: the ECoN of the centre (per
+  !> species, 0 = all: iterative and non-iterative ECoN, mean weighted
+  !> distances, and the nearest distance; bohr; and the neighbours
+  !> with a weight of at least econ_wmin: cell atom, lattice vector,
+  !> distance); the coordination set of the centre by the rule of the
+  !> form (ncoord atoms: cell atom, lattice vector, distance, sorted
+  !> by distance; cn = how many of each species, 0 = all), with the
+  !> coordination polyhedron (faces, volume in bohr^3, planarity, and
+  !> qhull error); and the entries of the atom combo. mdstale: the
+  !> values were kept through a dynamics run (calculate them again
+  !> when it ends).
   type environ_list
      integer :: nat = 0
      integer, allocatable :: eid(:)
@@ -1120,10 +1129,33 @@ module windows
      integer :: keyspc = -1
      real*8 :: keydist = -1d0
      real*8 :: keytime = -1d0
-     real*8 :: nd0 = 0d0
+     real*8, allocatable :: econ(:)
+     real*8, allocatable :: econ1(:)
+     real*8, allocatable :: nd(:)
+     real*8, allocatable :: nd1(:)
+     real*8, allocatable :: dmin(:)
+     integer, allocatable :: ecid(:)
+     integer, allocatable :: eclvec(:,:)
+     real*8, allocatable :: ecdist(:)
      integer*8 :: ndkeysys = 0
      integer :: ndkeyiat = 0
      real*8 :: ndkeytime = -1d0
+     integer :: ncoord = 0
+     integer, allocatable :: cid(:)
+     integer, allocatable :: clvec(:,:)
+     real*8, allocatable :: cdist(:)
+     integer, allocatable :: cn(:)
+     integer :: pnf = 0
+     real*8 :: pvol = 0d0
+     real*8 :: pdev = 0d0
+     integer :: pier = 0
+     integer*8 :: ckeysys = 0
+     integer :: ckeyiat = 0
+     integer :: ckeyrule = -1
+     real*8 :: ckeytime = -1d0
+     real*8 :: ckeybf = -1d0
+     real*8, allocatable :: ckeyrcov(:)
+     logical :: mdstale = .false.
      character(len=:), allocatable :: atomstr
      integer*8 :: atomkeysys = 0
      real*8 :: atomkeytime = -1d0
@@ -1144,7 +1176,8 @@ module windows
      integer :: ispc = 0 ! only the neighbours of this species (0 = all)
      logical :: groupshells = .false. ! one row per group (shell and atom) in the table
      logical :: showview = .true. ! mark the centre and its neighbours in the view
-     type(iw_section) :: seccenter, secneigh ! the sections of the window
+     integer :: cnrule = 0 ! coordinated: 0 = bonded, 1 = covalent radii, 2 = ECoN weight
+     type(iw_section) :: seccenter, seccoord, secneigh ! the sections of the window
      ! pending pick in the view
      logical :: picking = .false.
      integer :: pickview = 0

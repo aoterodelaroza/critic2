@@ -150,6 +150,11 @@ module crystalmod
   public :: symelem_type_mask
   public :: clip_point_box, clip_line_box, clip_plane_box
   public :: polyhedron_from_points
+  public :: econ_weight
+
+  ! ECoN: atoms with at least this weight count in the integer
+  ! coordination number
+  real*8, parameter, public :: econ_wmin = 0.5d0
 
   ! Defaults for powder X-ray diffraction routines
   real*8, parameter, public :: xrpd_lambda_def = 1.5406d0
@@ -814,7 +819,7 @@ module crystalmod
        integer, intent(in), optional :: ispc0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
-     module subroutine econ_atom(c,x0,econ,econ1,nd,nd1,eid,dist)
+     module subroutine econ_atom(c,x0,econ,econ1,nd,nd1,eid,dist,lvec,dmin)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x0(3)
        real*8, intent(out) :: econ(0:c%nspc)
@@ -823,6 +828,8 @@ module crystalmod
        real*8, intent(out) :: nd1(0:c%nspc)
        integer, allocatable, intent(inout), optional :: eid(:)
        real*8, allocatable, intent(inout), optional :: dist(:)
+       integer, allocatable, intent(inout), optional :: lvec(:,:)
+       real*8, intent(out), optional :: dmin(0:c%nspc)
      end subroutine econ_atom
      module function get_rnn2(c,ineq)
        class(crystal), intent(inout) :: c
@@ -1045,6 +1052,11 @@ module crystalmod
        real*8, intent(out), optional :: dev
        logical, intent(in), optional :: ispc(:)
      end subroutine coord_polyhedron
+     elemental module function econ_weight(d,d0) result(w)
+       real*8, intent(in) :: d
+       real*8, intent(in) :: d0
+       real*8 :: w
+     end function econ_weight
      module subroutine polyhedron_from_points(xc,xv,nf,vol,ier,dev)
        real*8, intent(in) :: xc(3)
        real*8, intent(in) :: xv(:,:)

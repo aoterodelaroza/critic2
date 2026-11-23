@@ -610,9 +610,11 @@ contains
   !> one at x0 gets zeros (everything is zero in a single-atom
   !> molecule). A species with no atoms in the structure gets zeros. If eid and dist are present, they return the
   !> environment used (complete-list indices and distances in bohr,
-  !> sorted by distance), so the caller can apply its own cut to the
-  !> weights exp(1-(dist/nd(0))**6).
-  module subroutine econ_atom(c,x0,econ,econ1,nd,nd1,eid,dist)
+  !> sorted by distance; and lattice vectors, in lvec), so the caller
+  !> can apply its own cut to the weights econ_weight(dist,nd(0)). If
+  !> dmin is present, it returns the shortest distance to each species
+  !> (0 = any; zero if there is none).
+  module subroutine econ_atom(c,x0,econ,econ1,nd,nd1,eid,dist,lvec,dmin)
     use param, only: icrd_crys, bohrtoa
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x0(3)
@@ -622,13 +624,15 @@ contains
     real*8, intent(out) :: nd1(0:c%nspc)
     integer, allocatable, intent(inout), optional :: eid(:)
     real*8, allocatable, intent(inout), optional :: dist(:)
+    integer, allocatable, intent(inout), optional :: lvec(:,:)
+    real*8, intent(out), optional :: dmin(0:c%nspc)
 
     real*8, parameter :: up2dmax = 15d0 / bohrtoa
     real*8, parameter :: wthresh = 1d-10
     real*8, parameter :: epsfac = (1d0 + 14d0 * log(10d0))**(1d0/6d0)
 
     integer :: i, j, k, n, nat, ipass
-    integer, allocatable :: eid_(:)
+    integer, allocatable :: eid_(:), lvec_(:,:)
     real*8, allocatable :: dist_(:)
     real*8 :: mindist(0:c%nspc), up2d0, up2d, dist0, wi, numer, ec, ecprev
 
@@ -638,6 +642,11 @@ contains
     nd1 = 0d0
     if (present(eid)) eid = [integer ::]
     if (present(dist)) dist = [real(kind(1d0)) ::]
+    if (present(lvec)) then
+       if (allocated(lvec)) deallocate(lvec)
+       allocate(lvec(3,0))
+    end if
+    if (present(dmin)) dmin = 0d0
 
     ! starting cutoff: in a molecule, the farthest atom
     if (c%ismolecule) then
@@ -657,7 +666,7 @@ contains
     env: do
        ipass = ipass + 1
        up2d = up2d0 * 1.5d0**ipass
-       call c%list_near_atoms(x0,icrd_crys,.true.,nat,eid_,dist_,up2d=up2d,nozero=.true.)
+       call c%list_near_atoms(x0,icrd_crys,.true.,nat,eid_,dist_,lvec_,up2d=up2d,nozero=.true.)
        if (nat == 0) then
           if (c%ismolecule) return
           cycle env
@@ -690,7 +699,7 @@ contains
              ec = 0d0
              do k = 1, nat
                 if (j /= 0 .and. c%atcel(eid_(k))%is /= j) cycle
-                wi = exp(1 - (dist_(k)/dist0)**6)
+                wi = econ_weight(dist_(k),dist0)
                 numer = numer + dist_(k) * wi
                 ec = ec + wi
              end do
@@ -713,8 +722,22 @@ contains
 
     if (present(eid)) eid = eid_(1:nat)
     if (present(dist)) dist = dist_(1:nat)
+    if (present(lvec)) lvec = lvec_(:,1:nat)
+    if (present(dmin)) dmin = max(mindist,0d0)
 
   end subroutine econ_atom
+
+  !> The weight of an atom at distance d in the effective
+  !> coordination number (ECoN) with mean weighted distance d0
+  !> (Hoppe): exp(1-(d/d0)^6).
+  elemental module function econ_weight(d,d0) result(w)
+    real*8, intent(in) :: d
+    real*8, intent(in) :: d0
+    real*8 :: w
+
+    w = exp(1d0 - (d/d0)**6)
+
+  end function econ_weight
 
   !> Returns half of the nearest neighbor distance for non-equivalent
   !> atom ineq.

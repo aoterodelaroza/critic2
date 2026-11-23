@@ -5870,6 +5870,7 @@ contains
   module subroutine struct_econ(s)
     use citations, only: cite_print, cite_econ_2016, cite_econ_1979
     use systemmod, only: system
+    use crystalmod, only: econ_weight, econ_wmin
     use global, only: iunitname0, dunit0, iunit
     use tools_io, only: uout, string, ioj_left, ioj_right, ferror, faterr
     use types, only: realloc
@@ -5898,8 +5899,8 @@ contains
        call s%c%econ_atom(s%c%at(i)%x,econij(:,i),econij_noit(:,i),ndij(:,i),ndij_noit(:,i),&
           eid,dist)
 
-       ! integer coordination number: the atoms with a weight of at least 0.5
-       icn = pack(eid,exp(1 - (dist/ndij(0,i))**6) >= 0.5d0)
+       ! integer coordination number: the atoms with a weight of at least econ_wmin
+       icn = pack(eid,econ_weight(dist,ndij(0,i)) >= econ_wmin)
        ncoord(i) = size(icn)
        if (ncoord(i) > size(idxcoord,1)) call realloc(idxcoord,2*ncoord(i),s%c%nneq)
        idxcoord(1:ncoord(i),i) = s%c%atcel(icn)%idx
