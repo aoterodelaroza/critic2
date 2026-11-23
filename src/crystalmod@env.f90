@@ -184,7 +184,11 @@ contains
     at_lvec = 0
 
     ! run the search
-    if (present(up2sh).or.present(up2n)) then
+    if ((present(up2sh).or.present(up2n)) .and. filter_empty()) then
+       ! no atom passes the filters: the list is empty (a search for
+       ! a number of shells or atoms would never end)
+       up2n_ = 0
+    elseif (present(up2sh).or.present(up2n)) then
        ! search a number of shells or a number of atoms (up2n, up2sh) !!!
 
        up2n_ = 0
@@ -203,6 +207,7 @@ contains
           nat = c%ncel
           nsafe = nat
           dmax = huge(1d0)
+          rcur = huge(1d0)
           call realloc(at_id,nat)
           call realloc(at_dist,nat)
           call realloc(at_lvec,3,nat)
@@ -268,11 +273,7 @@ contains
                             end if
 
                             ! check if we should add the atom to the list
-                            ok = .true.
-                            if (nozero_ .and. dd < eps) then
-                               ok = .false.
-                               if (c%ismolecule) up2n_ = min(up2n,c%ncel-1)
-                            end if
+                            ok = .not.(nozero_ .and. dd < eps)
                             if (ok) then
                                dsqrt = sqrt(dd)
                                call add_atom_to_output_list()
@@ -289,8 +290,10 @@ contains
              end do
 
              if (present(up2sh)) then
-                ! exit if we have enough shells
-                nsafe = count(rshel(1:nshel) < rcur)
+                ! exit if we have enough shells (complete: clear of
+                ! the boundary of the region, where some of its atoms
+                ! may not have been found yet)
+                nsafe = count(rshel(1:nshel) < rcur - shell_eps)
                 if (nsafe >= up2sh) exit
              else
                 ! check if we have enough atoms
@@ -298,10 +301,17 @@ contains
                 if (nsafe >= up2n_) exit
              end if
 
-             ! exit if we have examined all atoms in the molecule
-             if (c%ismolecule .and. nsafe == c%ncel) then
-                up2n_ = min(up2n_,nat)
-                exit
+             ! exit if we have examined all atoms in the molecule: all
+             ! of them are within rcur (up2n), or the region covers all
+             ! the blocks (with filters or nozero, fewer than ncel
+             ! atoms qualify); keep every atom found
+             if (c%ismolecule) then
+                if ((present(up2n) .and. nsafe == c%ncel) .or.&
+                   (all(i0 <= 0) .and. all(i1 >= c%nblock-1))) then
+                   up2n_ = min(up2n_,nat)
+                   rcur = huge(1d0)
+                   exit
+                end if
              end if
 
              ! next shell
@@ -334,7 +344,9 @@ contains
              deallocate(iord)
           end if
 
-          ! filter out the unneeded atoms
+          ! filter out the unneeded atoms: beyond the region where the
+          ! list is complete, or beyond the last shell
+          if (present(up2sh)) rcur = dmax
           nsafe = count(at_dist(1:nat) <= rcur)
           allocate(iaux(nsafe))
           nsafe = 0
@@ -466,6 +478,28 @@ contains
     if (present(lvec)) lvec = at_lvec(:,1:nat)
 
   contains
+    ! whether no atom in the cell passes the filters (nid0, id0, iz0,
+    ! ispc0)
+    function filter_empty() result(empty)
+      logical :: empty
+      integer :: i
+      logical :: pass
+
+      empty = .true.
+      do i = 1, c%ncel
+         pass = .true.
+         if (present(nid0)) pass = pass .and. (c%atcel(i)%idx == nid0)
+         if (present(ispc0)) pass = pass .and. (c%atcel(i)%is == ispc0)
+         if (present(id0)) pass = pass .and. (i == id0)
+         if (present(iz0)) pass = pass .and. (c%spc(c%atcel(i)%is)%z == iz0)
+         if (pass) then
+            empty = .false.
+            return
+         end if
+      end do
+
+    end function filter_empty
+
     ! add current atom (idx) to the output list
     subroutine add_atom_to_output_list()
       nat = nat + 1
@@ -574,7 +608,7 @@ contains
   !> the weights of the atoms left out are negligible; in a molecule it
   !> is the whole molecule, and a species with no atoms other than the
   !> one at x0 gets zeros (everything is zero in a single-atom
-  !> molecule). If eid and dist are present, they return the
+  !> molecule). A species with no atoms in the structure gets zeros. If eid and dist are present, they return the
   !> environment used (complete-list indices and distances in bohr,
   !> sorted by distance), so the caller can apply its own cut to the
   !> weights exp(1-(dist/nd(0))**6).
@@ -640,7 +674,9 @@ contains
        ! self-consistent mean weighted distance for each species
        do j = 0, c%nspc
           if (mindist(j) < 0d0) then
-             if (c%ismolecule) cycle
+             ! a species with no atoms in the structure gets zeros;
+             ! in a crystal, one beyond the cutoff grows it
+             if (c%ismolecule .or. .not.any(c%atcel(1:c%ncel)%is == j)) cycle
              cycle env
           end if
           ecprev = -1d0
