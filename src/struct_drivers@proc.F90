@@ -2811,7 +2811,7 @@ contains
   !> Calculate the coordination numbers of all atoms.
   module subroutine struct_coord(s,line)
     use systemmod, only: system
-    use global, only: bondfactor, eval_next
+    use global, only: bondfactor, eval_next, iunit, dunit0, iunitname0
     use tools_io, only: ferror, faterr, zatguess, lgetword, equal, isinteger, ioj_center,&
        ioj_left, ioj_right, uout, string
     use param, only: atmcov, icrd_crys
@@ -2822,7 +2822,7 @@ contains
     integer :: lp, i, j, k
     real*8, allocatable :: rad(:)
     real*8 :: fac, dd
-    logical :: ok
+    logical :: ok, dodist
     integer :: nat
     integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:), coord3(:,:,:), coord3sp(:,:,:)
     real*8, allocatable :: up2dsp(:,:)
@@ -2838,20 +2838,20 @@ contains
     end do
 
     ! parse the input
+    dodist = .false.
     lp = 1
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,"dist")) then
           ok = eval_next(dd,line,lp)
-          if (.not.ok) then
+          if (.not.ok .or. dd <= 0d0) then
              call ferror('struct_coord','Wrong DIST keyword',faterr,line,syntax=.true.)
              return
           end if
-          fac = 1d0
-          rad = 0.5d0 * dd
+          dodist = .true.
        elseif (equal(word,"fac")) then
           ok = eval_next(fac,line,lp)
-          if (.not.ok) then
+          if (.not.ok .or. fac <= 0d0) then
              call ferror('struct_coord','Wrong FAC keyword',faterr,line,syntax=.true.)
              return
           end if
@@ -2863,18 +2863,25 @@ contains
        end if
     end do
 
+    ! with DIST, all atoms within dd are coordinated, whatever FAC
+    if (dodist) then
+       fac = 1d0
+       rad = 0.5d0 * dd / dunit0(iunit)
+    end if
+
     ! some output
     write (uout,'("* COORD: calculation of coordination numbers")')
     write (uout,'("+ Atomic radii for all species")')
     write (uout,'("# Atoms i and j are coordinated if distance(i,j) <= fac*(radi+radj), fac = ",A)') &
        string(fac,'f',length=5,decimal=2,justify=ioj_left)
+    write (uout,'("# Radii in ",A)') iunitname0(iunit)
     write (uout,'("# ",99(A," "))') string("spc",3,ioj_center), &
        string("Z",3,ioj_center), string("name",7,ioj_center),&
        string("rad",length=5,justify=ioj_center)
     do i = 1, s%c%nspc
        write (uout,'("  ",99(A," "))') string(i,3,ioj_center), &
           string(s%c%spc(i)%z,3,ioj_center), string(s%c%spc(i)%name,7,ioj_center),&
-          string(rad(i),'f',length=5,decimal=2,justify=ioj_right)
+          string(rad(i)*dunit0(iunit),'f',length=5,decimal=2,justify=ioj_right)
     end do
     write (uout,*)
 
@@ -2883,7 +2890,7 @@ contains
     up2dsp = 0d0
     coord2 = 0
     do i = 1, s%c%nneq
-       up2dsp(:,2) = rad + rad(s%c%at(i)%is)
+       up2dsp(:,2) = fac * (rad + rad(s%c%at(i)%is))
        call s%c%list_near_atoms(s%c%at(i)%x,icrd_crys,.false.,nat,eid,up2dsp=up2dsp,nozero=.true.)
        do j = 1, nat
           coord2(i,s%c%atcel(eid(j))%is) = coord2(i,s%c%atcel(eid(j))%is) + 1

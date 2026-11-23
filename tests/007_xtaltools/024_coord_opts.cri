@@ -4,3 +4,8 @@
 crystal library urea
 coord dist 2.0
 coord fac 1.99
+coord dist 2.0 fac 1.5
+coord fac 1.5 dist 2.0
+
+molecule library water
+coord dist 1.2
