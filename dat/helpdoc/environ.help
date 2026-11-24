@@ -5,12 +5,12 @@ cite: econ_1979 econ_2016
 
 Shows the environment of one atom of the system in the "System" line: which neighbors are
 coordinated to it, its coordination numbers and effective coordination numbers (ECoN) per
-species, its coordination polyhedron, and the list of its neighbors with their distances and
-ECoN weights. It brings together, for one atom at a time, what the ENVIRON, ECON, COORD and
-POLYHEDRA keywords calculate for all of them. The atom and its coordinated neighbors are
-marked in the view while the window is open, and everything is recalculated whenever the atom,
-the options, the bonds or the geometry change. During a dynamics run the window keeps the last
-values, and updates when the run stops.
+species, its coordination polyhedron, its radial distribution, and the list of its neighbors
+with their distances and ECoN weights. It brings together, for one atom at a time, what the
+ENVIRON, ECON, COORD, POLYHEDRA and RDF keywords calculate for all of them. The atom and its
+coordinated neighbors are marked in the view while the window is open, and everything is
+recalculated whenever the atom, the options, the bonds or the geometry change. During a
+dynamics run the window keeps the last values, and updates when the run stops.
 
 # Options
 
@@ -48,6 +48,19 @@ mean weighted distance (Hoppe's formula, iterated as in ECON).
 its numbers of vertices and faces, its volume, the shortest and longest distance from the atom
 to the vertices, and its planarity, the largest distance from a vertex to the plane that best
 fits all of them (zero for a flat polyhedron). A polyhedron needs at least four vertices.
+
+# Radial distribution
+
+The plot shows the neighbors of the atom as a function of the distance, each broadened into a
+gaussian of unit area whose standard deviation is "Width (Å)", so the area under the curve
+between two distances is the number of neighbors between them ("Neighbors per Å", left axis).
+The staircase is the running coordination number, the number of neighbors closer than each
+distance (right axis). Both count the species chosen in "Species" of the Neighbors section,
+and the plot goes as far as the list (in shells mode, four widths beyond the last shell).
+Hover the plot to mark in the view, in yellow, the neighbors within two widths of the distance
+under the mouse; the line below the plot gives their number and the coordination number at
+that distance. Unlike the RDF keyword, this is the distribution around one atom, not normalized
+by the density or by 4πr². The section is closed when the window opens.
 
 # Neighbors
 

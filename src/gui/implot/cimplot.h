@@ -47,6 +47,8 @@ CIMGUI_API void ipPlotToPixels(double x, double y, ImAxis x_axis, ImAxis y_axis,
 CIMGUI_API void ipSampleColormap(float t, ImPlotColormap cmap, ImVec4 *out);
 CIMGUI_API void ipSetupAxisTicksValues(ImAxis axis, const double* values, int n_ticks, bool keep_default);
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
+CIMGUI_API void ipSetupAxis(ImAxis axis, const char* label, ImPlotAxisFlags flags);
+CIMGUI_API void ipSetAxes(ImAxis x_axis, ImAxis y_axis);
 CIMGUI_API void ipPlotLine(const char* label_id, const double* xs, const double* ys, int count, ImPlotLineFlags flags, int offset);
 CIMGUI_API void ipPlotStairs(const char* label_id, const double* xs, const double* ys, int count, ImPlotStairsFlags flags, int offset);
 CIMGUI_API void ipPlotScatter(const char* label_id, const double* xs, const double* ys, int count, ImPlotScatterFlags flags, int offset);

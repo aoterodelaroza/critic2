@@ -34,6 +34,14 @@ submodule (windows) environ
   real*8, parameter :: halo_scale = 0.85d0
   real*8, parameter :: halo_radmin = 0.5d0
 
+  ! the radial distribution: points of the curve, and height of the
+  ! plot (lines)
+  integer, parameter :: rdf_npts = 501
+  integer, parameter :: rdf_nlines = 10
+  ! margin of the neighbour search beyond what the plot needs (Å), so
+  ! dragging the width does not search on every frame
+  real*8, parameter :: rdf_margin = 1d0
+
   ! the columns of the neighbour table
   integer(c_int), parameter :: ic_shell = 0
   integer(c_int), parameter :: ic_name = 1
@@ -67,6 +75,8 @@ contains
 
     logical :: doquit, goodsys, syschanged, ismol, ldum, changed
     integer :: i, isys, iview, istat, iwrite, ineq, nrow, ncol, ihover
+    integer :: rj0, rj1 ! the neighbours of the radial distribution near the mouse
+    real*8 :: rhover
     integer :: atpick(4)
     integer(c_int) :: icol(0:8) ! position of each column in the table (-1 = not shown)
     integer(c_int) :: tflags
@@ -125,6 +135,9 @@ contains
     end if
 
     ihover = 0
+    rhover = -1d0
+    rj0 = 1
+    rj1 = 0
     if (goodsys) then
        ! the neighbour list, calculated again if anything it depends on changed
        call update_list()
@@ -186,6 +199,10 @@ contains
        ! the coordination
        call iw_separatortext("Coordination",w%env%seccoord)
        if (w%env%seccoord%open) call draw_coord_section()
+
+       ! the radial distribution
+       call iw_separatortext("Radial distribution",w%env%secrdf)
+       if (w%env%secrdf%open) call draw_rdf_section()
 
        ! the neighbours
        call iw_separatortext("Neighbors (" // string(w%env%ls%nat) // ")",w%env%secneigh)
@@ -394,6 +411,13 @@ contains
            if (ls%nd(0) > 0d0) ls%wecon = econ_weight(ls%dist,ls%nd(0))
         end if
 
+        ! the radial distribution goes with the list (calculated in
+        ! its section)
+        if (newlist) then
+           ls%rkeysigma = -1d0
+           ls%rsearch = -1d0
+        end if
+
         ! coordinated: in the coordination set
         if (newcoord .or. newlist) then
            if (allocated(ls%iscoord)) deallocate(ls%iscoord)
@@ -411,6 +435,161 @@ contains
       end associate
 
     end subroutine update_list
+
+    !> The radial distribution around the centre (of the species of
+    !> the list): the count of neighbours broadened with gaussians of
+    !> unit area, and the running coordination number, up to the end
+    !> of the list (beyond its last shell by four widths, in shells
+    !> mode). The neighbours are searched four widths further, for the
+    !> gaussians that reach into the plot, plus a margin; they are
+    !> searched again only if the list changed or the plot needs them
+    !> further.
+    subroutine radial_distribution()
+      use param, only: icrd_crys, pi
+      integer, allocatable :: ispc0
+      integer :: i, k, n, k0, k1, iat
+      real*8 :: sig, dk, fac
+
+      iat = w%env%idx(1)
+      associate(c => sys(isys)%c, ls => w%env%ls)
+        ls%rkeysigma = w%env%rdfsigma
+
+        ! the range of the plot (Å)
+        sig = w%env%rdfsigma
+        if (w%env%upmode == 0) then
+           ls%rmax = w%env%updist
+        elseif (ls%nat > 0) then
+           ls%rmax = ls%dist(ls%nat) * bohrtoa + 4d0 * sig
+        else
+           ls%rmax = 1d0
+        end if
+
+        ! the neighbours (Å)
+        if (ls%rsearch < ls%rmax + 4d0 * sig) then
+           ls%rsearch = ls%rmax + 4d0 * sig + rdf_margin
+           if (w%env%ispc > 0) ispc0 = w%env%ispc
+           call c%list_near_atoms(c%atcel(iat)%x,icrd_crys,.true.,ls%nrdf,ls%rid,ls%rdist,ls%rlvec,&
+              up2d=ls%rsearch/bohrtoa,ispc0=ispc0,nozero=.true.)
+           ls%rdist = ls%rdist * bohrtoa
+        end if
+
+        ! the broadened count, adding each gaussian where it is not
+        ! negligible
+        if (allocated(ls%rr)) deallocate(ls%rr,ls%rg)
+        allocate(ls%rr(rdf_npts),ls%rg(rdf_npts))
+        dk = ls%rmax / real(rdf_npts-1,8)
+        do k = 1, rdf_npts
+           ls%rr(k) = real(k-1,8) * dk
+        end do
+        ls%rg = 0d0
+        fac = 1d0 / (sig * sqrt(2d0 * pi))
+        do i = 1, ls%nrdf
+           k0 = max(floor((ls%rdist(i) - 5d0*sig) / dk) + 1,1)
+           k1 = min(ceiling((ls%rdist(i) + 5d0*sig) / dk) + 1,rdf_npts)
+           do k = k0, k1
+              ls%rg(k) = ls%rg(k) + fac * exp(-0.5d0 * ((ls%rr(k) - ls%rdist(i))/sig)**2)
+           end do
+        end do
+
+        ! the running coordination number: zero at the atom, one more
+        ! at each neighbour, to the end of the plot
+        n = count(ls%rdist(1:ls%nrdf) <= ls%rmax)
+        if (allocated(ls%sx)) deallocate(ls%sx,ls%sy)
+        allocate(ls%sx(n+2),ls%sy(n+2))
+        ls%sx(1) = 0d0
+        ls%sy(1) = 0d0
+        do i = 1, n
+           ls%sx(i+1) = ls%rdist(i)
+           ls%sy(i+1) = real(i,8)
+        end do
+        ls%sx(n+2) = ls%rmax
+        ls%sy(n+2) = real(n,8)
+        ls%rrefit = .true.
+      end associate
+
+    end subroutine radial_distribution
+
+    !> The radial distribution section (the section is open): the
+    !> width of the gaussians, and the plot of the broadened count and
+    !> the running coordination number, calculated again if the list
+    !> or the width changed (not during a dynamics run). Sets rhover
+    !> to the distance under the mouse (Å), if it is on the plot, and
+    !> rj0:rj1 to the neighbours within two widths of it.
+    subroutine draw_rdf_section()
+      character(kind=c_char,len=:), allocatable, target :: strp, strx, stry
+      type(ImVec2) :: szp
+      real(c_double) :: xm, ym
+      integer :: n, ncn
+      real*8 :: sig
+
+      call iw_text("Width (Å)",alignframe=.true.)
+      ldum = iw_dragfloat_real8("##environrdfsigma",x1=w%env%rdfsigma,speed=0.002d0,min=0.005d0,&
+         max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+      call iw_tooltip("Standard deviation of the gaussian (of unit area) that broadens each&
+         & neighbor, so the area under the curve is the number of neighbors",ttshown)
+      if (.not.sysc(isys)%md_run .and. w%env%ls%rkeysigma /= w%env%rdfsigma) &
+         call radial_distribution()
+      if (.not.allocated(w%env%ls%rr)) return
+
+      n = size(w%env%ls%sx)
+      szp%x = -1._c_float
+      szp%y = iw_calcheight(rdf_nlines,0)
+      strp = "##environrdfplot" // c_null_char
+      if (ipBeginPlot(c_loc(strp),szp,ImPlotFlags_NoTitle)) then
+         strx = "Distance (Å)" // c_null_char
+         stry = "Neighbors per Å" // c_null_char
+         call ipSetupAxes(c_loc(strx),c_loc(stry),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+         stry = "Coordination number" // c_null_char
+         call ipSetupAxis(ImAxis_Y2,c_loc(stry),ImPlotAxisFlags_AuxDefault)
+         if (w%env%ls%rrefit) then
+            call ipSetupAxisLimits(ImAxis_X1,0._c_double,w%env%ls%rmax,ImPlotCond_Always)
+            call ipSetupAxisLimits(ImAxis_Y1,0._c_double,1.05d0*max(maxval(w%env%ls%rg),1d-10),&
+               ImPlotCond_Always)
+            call ipSetupAxisLimits(ImAxis_Y2,0._c_double,1.05d0*max(w%env%ls%sy(n),1d0),&
+               ImPlotCond_Always)
+            w%env%ls%rrefit = .false.
+         end if
+
+         call ipSetAxes(ImAxis_X1,ImAxis_Y1)
+         strp = "Neighbors##environrdfcurve" // c_null_char
+         call ipPlotLine(c_loc(strp),c_loc(w%env%ls%rr),c_loc(w%env%ls%rg),int(rdf_npts,c_int),&
+            ImPlotLineFlags_None,0_c_int)
+         call ipSetAxes(ImAxis_X1,ImAxis_Y2)
+         strp = "Coordination number##environrdfcn" // c_null_char
+         call ipPlotStairs(c_loc(strp),c_loc(w%env%ls%sx),c_loc(w%env%ls%sy),int(n,c_int),&
+            ImPlotStairsFlags_None,0_c_int)
+
+         ! the distance under the mouse
+         if (ipIsPlotHovered()) then
+            call ipGetPlotMousePos(xm,ym)
+            rhover = max(real(xm,8),0d0)
+         end if
+         call ipEndPlot()
+      end if
+
+      ! what is under the mouse: the neighbours within two widths
+      ! (rj0:rj1; the list is sorted) and the coordination number
+      if (rhover >= 0d0) then
+         associate(ls => w%env%ls)
+           sig = w%env%rdfsigma
+           do while (rj0 <= ls%nrdf)
+              if (ls%rdist(rj0) >= rhover - 2d0 * sig) exit
+              rj0 = rj0 + 1
+           end do
+           rj1 = rj0 - 1
+           do while (rj1 < ls%nrdf)
+              if (ls%rdist(rj1+1) > rhover + 2d0 * sig) exit
+              rj1 = rj1 + 1
+           end do
+           ncn = count(ls%rdist(1:ls%nrdf) <= rhover)
+         end associate
+         call iw_text("At " // string(rhover,'f',decimal=3) // " Å: " // string(rj1-rj0+1) //&
+            " neighbors within 2 widths (yellow), CN " // string(ncn))
+      else
+         call iw_text("Hover the plot to mark the neighbors at a distance",disabled=.true.)
+      end if
+
+    end subroutine draw_rdf_section
 
     !> The coordination set of cell atom iat by the rule of the form,
     !> sorted by distance, and its coordination polyhedron. Bonded:
@@ -742,7 +921,7 @@ contains
       i2 = 0
       if (ihover > 0) call row_range(ihover,i1,i2)
 
-      allocate(shp(1 + w%env%ls%ncoord + 2 * max(i2-i1+1,0)))
+      allocate(shp(1 + w%env%ls%ncoord + 2 * max(i2-i1+1,0) + max(rj1-rj0+1,0)))
       n = 1
       x0 = atpos(w%env%idx(1),(/0,0,0/))
       shp(1) = rep_shape(kind=shapekind_sphere,x1=x0,rad=halo_rad(w%env%idx(1)),&
@@ -766,6 +945,15 @@ contains
             v=reshape((/atpos(w%env%ls%eid(i),w%env%ls%lvec(:,i))-x0,0d0,0d0,0d0,0d0,0d0,0d0/),(/3,3/)),&
             rad=0.05d0,rgb=hover_rgb)
       end do
+
+      ! the neighbours near the distance under the mouse in the plot
+      if (rhover >= 0d0) then
+         do i = rj0, rj1
+            n = n + 1
+            shp(n) = rep_shape(kind=shapekind_sphere,x1=atpos(w%env%ls%rid(i),w%env%ls%rlvec(:,i)),&
+               rad=halo_rad(w%env%ls%rid(i)),rgb=hover_rgb,alpha=hover_alpha,rim=.true.)
+         end do
+      end if
       call win(iview)%sc%show_transient_shapes(w%uid,1,shp(1:n))
 
     end subroutine draw_markers

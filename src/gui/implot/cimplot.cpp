@@ -75,6 +75,12 @@ CIMGUI_API void ipSetupAxisTicksValues(ImAxis axis, const double* values, int n_
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags){
   ImPlot::SetupAxes(x_label,y_label,x_flags,y_flags);
 }
+CIMGUI_API void ipSetupAxis(ImAxis axis, const char* label, ImPlotAxisFlags flags){
+  ImPlot::SetupAxis(axis,label,flags);
+}
+CIMGUI_API void ipSetAxes(ImAxis x_axis, ImAxis y_axis){
+  ImPlot::SetAxes(x_axis,y_axis);
+}
 CIMGUI_API void ipPlotLine(const char* label_id, const double* xs, const double* ys, int count, ImPlotLineFlags flags, int offset){
   ImPlot::PlotLine(label_id,xs,ys,count,flags,offset,sizeof(double));
 }

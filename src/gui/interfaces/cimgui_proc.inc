@@ -2937,6 +2937,19 @@ subroutine ipSetupAxes(x_label,y_label,x_flags,y_flags) bind(c,name="ipSetupAxes
   integer(c_int), value :: x_flags
   integer(c_int), value :: y_flags
 end subroutine ipSetupAxes
+! void ipSetupAxis(ImAxis axis, const char* label, ImPlotAxisFlags flags);
+subroutine ipSetupAxis(axis,label,flags) bind(c,name="ipSetupAxis")
+  import c_ptr, c_int
+  integer(c_int), value :: axis
+  type(c_ptr), intent(in), value :: label
+  integer(c_int), value :: flags
+end subroutine ipSetupAxis
+! void ipSetAxes(ImAxis x_axis, ImAxis y_axis);
+subroutine ipSetAxes(x_axis,y_axis) bind(c,name="ipSetAxes")
+  import c_int
+  integer(c_int), value :: x_axis
+  integer(c_int), value :: y_axis
+end subroutine ipSetAxes
 ! void ipPlotLine(const char* label_id, const double* xs, const double* ys, int count, ImPlotLineFlags flags, int offset);
 subroutine ipPlotLine(label_id,xs,ys,count,flags,offset) bind(c,name="ipPlotLine")
   import c_ptr, c_int
