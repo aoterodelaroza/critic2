@@ -14,10 +14,10 @@ dynamics run the window keeps the last values, and updates when the run stops.
 
 # Options
 
-- "Atom": the atom whose environment is shown, chosen from the list of non-equivalent atoms.
-  "Pick" lets you click it in the view instead; in a crystal, picking also chooses which image
-  of the atom is marked. "Cell atom" and "Lattice vector" give the atom of the unit cell and the
-  image.
+- "Center": the atom whose environment is shown, in its color in the view: its species, its
+  index in the unit cell and, if it is not in the main cell, the lattice vector of its image.
+  "Pick" lets you choose it by clicking it in the view; in a crystal, this also chooses which
+  image of the atom is marked. A new system starts with its first atom.
 - "Coordinated": which neighbors are coordinated to the atom. "Bonded": the atoms bonded to it
   in the bond list of the system (which the bonds objects draw unless they use their own
   criteria; it includes the bonds added or removed by hand). "Covalent radii": the atoms closer

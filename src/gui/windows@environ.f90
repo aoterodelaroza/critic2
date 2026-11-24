@@ -56,12 +56,11 @@ submodule (windows) environ
 contains
 
   !> Draw the atomic environments window: the neighbours of an atom of
-  !> the system shown by the anchor view (chosen in a list or picked in
-  !> the view), as ENVIRON lists them, with the coordination (by one
-  !> of three rules) and the ECoN weight of each; the coordination
-  !> numbers, ECoN and closest ideal shape per species, as COORD and
-  !> ECON calculate them; the coordination polyhedron; and the radial
-  !> distribution.
+  !> the system shown by the anchor view (picked in the view), as
+  !> ENVIRON lists them, with the coordination (by one of three rules)
+  !> and the ECoN weight of each; the coordination numbers, ECoN and
+  !> closest ideal shape per species, as COORD and ECON calculate
+  !> them; the coordination polyhedron; and the radial distribution.
   module subroutine draw_environ(w)
     use systems, only: sys, sysc, sys_init, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_close_event,&
@@ -74,8 +73,8 @@ contains
     integer, parameter :: itable_neigh = 1 ! the tables, for table_write_*
     integer, parameter :: itable_coord = 2
 
-    logical :: doquit, goodsys, syschanged, ismol, ldum, changed
-    integer :: i, isys, iview, istat, iwrite, ineq, nrow, ncol, ihover
+    logical :: doquit, goodsys, syschanged, ismol, ldum, noatoms
+    integer :: i, isys, iview, istat, iwrite, nrow, ncol, ihover
     integer :: rj0, rj1 ! the neighbours of the radial distribution near the mouse
     real*8 :: rhover
     integer :: atpick(4)
@@ -94,6 +93,10 @@ contains
     doquit = .not.w%anchor(iview,isys,syschanged)
     goodsys = .not.doquit
     if (goodsys) goodsys = ok_system(isys,sys_init)
+    ! a system with no atoms has no environments
+    noatoms = .false.
+    if (goodsys) noatoms = (sys(isys)%c%ncel == 0)
+    if (noatoms) goodsys = .false.
     ismol = .false.
     if (goodsys) ismol = sys(isys)%c%ismolecule
 
@@ -147,55 +150,24 @@ contains
        call iw_text("System",highlight=.true.)
        call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
 
-       ! the centre
-       call iw_separatortext("Center",w%env%seccenter)
-       if (w%env%seccenter%open) then
-          associate(c => sys(isys)%c, ls => w%env%ls)
-            ! the entries of the combo: the non-equivalent atoms
-            if (ls%atomkeysys /= w%env%sys%uid .or. ls%atomkeytime /= sysc(isys)%timelastchange_geometry) then
-               ls%atomkeysys = w%env%sys%uid
-               ls%atomkeytime = sysc(isys)%timelastchange_geometry
-               ls%atomstr = ""
-               do i = 1, c%nneq
-                  ls%atomstr = ls%atomstr // trim(c%at(i)%name) // " (" // string(i) // ")" // c_null_char
-               end do
-            end if
-            call iw_text("Atom",alignframe=.true.)
-            ineq = c%atcel(w%env%idx(1))%idx - 1
-            call iw_combo_simple("##environatom",ls%atomstr,ineq,sameline=.true.,changed=changed)
-            if (changed) then
-               ! the first cell atom of that non-equivalent atom, in the main cell
-               do i = 1, c%ncel
-                  if (c%atcel(i)%idx == ineq + 1) then
-                     w%env%idx = (/i,0,0,0/)
-                     exit
-                  end if
-               end do
-            end if
-            if (ismol) then
-               call iw_tooltip("Atom whose environment is shown",ttshown)
-            else
-               call iw_tooltip("Atom whose environment is shown (a non-equivalent atom; picking&
-                  & it in the view chooses a particular image)",ttshown)
-            end if
-            if (iw_button("Pick##environpick",sameline=.true.,disabled=w%env%picking)) then
-               w%env%picking = .true.
-               w%env%pickview = iview
-               call w%env%pick%arm()
-               call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the central atom",w%id)
-            end if
-            call iw_tooltip("Pick the atom in the view",ttshown)
-
-            if (.not.ismol) then
-               call iw_text("Cell atom")
-               call iw_text(string(w%env%idx(1)),sameline=.true.)
-               call iw_tooltip("Index of the atom in the complete list of the unit cell",ttshown)
-               call iw_text("Lattice vector",gap=.true.)
-               call iw_text(lvec_string(w%env%idx(2:4)),sameline=.true.)
-               call iw_tooltip("Lattice vector of the image of the atom marked in the view",ttshown)
-            end if
-          end associate
+       ! the centre: the atom, and its image in a crystal, in its color in the view
+       call iw_text("Center",highlight=.true.,alignframe=.true.)
+       ldum = draw_anchor_button(iview,isys,int(w%env%idx,c_int),"##environcenter",&
+          sameline=.true.,inert=.true.)
+       if (ismol) then
+          call iw_tooltip("Atom whose environment is shown: its species and its index in the&
+             & molecule",ttshown)
+       else
+          call iw_tooltip("Atom whose environment is shown: its species, its index in the unit&
+             & cell and, if it is not in the main cell, the lattice vector of its image",ttshown)
        end if
+       if (iw_button("Pick##environpick",sameline=.true.,disabled=w%env%picking)) then
+          w%env%picking = .true.
+          w%env%pickview = iview
+          call w%env%pick%arm()
+          call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the central atom",w%id)
+       end if
+       call iw_tooltip("Pick the atom in the view",ttshown)
 
        ! the coordination
        call iw_separatortext("Coordination",w%env%seccoord)
@@ -251,6 +223,8 @@ contains
           & is active",danger=.true.,wrap=.true.)
        if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
     end if
+
+    if (noatoms) call iw_text("This system has no atoms",danger=.true.)
 
     ! bottom row: close
     call iw_setpos_bottomright(len("Close"),1)

@@ -1115,10 +1115,8 @@ module windows
   !> into the plot: cell atom, lattice vector, distance in Å; the
   !> broadened neighbour count on a grid, in Å and 1/Å; and the
   !> running coordination number as a staircase, in Å; rrefit = fit
-  !> the axes of the plot to them); and the entries of the atom
-  !> combo. mdstale: the
-  !> values were kept through a dynamics run (calculate them again
-  !> when it ends).
+  !> the axes of the plot to them). mdstale: the values were kept
+  !> through a dynamics run (calculate them again when it ends).
   type environ_list
      integer :: nat = 0
      integer, allocatable :: eid(:)
@@ -1177,9 +1175,6 @@ module windows
      logical :: rrefit = .false.
      real*8 :: rkeysigma = -1d0
      logical :: mdstale = .false.
-     character(len=:), allocatable :: atomstr
-     integer*8 :: atomkeysys = 0
-     real*8 :: atomkeytime = -1d0
   end type environ_list
   public :: environ_list
 
@@ -1199,7 +1194,7 @@ module windows
      logical :: showview = .true. ! mark the centre and its neighbours in the view
      integer :: cnrule = 0 ! coordinated: 0 = bonded, 1 = covalent radii, 2 = ECoN weight
      real*8 :: rdfsigma = 0.05d0 ! width of the gaussians of the radial distribution (Å)
-     type(iw_section) :: seccenter, seccoord, secneigh ! the sections of the window
+     type(iw_section) :: seccoord, secneigh ! the sections of the window
      type(iw_section) :: secrdf = iw_section(open=.false.) ! (closed to begin with)
      real(c_float) :: widthreq = 0._c_float ! window width already asked for, so it is asked once
      ! pending pick in the view
