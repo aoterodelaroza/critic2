@@ -40,9 +40,21 @@ dynamics run the window keeps the last values, and updates when the run stops.
 The table has a row for all species and one for each species in the environment of the atom:
 the coordination number ("CN", the coordinated neighbors of that species), the ECoN (the
 iterative variant, and the non-iterative one, which starts from the shortest distance), the
-distance to the nearest atom of that species, and the mean weighted distance of the ECoN
-("Mean"). The ECoN weight of an atom at distance d is exp(1 - (d/d_av)^6), where d_av is the
-mean weighted distance (Hoppe's formula, iterated as in ECON).
+distance to the nearest atom of that species, the mean weighted distance of the ECoN ("Mean"),
+and the geometry of the coordinated neighbors. The ECoN weight of an atom at distance d is
+exp(1 - (d/d_av)^6), where d_av is the mean weighted distance (Hoppe's formula, iterated as in
+ECON).
+
+"Geometry" is the closest ideal shape with the same number of vertices (linear, trigonal
+planar, tetrahedral, square planar, octahedral, trigonal prismatic, cuboctahedral, and so on),
+of all the coordinated neighbors in the first row and of those of one species in the others.
+The angles between the neighbors at the atom are sorted and compared with those of the shape;
+the number in parentheses is the root mean square difference, in degrees, zero for a perfect
+match. Only the angles count, not the distances, so a Jahn-Teller octahedron is a perfect
+octahedron. The tooltip gives the next closest shape: two close numbers mean the environment
+is halfway between them. There are shapes for 2 to 10, 12 and 14 neighbors. The ideal square
+pyramid has the atom above the base (100° from the apex to the base atoms), so an octahedron
+with a missing vertex is a square pyramid 11° off.
 
 "Polyhedron" gives the coordination polyhedron, the convex hull of the coordinated neighbors:
 its numbers of vertices and faces, its volume, the shortest and longest distance from the atom

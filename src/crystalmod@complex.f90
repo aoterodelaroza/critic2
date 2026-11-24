@@ -23,6 +23,21 @@ submodule (crystalmod) complex
   integer, parameter :: ewald_omp_nmin = 48  !< min atoms to thread the real-space loops
   integer, parameter :: ewald_omp_kmin = 256 !< min k-vectors to thread the reciprocal loop
 
+  ! The ideal coordination shapes of coordination_shape: number of
+  ! vertices and name (vertices in shape_vertices).
+  integer, parameter :: nshape = 29
+  integer, parameter :: shape_nv(nshape) = (/2,2,2,3,3,3,4,4,4,5,5,6,6,6,6,7,7,7,8,8,8,8,&
+     9,9,10,12,12,12,14/)
+  character(len=29), parameter :: shape_name(nshape) = (/character(len=29) ::&
+     "linear","V-shaped","L-shaped","trigonal planar","trigonal pyramidal","T-shaped",&
+     "tetrahedral","square planar","seesaw","trigonal bipyramidal","square pyramidal",&
+     "octahedral","trigonal prismatic","hexagonal planar","pentagonal pyramidal",&
+     "pentagonal bipyramidal","capped octahedral","capped trigonal prismatic","cubic",&
+     "square antiprismatic","dodecahedral","hexagonal bipyramidal",&
+     "tricapped trigonal prismatic","capped square antiprismatic",&
+     "bicapped square antiprismatic","cuboctahedral","icosahedral","anticuboctahedral",&
+     "rhombic dodecahedral"/)
+
 contains
 
   !> Calculate real and reciprocal space sum cutoffs. qfrac contains the
@@ -697,6 +712,259 @@ contains
     end do
 
   end subroutine polyhedron_from_points
+
+  !> Closest ideal shape to the coordination environment with vertices
+  !> xv(:,1:n) around the center xc (Cartesian, any units). The angles
+  !> between the vertices at the center are sorted and compared with
+  !> those of the ideal shapes with the same number of vertices (all
+  !> at the same distance from the center). Returns the closest shape
+  !> in ish(1) and the root mean square deviation of the angles in
+  !> dev(1) (degrees), and the second closest in ish(2) and dev(2).
+  !> ish is zero if there is no shape (no ideal shape with n vertices,
+  !> or only one for ish(2), or a vertex on the center). The names of
+  !> the shapes come from coordination_shape_name.
+  module subroutine coordination_shape(xc,xv,ish,dev)
+    use tools, only: qcksort
+    real*8, intent(in) :: xc(3)
+    real*8, intent(in) :: xv(:,:)
+    integer, intent(out) :: ish(2)
+    real*8, intent(out) :: dev(2)
+
+    integer :: i, n
+    real*8 :: d
+    real*8, allocatable :: x(:,:), ang(:), angref(:)
+
+    ish = 0
+    dev = 0d0
+    n = size(xv,2)
+    if (.not.any(shape_nv == n)) return
+
+    ! the directions from the center
+    allocate(x(3,n),ang(n*(n-1)/2),angref(n*(n-1)/2))
+    do i = 1, n
+       x(:,i) = xv(:,i) - xc
+       d = norm2(x(:,i))
+       if (d < 1d-10) return
+       x(:,i) = x(:,i) / d
+    end do
+    call sorted_angles(x,ang)
+
+    ! compare with the ideal shapes
+    dev = huge(1d0)
+    do i = 1, nshape
+       if (shape_nv(i) /= n) cycle
+       call shape_vertices(i,x)
+       call sorted_angles(x,angref)
+       d = sqrt(sum((ang - angref)**2) / size(ang))
+       if (d < dev(1)) then
+          ish(2) = ish(1)
+          dev(2) = dev(1)
+          ish(1) = i
+          dev(1) = d
+       elseif (d < dev(2)) then
+          ish(2) = i
+          dev(2) = d
+       end if
+    end do
+    where (ish == 0) dev = 0d0
+
+  contains
+    !> The sorted angles (degrees) between the unit vectors x(:,1:n).
+    subroutine sorted_angles(x,ang)
+      use param, only: rad
+      real*8, intent(in) :: x(:,:)
+      real*8, intent(out) :: ang(:)
+
+      integer :: i, j, k, n
+
+      n = size(x,2)
+      k = 0
+      do i = 1, n
+         do j = i+1, n
+            k = k + 1
+            ang(k) = acos(max(min(dot_product(x(:,i),x(:,j)),1d0),-1d0)) / rad
+         end do
+      end do
+      call qcksort(ang)
+
+    end subroutine sorted_angles
+  end subroutine coordination_shape
+
+  !> Name of the ideal coordination shape with index ish (see
+  !> coordination_shape). Empty if ish is out of range.
+  module function coordination_shape_name(ish) result(name)
+    integer, intent(in) :: ish
+    character(len=:), allocatable :: name
+
+    if (ish < 1 .or. ish > nshape) then
+       name = ""
+    else
+       name = trim(shape_name(ish))
+    end if
+
+  end function coordination_shape_name
+
+  !> Unit vectors from the center to the vertices of the ideal
+  !> coordination shape ish, in x(:,1:shape_nv(ish)).
+  subroutine shape_vertices(ish,x)
+    use tools_io, only: ferror, faterr
+    use param, only: rad
+    integer, intent(in) :: ish
+    real*8, intent(inout) :: x(:,:)
+
+    ! dodecahedron, A and B sites (most favorable polyhedron of Hoard
+    ! and Silverton, Inorg. Chem. 2 (1963) 235)
+    real*8, parameter :: tha = 35.2d0
+    real*8, parameter :: thb = 73.5d0
+    ! square pyramid, apex-center-base angle: the center is above the
+    ! base, as in most of them (90 degrees is a vacant octahedron)
+    real*8, parameter :: spyang = 100d0
+    integer :: nput
+    real*8 :: ttet, tcube, tp, ta, tc, ti
+
+    nput = 0
+    ttet = acos(-1d0/3d0) / rad ! tetrahedral angle
+    tcube = 0.5d0 * ttet ! cube, body diagonal to edge
+    tp = atan(2d0/sqrt(3d0)) / rad ! trigonal prism with equal edges
+    ta = asin(sqrt(4d0/(4d0+sqrt(2d0)))) / rad ! square antiprism with equal edges
+    tc = acos(sqrt(2d0/3d0)) / rad ! cuboctahedra, out of the hexagon plane
+    ti = atan(2d0) / rad ! icosahedron
+
+    ! the polar angle (from z) and the azimuth of each vertex, in degrees
+    select case(ish)
+    case(1) ! linear
+       call put(1,0d0,0d0)
+       call put(2,180d0,0d0)
+    case(2) ! V-shaped
+       call put(1,0d0,0d0)
+       call put(2,ttet,0d0)
+    case(3) ! L-shaped
+       call put(1,0d0,0d0)
+       call put(2,90d0,0d0)
+    case(4) ! trigonal planar
+       call ring(1,3,90d0,0d0)
+    case(5) ! trigonal pyramidal
+       call ring(1,3,ttet,0d0)
+    case(6) ! T-shaped
+       call put(1,90d0,0d0)
+       call put(2,90d0,180d0)
+       call put(3,90d0,90d0)
+    case(7) ! tetrahedral
+       call put(1,0d0,0d0)
+       call ring(2,3,ttet,0d0)
+    case(8) ! square planar
+       call ring(1,4,90d0,0d0)
+    case(9) ! seesaw
+       call put(1,0d0,0d0)
+       call put(2,180d0,0d0)
+       call put(3,90d0,0d0)
+       call put(4,90d0,120d0)
+    case(10) ! trigonal bipyramidal
+       call bipyramid(1,3)
+    case(11) ! square pyramidal
+       call put(1,0d0,0d0)
+       call ring(2,4,spyang,0d0)
+    case(12) ! octahedral
+       call bipyramid(1,4)
+    case(13) ! trigonal prismatic
+       call prism(1)
+    case(14) ! hexagonal planar
+       call ring(1,6,90d0,0d0)
+    case(15) ! pentagonal pyramidal
+       call put(1,0d0,0d0)
+       call ring(2,5,90d0,0d0)
+    case(16) ! pentagonal bipyramidal
+       call bipyramid(1,5)
+    case(17) ! capped octahedral, over the (1,1,1) face
+       call bipyramid(1,4)
+       call put(7,tcube,45d0)
+    case(18) ! capped trigonal prismatic, over a square face
+       call prism(1)
+       call put(7,90d0,60d0)
+    case(19) ! cubic
+       call cube(1)
+    case(20) ! square antiprismatic
+       call antiprism(1)
+    case(21) ! dodecahedral (D2d)
+       call put(1,tha,0d0)
+       call put(2,tha,180d0)
+       call put(3,180d0-tha,90d0)
+       call put(4,180d0-tha,270d0)
+       call put(5,thb,90d0)
+       call put(6,thb,270d0)
+       call put(7,180d0-thb,0d0)
+       call put(8,180d0-thb,180d0)
+    case(22) ! hexagonal bipyramidal
+       call bipyramid(1,6)
+    case(23) ! tricapped trigonal prismatic
+       call prism(1)
+       call ring(7,3,90d0,60d0)
+    case(24) ! capped square antiprismatic
+       call antiprism(1)
+       call put(9,0d0,0d0)
+    case(25) ! bicapped square antiprismatic
+       call antiprism(1)
+       call put(9,0d0,0d0)
+       call put(10,180d0,0d0)
+    case(26) ! cuboctahedral (fcc)
+       call ring(1,6,90d0,0d0)
+       call ring(7,3,tc,30d0)
+       call ring(10,3,180d0-tc,90d0)
+    case(27) ! icosahedral
+       call put(1,0d0,0d0)
+       call put(2,180d0,0d0)
+       call ring(3,5,ti,0d0)
+       call ring(8,5,180d0-ti,36d0)
+    case(28) ! anticuboctahedral (hcp)
+       call ring(1,6,90d0,0d0)
+       call ring(7,3,tc,30d0)
+       call ring(10,3,180d0-tc,30d0)
+    case(29) ! rhombic dodecahedral (bcc, first and second neighbors)
+       call cube(1)
+       call bipyramid(9,4)
+    end select
+
+    ! the tables of the shapes and this routine have to agree
+    if (nput /= shape_nv(ish) .or. nput /= size(x,2)) &
+       call ferror('shape_vertices','inconsistent number of vertices in an ideal shape',faterr)
+
+  contains
+    subroutine put(k,th,ph)
+      integer, intent(in) :: k
+      real*8, intent(in) :: th, ph
+      x(:,k) = (/sin(th*rad)*cos(ph*rad),sin(th*rad)*sin(ph*rad),cos(th*rad)/)
+      nput = nput + 1
+    end subroutine put
+    subroutine ring(k0,n,th,ph0)
+      integer, intent(in) :: k0, n
+      real*8, intent(in) :: th, ph0
+      integer :: k
+      do k = 0, n-1
+         call put(k0+k,th,ph0+360d0*k/n)
+      end do
+    end subroutine ring
+    subroutine bipyramid(k0,n)
+      integer, intent(in) :: k0, n
+      call put(k0,0d0,0d0)
+      call put(k0+1,180d0,0d0)
+      call ring(k0+2,n,90d0,0d0)
+    end subroutine bipyramid
+    subroutine cube(k0)
+      integer, intent(in) :: k0
+      call ring(k0,4,tcube,45d0)
+      call ring(k0+4,4,180d0-tcube,45d0)
+    end subroutine cube
+    subroutine prism(k0)
+      integer, intent(in) :: k0
+      call ring(k0,3,tp,0d0)
+      call ring(k0+3,3,180d0-tp,0d0)
+    end subroutine prism
+    subroutine antiprism(k0)
+      integer, intent(in) :: k0
+      call ring(k0,4,ta,0d0)
+      call ring(k0+4,4,180d0-ta,45d0)
+    end subroutine antiprism
+  end subroutine shape_vertices
 
   !> Calculate the packing ratio (in %) using the nearest-neighbor
   !> information. Each atom is assigned a ratio equal to half the distance

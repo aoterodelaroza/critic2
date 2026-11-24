@@ -59,8 +59,9 @@ contains
   !> the system shown by the anchor view (chosen in a list or picked in
   !> the view), as ENVIRON lists them, with the coordination (by one
   !> of three rules) and the ECoN weight of each; the coordination
-  !> numbers and ECoN per species, as COORD and ECON calculate them; and
-  !> the coordination polyhedron.
+  !> numbers, ECoN and closest ideal shape per species, as COORD and
+  !> ECON calculate them; the coordination polyhedron; and the radial
+  !> distribution.
   module subroutine draw_environ(w)
     use systems, only: sys, sysc, sys_init, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_close_event,&
@@ -599,13 +600,13 @@ contains
     !> atoms with a weight of at least econ_wmin.
     subroutine coordination_set(iat)
       use param, only: icrd_crys
-      use crystalmod, only: polyhedron_from_points
+      use crystalmod, only: polyhedron_from_points, coordination_shape
       use tools, only: mergesort
       integer, intent(in) :: iat
-      integer :: i, n
+      integer :: i, j, n
       integer, allocatable :: iord(:)
       real*8, allocatable :: up2dsp(:,:), xv(:,:)
-      real*8 :: rcov
+      real*8 :: rcov, xc(3)
 
       associate(c => sys(isys)%c, ls => w%env%ls)
         if (w%env%cnrule == 0) then
@@ -659,7 +660,18 @@ contains
         do i = 1, ls%ncoord
            xv(:,i) = c%x2c(c%atcel(ls%cid(i))%x + ls%clvec(:,i))
         end do
-        call polyhedron_from_points(c%x2c(c%atcel(iat)%x),xv,ls%pnf,ls%pvol,ls%pier,ls%pdev)
+        xc = c%x2c(c%atcel(iat)%x)
+        call polyhedron_from_points(xc,xv,ls%pnf,ls%pvol,ls%pier,ls%pdev)
+
+        ! the closest ideal shapes, of all the coordinated neighbors and
+        ! of those of each species
+        if (allocated(ls%cshape)) deallocate(ls%cshape,ls%cshdev)
+        allocate(ls%cshape(2,0:c%nspc),ls%cshdev(2,0:c%nspc))
+        call coordination_shape(xc,xv,ls%cshape(:,0),ls%cshdev(:,0))
+        do j = 1, c%nspc
+           call coordination_shape(xc,xv(:,pack((/(i,i=1,ls%ncoord)/),&
+              c%atcel(ls%cid(1:ls%ncoord))%is == j)),ls%cshape(:,j),ls%cshdev(:,j))
+        end do
       end associate
 
     end subroutine coordination_set
@@ -669,9 +681,12 @@ contains
     !> coordination polyhedron.
     subroutine draw_coord_section()
       use crystalmod, only: econ_wmin
+      use gui_main, only: g
+      use utils, only: iw_window_width
       integer :: j
       integer(c_int) :: tflagsc
-      type(ImVec2) :: szc
+      type(ImVec2) :: szc, pos, szav
+      real(c_float) :: xright, xover
       character(len=:,kind=c_char), allocatable, target :: strc
 
       call iw_text("Coordinated",alignframe=.true.)
@@ -697,13 +712,18 @@ contains
         strc = "##environcoordtable" // c_null_char
         szc%x = 0._c_float
         szc%y = 0._c_float
-        if (igBeginTable(c_loc(strc),6,tflagsc,szc,0._c_float)) then
+        call igGetCursorScreenPos(pos)
+        call igGetContentRegionAvail(szav)
+        xright = pos%x + szav%x
+        xover = -huge(1._c_float)
+        if (igBeginTable(c_loc(strc),7,tflagsc,szc,0._c_float)) then
            call iw_table_column("Species",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
            call iw_table_column("CN",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
            call iw_table_column("ECoN",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
            call iw_table_column("ECoN (non-iter.)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
            call iw_table_column("Nearest (Å)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
            call iw_table_column("Mean (Å)",id=5_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+           call iw_table_column("Geometry",id=6_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
            call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown)
            call w%table_write_begin(itable_coord,iwrite)
            do j = 0, c%nspc
@@ -721,10 +741,23 @@ contains
               if (igTableSetColumnIndex(3_c_int)) call iw_cell_right(string(ls%econ1(j),'f',decimal=4))
               if (igTableSetColumnIndex(4_c_int)) call iw_cell_right(string(ls%dmin(j)*bohrtoa,'f',decimal=5))
               if (igTableSetColumnIndex(5_c_int)) call iw_cell_right(string(ls%nd(j)*bohrtoa,'f',decimal=5))
+              if (igTableSetColumnIndex(6_c_int)) xover = max(xover,geometry_cell(j) - xright)
            end do
            call w%table_write_end(itable_coord,table_title("Coordination of atom " //&
               string(w%env%idx(1)),isys))
            call igEndTable()
+
+           ! if the geometry (the last column) does not fit, ask the
+           ! window to grow: once for each width, so the user can make
+           ! it narrower afterwards
+           xover = xover + g%Style%CellPadding%x + 1._c_float
+           if (xover > 0._c_float) then
+              xover = iw_window_width() + xover
+              if (abs(xover - w%env%widthreq) >= 1._c_float) then
+                 w%env%widthreq = xover
+                 w%needwidth = xover
+              end if
+           end if
         end if
 
         ! the polyhedron
@@ -751,6 +784,50 @@ contains
       end associate
 
     end subroutine draw_coord_section
+
+    !> The geometry cell of the coordination table for species j (0 =
+    !> all): the closest ideal shape and its deviation, and the second
+    !> closest in the tooltip. Returns the right end of the text
+    !> (screen coordinates), wherever the table clips it.
+    function geometry_cell(j) result(xend)
+      integer, intent(in) :: j
+      real(c_float) :: xend
+
+      type(ImVec2) :: rmax
+      character(len=:), allocatable :: str
+
+      if (w%env%ls%cshape(1,j) == 0) then
+         call iw_text("-")
+      else
+         call iw_text(shape_label(j,1))
+      end if
+      call igGetItemRectMax(rmax)
+      xend = rmax%x
+      if (w%env%ls%cshape(1,j) == 0) return
+
+      ! the text of the tooltip, only if it is going to be shown
+      if (igIsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup)) then
+         str = "Closest ideal shape to the coordinated neighbors"
+         if (j > 0) str = str // " of this species"
+         str = str // ", and the root mean square difference between their sorted angles at the&
+            & atom and those of the shape (zero for a perfect match; distances do not count)"
+         if (w%env%ls%cshape(2,j) > 0) str = str // ". Next closest: " // shape_label(j,2)
+         call iw_tooltip(str,ttshown)
+      end if
+
+    end function geometry_cell
+
+    !> The closest (k = 1) or second closest (2) ideal shape to the
+    !> coordinated neighbors of species j (0 = all), and its deviation.
+    function shape_label(j,k) result(str)
+      use crystalmod, only: coordination_shape_name
+      integer, intent(in) :: j, k
+      character(len=:), allocatable :: str
+
+      str = coordination_shape_name(w%env%ls%cshape(k,j)) // " (" //&
+         string(w%env%ls%cshdev(k,j),'f',decimal=1) // "°)"
+
+    end function shape_label
 
     !> The table of neighbours (the section is open): one row per
     !> neighbour, or one per group (shell and atom) if grouped. Sets

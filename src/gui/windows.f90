@@ -1156,6 +1156,8 @@ module windows
      real*8 :: pvol = 0d0
      real*8 :: pdev = 0d0
      integer :: pier = 0
+     integer, allocatable :: cshape(:,:) ! closest ideal shapes (2,0:nspc), coordination_shape
+     real*8, allocatable :: cshdev(:,:) ! their angle deviations (2,0:nspc), degrees
      integer*8 :: ckeysys = 0
      integer :: ckeyiat = 0
      integer :: ckeyrule = -1
@@ -1199,6 +1201,7 @@ module windows
      real*8 :: rdfsigma = 0.05d0 ! width of the gaussians of the radial distribution (Å)
      type(iw_section) :: seccenter, seccoord, secneigh ! the sections of the window
      type(iw_section) :: secrdf = iw_section(open=.false.) ! (closed to begin with)
+     real(c_float) :: widthreq = 0._c_float ! window width already asked for, so it is asked once
      ! pending pick in the view
      logical :: picking = .false.
      integer :: pickview = 0

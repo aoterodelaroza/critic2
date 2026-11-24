@@ -150,6 +150,7 @@ module crystalmod
   public :: symelem_type_mask
   public :: clip_point_box, clip_line_box, clip_plane_box
   public :: polyhedron_from_points
+  public :: coordination_shape, coordination_shape_name
   public :: econ_weight
 
   ! ECoN: atoms with at least this weight count in the integer
@@ -1065,6 +1066,16 @@ module crystalmod
        integer, intent(out) :: ier
        real*8, intent(out), optional :: dev
      end subroutine polyhedron_from_points
+     module subroutine coordination_shape(xc,xv,ish,dev)
+       real*8, intent(in) :: xc(3)
+       real*8, intent(in) :: xv(:,:)
+       integer, intent(out) :: ish(2)
+       real*8, intent(out) :: dev(2)
+     end subroutine coordination_shape
+     module function coordination_shape_name(ish) result(name)
+       integer, intent(in) :: ish
+       character(len=:), allocatable :: name
+     end function coordination_shape_name
      module function get_pack_ratio(c) result (px)
        class(crystal), intent(inout) :: c
        real*8 :: px

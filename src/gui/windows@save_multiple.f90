@@ -475,9 +475,7 @@ contains
       if (itex == 0) return
       call igImage(int(itex,c_intptr_t),ImVec2(fontsize%y,fontsize%y),uv0,uv1,&
          ImVec4(rgba(1),rgba(2),rgba(3),rgba(4)),nobord)
-      ! no ttshown: an image carries no ImGui ID, so HoveredIdTimer never
-      ! runs on it and the delayed form of the tooltip would never fire
-      call iw_tooltip(str2)
+      call iw_tooltip(str2,ttshown)
 
     end subroutine draw_kind_icon
 

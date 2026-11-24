@@ -3380,13 +3380,38 @@ contains
   ! do not use the delay.
   module function igIsItemHovered_delayed(flags,thr,already_shown)
     use gui_main, only: g
-    use interfaces_cimgui, only: igIsItemHovered
+    use interfaces_cimgui, only: igIsItemHovered, igGetItemRectMin, igGetFrameCount, ImVec2
     integer(c_int), value :: flags
     real(c_float), intent(in) :: thr
-       logical, intent(in) :: already_shown
+    logical, intent(in) :: already_shown
     logical(c_bool) :: igIsItemHovered_delayed
 
-    igIsItemHovered_delayed = igIsItemHovered(flags) .and. (already_shown .or. g%HoveredIdTimer >= thr)
+    type(ImVec2) :: rmin
+    integer(c_int) :: frame
+    type(ImVec2), save :: rmin0 = ImVec2(-1._c_float,-1._c_float)
+    integer(c_int), save :: frame0 = -10
+    real(c_double), save :: time0 = 0d0
+
+    igIsItemHovered_delayed = .false.
+    if (.not.igIsItemHovered(flags)) return
+    if (already_shown) then
+       igIsItemHovered_delayed = .true.
+    elseif (g%LastItemData%ID /= 0) then
+       igIsItemHovered_delayed = (g%HoveredIdTimer >= thr)
+    else
+       ! ImGui (1.88) times the hover of items with an ID only: time
+       ! that of an item without one (text, image) by its position,
+       ! while it stays hovered in consecutive frames. One timer is
+       ! enough, because one item is hovered at a time; an item that
+       ! moves every frame never gets its tooltip. ImGui 1.89 does this
+       ! itself (ImGuiHoveredFlags_DelayNormal): drop this branch then.
+       call igGetItemRectMin(rmin)
+       frame = igGetFrameCount()
+       if (frame > frame0 + 1 .or. rmin%x /= rmin0%x .or. rmin%y /= rmin0%y) time0 = g%Time
+       rmin0 = rmin
+       frame0 = frame
+       igIsItemHovered_delayed = (g%Time - time0 >= thr)
+    end if
 
   end function igIsItemHovered_delayed
 

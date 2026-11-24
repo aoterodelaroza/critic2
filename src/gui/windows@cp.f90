@@ -2715,8 +2715,7 @@ contains
       character(len=*), intent(in) :: str
       character(len=*), intent(in), optional :: tt
       call iw_text(str,alignframe=.true.)
-      ! (no delay: text has no ID, so the delayed tooltip would not show)
-      if (present(tt)) call iw_tooltip(tt)
+      if (present(tt)) call iw_tooltip(tt,ttshown)
       call igSameLine(xcol,-1._c_float)
     end subroutine label
     !> The first position of the seed, with its Pick button.
@@ -2827,8 +2826,7 @@ contains
       character(len=*), intent(in) :: str
       character(len=*), intent(in), optional :: tt
       call iw_text(str,alignframe=.true.)
-      ! (no delay: text has no ID, so the delayed tooltip would not show)
-      if (present(tt)) call iw_tooltip(tt)
+      if (present(tt)) call iw_tooltip(tt,ttshown)
       call igSameLine(xcol,-1._c_float)
     end subroutine label
   end subroutine draw_advanced
