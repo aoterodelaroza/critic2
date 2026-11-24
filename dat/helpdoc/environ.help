@@ -12,38 +12,49 @@ coordinated neighbors are marked in the view while the window is open, and every
 recalculated whenever the atom, the options, the bonds or the geometry change. During a
 dynamics run the window keeps the last values, and updates when the run stops.
 
-# Options
+# Center
 
-- "Center": the atom whose environment is shown, in its color in the view: its species, its
-  index in the unit cell and, if it is not in the main cell, the lattice vector of its image.
-  "Pick" lets you choose it by clicking it in the view; in a crystal, this also chooses which
-  image of the atom is marked. A new system starts with its first atom.
+"Center" is the atom whose environment is shown, in its color in the view: its species, its
+index in the unit cell and, if it is not in the main cell, the lattice vector of its image.
+"Pick" lets you choose it by clicking it in the view; in a crystal, this also chooses which
+image of the atom is marked. A new system starts with its first atom. In the view, the atom
+has an orange halo and its coordinated neighbors have blue halos.
+
+# Neighbors
+
+- "Up to": list the neighbors up to a distance from the atom (in Å), or up to a number of
+  shells. A shell is the group of neighbors at the same distance, which may be of different
+  kinds.
+- "Species": list only the neighbors of one species.
 - "Coordinated": which neighbors are coordinated to the atom. "Bonded": the atoms bonded to it
   in the bond list of the system (which the bonds objects draw unless they use their own
   criteria; it includes the bonds added or removed by hand). "Covalent radii": the atoms closer
   than the bond factor times the sum of the covalent radii, with the radii and bond factor of
   the system (those used to calculate its bonds), as COORD does. "ECoN weight": the atoms whose
   weight in the ECoN is at least 0.5, as ECON counts its integer coordination number.
-- "Up to": list the neighbors up to a distance from the atom (in Å), or up to a number of
-  shells. A shell is the group of neighbors at the same distance, which may be of different
-  kinds.
-- "Species": list only the neighbors of one species.
-- "Group by shells": one row per shell and atom (the atoms of a shell that are images of the
-  same non-equivalent atom), with their number ("Count") and how many of them are
-  coordinated.
-- "Show in view": mark the atom (orange halo) and its coordinated neighbors (blue halos) in the
-  view. The neighbors of the row under the mouse are marked in yellow, with a line from the
-  atom.
+- "Rows": what a row of the table is: a neighbor ("Atoms"), a shell ("Shells") or a species
+  ("Species").
 
-# Coordination
+Right-click the header of a table to write it to the output, to a text file or to the console.
 
-The table has a row for all species and one for each species in the environment of the atom:
-the coordination number ("CN", the coordinated neighbors of that species), the ECoN (the
-iterative variant, and the non-iterative one, which starts from the shortest distance), the
-distance to the nearest atom of that species, the mean weighted distance of the ECoN ("Mean"),
-and the geometry of the coordinated neighbors. The ECoN weight of an atom at distance d is
-exp(1 - (d/d_av)^6), where d_av is the mean weighted distance (Hoppe's formula, iterated as in
-ECON).
+# Atoms and shells
+
+With "Atoms" the table has one row per neighbor, sorted by distance: its shell, name, index in
+the list of non-equivalent atoms ("Id") and in the unit cell ("Cell id"), the lattice vector of
+its image next to the marked atom (crystals), the distance, whether it is coordinated, and its
+ECoN weight (with the mean weighted distance of all species). With "Shells" there is one row
+per shell and atom (the atoms of a shell that are images of the same non-equivalent atom), with
+their number ("Count") and how many of them are coordinated. The neighbors of the row under
+the mouse are marked in yellow in the view, with a line from the atom.
+
+# Species
+
+With "Species" the table has a row for all species and one for each species in the environment
+of the atom: the coordination number ("CN", the coordinated neighbors of that species), the
+ECoN, the distance to the nearest atom of that species, the mean weighted distance of the ECoN
+("Mean"), and the geometry of the coordinated neighbors. The ECoN weight of an atom at distance
+d is exp(1 - (d/d_av)^6), where d_av is the mean weighted distance (Hoppe's formula, iterated
+as in ECON). This table does not depend on "Up to" or "Species".
 
 "Geometry" is the closest ideal shape with the same number of vertices (linear, trigonal
 planar, tetrahedral, square planar, octahedral, trigonal prismatic, cuboctahedral, and so on),
@@ -56,10 +67,11 @@ is halfway between them. There are shapes for 2 to 10, 12 and 14 neighbors. The 
 pyramid has the atom above the base (100° from the apex to the base atoms), so an octahedron
 with a missing vertex is a square pyramid 11° off.
 
-"Polyhedron" gives the coordination polyhedron, the convex hull of the coordinated neighbors:
-its numbers of vertices and faces, its volume, the shortest and longest distance from the atom
-to the vertices, and its planarity, the largest distance from a vertex to the plane that best
-fits all of them (zero for a flat polyhedron). A polyhedron needs at least four vertices.
+"Polyhedron", below the table, gives the coordination polyhedron, the convex hull of the
+coordinated neighbors: its numbers of vertices and faces, its volume, the shortest and longest
+distance from the atom to the vertices, and its planarity, the largest distance from a vertex
+to the plane that best fits all of them (zero for a flat polyhedron). A polyhedron needs at
+least four vertices.
 
 # Radial distribution
 
@@ -73,11 +85,3 @@ Hover the plot to mark in the view, in yellow, the neighbors within two widths o
 under the mouse; the line below the plot gives their number and the coordination number at
 that distance. Unlike the RDF keyword, this is the distribution around one atom, not normalized
 by the density or by 4πr². The section is closed when the window opens.
-
-# Neighbors
-
-The table has one row per neighbor, sorted by distance: its shell, name, index in the list of
-non-equivalent atoms ("Id") and in the unit cell ("Cell id"), the lattice vector of its image
-next to the marked atom (crystals), the distance, whether it is coordinated, and its ECoN
-weight (with the mean weighted distance of all species). Right-click the header of either
-table to copy it or write it to a file.

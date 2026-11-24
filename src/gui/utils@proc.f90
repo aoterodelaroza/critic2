@@ -2124,14 +2124,16 @@ contains
 
   end subroutine iw_separatortext
 
-  !> Height taken by a section title (iw_separatortext) in a layout:
-  !> the spacing above it, the text line, and the spacing below.
+  !> Height taken in a layout by the title of a section that opens
+  !> and closes (iw_separatortext with sec): the spacing above it,
+  !> the line, as tall as the button on its triangle (a frame), and
+  !> the spacing below.
   module function iw_separatortext_height()
     use interfaces_cimgui
     use gui_main, only: g
     real(c_float) :: iw_separatortext_height
 
-    iw_separatortext_height = igGetTextLineHeight() + 2._c_float * g%Style%ItemSpacing%y
+    iw_separatortext_height = iw_calcheight(1,0) + 2._c_float * g%Style%ItemSpacing%y
 
   end function iw_separatortext_height
 

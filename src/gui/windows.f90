@@ -1102,8 +1102,8 @@ module windows
   !> groups (ngroup) are the runs of neighbours in the same shell and
   !> non-equivalent atom: group i is igroup(i) to igroup(i+1)-1. Also
   !> cached, each with its own key: the ECoN of the centre (per
-  !> species, 0 = all: iterative and non-iterative ECoN, mean weighted
-  !> distances, and the nearest distance; bohr; and the neighbours
+  !> species, 0 = all: iterative ECoN, mean weighted distance, and
+  !> the nearest distance; bohr; and the neighbours
   !> with a weight of at least econ_wmin: cell atom, lattice vector,
   !> distance); the coordination set of the centre by the rule of the
   !> form (ncoord atoms: cell atom, lattice vector, distance, sorted
@@ -1135,9 +1135,7 @@ module windows
      real*8 :: keydist = -1d0
      real*8 :: keytime = -1d0
      real*8, allocatable :: econ(:)
-     real*8, allocatable :: econ1(:)
      real*8, allocatable :: nd(:)
-     real*8, allocatable :: nd1(:)
      real*8, allocatable :: dmin(:)
      integer, allocatable :: ecid(:)
      integer, allocatable :: eclvec(:,:)
@@ -1190,11 +1188,10 @@ module windows
      real*8 :: updist = 5d0 ! up to this distance (Å)
      integer(c_int) :: upshell = 3 ! up to this number of shells
      integer :: ispc = 0 ! only the neighbours of this species (0 = all)
-     logical :: groupshells = .false. ! one row per group (shell and atom) in the table
-     logical :: showview = .true. ! mark the centre and its neighbours in the view
+     integer :: rows = 0 ! a row of the table: 0 = a neighbour, 1 = a group (shell and atom), 2 = a species
      integer :: cnrule = 0 ! coordinated: 0 = bonded, 1 = covalent radii, 2 = ECoN weight
      real*8 :: rdfsigma = 0.05d0 ! width of the gaussians of the radial distribution (Å)
-     type(iw_section) :: seccoord, secneigh ! the sections of the window
+     type(iw_section) :: secneigh ! the sections of the window
      type(iw_section) :: secrdf = iw_section(open=.false.) ! (closed to begin with)
      real(c_float) :: widthreq = 0._c_float ! window width already asked for, so it is asked once
      ! pending pick in the view

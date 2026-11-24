@@ -42,6 +42,10 @@ submodule (windows) environ
   ! dragging the width does not search on every frame
   real*8, parameter :: rdf_margin = 1d0
 
+  ! what a row of the table is (environ_state%rows; 0 = a neighbour)
+  integer, parameter :: rows_shells = 1
+  integer, parameter :: rows_species = 2
+
   ! the columns of the neighbour table
   integer(c_int), parameter :: ic_shell = 0
   integer(c_int), parameter :: ic_name = 1
@@ -56,27 +60,31 @@ submodule (windows) environ
 contains
 
   !> Draw the atomic environments window: the neighbours of an atom of
-  !> the system shown by the anchor view (picked in the view), as
-  !> ENVIRON lists them, with the coordination (by one of three rules)
-  !> and the ECoN weight of each; the coordination numbers, ECoN and
-  !> closest ideal shape per species, as COORD and ECON calculate
-  !> them; the coordination polyhedron; and the radial distribution.
+  !> the system shown by the anchor view (picked in the view), in a
+  !> table with a row per neighbour or per shell, as ENVIRON lists
+  !> them, with the coordination (by one of three rules) and the ECoN
+  !> weight of each; or with a row per species: the coordination
+  !> numbers, ECoN and closest ideal shape, as COORD and ECON
+  !> calculate them, and the coordination polyhedron; and the radial
+  !> distribution. The atom and its neighbours are marked in the view.
   module subroutine draw_environ(w)
     use systems, only: sys, sysc, sys_init, ok_system
+    use gui_main, only: g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_close_event,&
        iw_setpos_bottomright, iw_table_column, iw_table_headers_row, iw_calcheight,&
-       iw_separatortext, iw_highlight_selectable, iw_cell_right, iw_combo_simple,&
-       iw_intstepper, iw_checkbox
+       iw_separatortext, iw_separatortext_height, iw_highlight_selectable, iw_cell_right,&
+       iw_combo_simple, iw_intstepper
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
     integer, parameter :: itable_neigh = 1 ! the tables, for table_write_*
-    integer, parameter :: itable_coord = 2
+    integer, parameter :: itable_species = 2
 
     logical :: doquit, goodsys, syschanged, ismol, ldum, noatoms
-    integer :: i, isys, iview, istat, iwrite, nrow, ncol, ihover
+    integer :: isys, iview, istat, iwrite, nrow, ncol, ihover
     integer :: rj0, rj1 ! the neighbours of the radial distribution near the mouse
     real*8 :: rhover
+    real(c_float) :: hbelow ! height of what is laid out below the table of neighbours
     integer :: atpick(4)
     integer(c_int) :: icol(0:8) ! position of each column in the table (-1 = not shown)
     integer(c_int) :: tflags
@@ -84,7 +92,6 @@ contains
     type(ImVec2) :: sz0
     type(c_ptr) :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    character(len=:), allocatable :: s
     character(len=:,kind=c_char), allocatable, target :: str1
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -112,6 +119,7 @@ contains
           call w%env%sys%set(isys)
           call cancel_pick()
           w%errmsg = ""
+          call w%table_write_cancel()
           w%env%idx = (/1,0,0,0/)
           w%env%ispc = 0
           w%env%ls = environ_list()
@@ -123,7 +131,10 @@ contains
     if (w%env%picking) then
        if (goodsys .and. iview == w%env%pickview) then
           call view_pick_result(iview,w%id,isys,w%env%pick,istat,xc,atidx=atpick)
-          if (istat == ipick_point .and. atpick(1) > 0) w%env%idx = atpick
+          if (istat == ipick_point .and. atpick(1) > 0) then
+             w%env%idx = atpick
+             call w%table_write_cancel()
+          end if
           if (istat /= ipick_pending) w%env%picking = .false.
        else
           call cancel_pick()
@@ -155,11 +166,12 @@ contains
        ldum = draw_anchor_button(iview,isys,int(w%env%idx,c_int),"##environcenter",&
           sameline=.true.,inert=.true.)
        if (ismol) then
-          call iw_tooltip("Atom whose environment is shown: its species and its index in the&
-             & molecule",ttshown)
+          call iw_tooltip("Atom whose environment is shown (marked in orange in the view): its&
+             & species and its index in the molecule",ttshown)
        else
-          call iw_tooltip("Atom whose environment is shown: its species, its index in the unit&
-             & cell and, if it is not in the main cell, the lattice vector of its image",ttshown)
+          call iw_tooltip("Atom whose environment is shown (marked in orange in the view): its&
+             & species, its index in the unit cell and, if it is not in the main cell, the&
+             & lattice vector of its image",ttshown)
        end if
        if (iw_button("Pick##environpick",sameline=.true.,disabled=w%env%picking)) then
           w%env%picking = .true.
@@ -169,50 +181,21 @@ contains
        end if
        call iw_tooltip("Pick the atom in the view",ttshown)
 
-       ! the coordination
-       call iw_separatortext("Coordination",w%env%seccoord)
-       if (w%env%seccoord%open) call draw_coord_section()
+       ! what is laid out below the table of neighbours, which takes
+       ! the rest of the window: the radial distribution (its header
+       ! and, if open, its body) and the messages
+       hbelow = g%Style%ItemSpacing%y + iw_separatortext_height()
+       if (w%env%secrdf%open) hbelow = hbelow + g%Style%ItemSpacing%y + rdf_body_height()
+       if (sysc(isys)%md_run) hbelow = hbelow + g%Style%ItemSpacing%y + igGetTextLineHeight()
+       if (len_trim(w%errmsg) > 0) hbelow = hbelow + g%Style%ItemSpacing%y + igGetTextLineHeight()
+
+       ! the neighbours
+       call iw_separatortext("Neighbors (" // string(w%env%ls%nat) // ")",w%env%secneigh)
+       if (w%env%secneigh%open) call draw_neigh_section()
 
        ! the radial distribution
        call iw_separatortext("Radial distribution",w%env%secrdf)
        if (w%env%secrdf%open) call draw_rdf_section()
-
-       ! the neighbours
-       call iw_separatortext("Neighbors (" // string(w%env%ls%nat) // ")",w%env%secneigh)
-       if (w%env%secneigh%open) then
-          call iw_text("Up to",alignframe=.true.)
-          call iw_combo_simple("##environupmode","Distance (Å)" // c_null_char // "Shells" //&
-             c_null_char,w%env%upmode,sameline=.true.)
-          call iw_tooltip("List the neighbors up to a distance from the atom, or up to a number&
-             & of shells (atoms at the same distance)",ttshown)
-          if (w%env%upmode == 0) then
-             ldum = iw_dragfloat_real8("##environupdist",x1=w%env%updist,speed=0.02d0,min=0.1d0,&
-                max=50d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
-             call iw_tooltip("Largest distance from the atom to the neighbors in the list",ttshown)
-          else
-             ldum = iw_intstepper("##environupshell",w%env%upshell,minval=1_c_int,maxval=100_c_int,&
-                sameline=.true.)
-             call iw_tooltip("Number of shells of neighbors in the list",ttshown)
-          end if
-
-          call iw_text("Species",alignframe=.true.,gap=.true.)
-          s = "All" // c_null_char
-          do i = 1, sys(isys)%c%nspc
-             s = s // trim(sys(isys)%c%spc(i)%name) // c_null_char
-          end do
-          call iw_combo_simple("##environspc",s,w%env%ispc,sameline=.true.)
-          call iw_tooltip("List only the neighbors of this species",ttshown)
-
-          ldum = iw_checkbox("Group by shells",w%env%groupshells,labelleft=.true.)
-          call iw_tooltip("One row per shell and atom (a shell may hold several kinds of atom),&
-             & with the number of atoms",ttshown)
-          ldum = iw_checkbox("Show in view",w%env%showview,labelleft=.true.,gap=.true.)
-          call iw_tooltip("Mark the atom (orange) and its coordinated neighbors (blue) in the&
-             & view; the neighbors of the row under the mouse are marked in yellow",ttshown)
-
-          ! the table
-          call draw_table()
-       end if
 
        ! the centre and its neighbours in the anchor view
        call draw_markers()
@@ -258,6 +241,7 @@ contains
       integer, allocatable :: iperm(:), eid(:), lvec(:,:)
       real*8, allocatable :: dist(:)
       logical, allocatable :: inec(:)
+      real*8, allocatable :: econ1(:), nd1(:) ! non-iterative ECoN: not shown
       integer :: i, j, k, iat
       real*8 :: time
       logical :: newcoord, newlist
@@ -285,10 +269,10 @@ contains
            ls%ndkeysys = w%env%sys%uid
            ls%ndkeyiat = iat
            ls%ndkeytime = time
-           if (allocated(ls%econ)) deallocate(ls%econ,ls%econ1,ls%nd,ls%nd1,ls%dmin)
-           allocate(ls%econ(0:c%nspc),ls%econ1(0:c%nspc),ls%nd(0:c%nspc),ls%nd1(0:c%nspc))
-           allocate(ls%dmin(0:c%nspc))
-           call c%econ_atom(c%atcel(iat)%x,ls%econ,ls%econ1,ls%nd,ls%nd1,eid,dist,lvec,ls%dmin)
+           if (allocated(ls%econ)) deallocate(ls%econ,ls%nd,ls%dmin)
+           allocate(ls%econ(0:c%nspc),ls%nd(0:c%nspc),ls%dmin(0:c%nspc))
+           allocate(econ1(0:c%nspc),nd1(0:c%nspc))
+           call c%econ_atom(c%atcel(iat)%x,ls%econ,econ1,ls%nd,nd1,eid,dist,lvec,ls%dmin)
            allocate(inec(size(eid)))
            inec = .false.
            if (ls%nd(0) > 0d0) inec = (econ_weight(dist,ls%nd(0)) >= econ_wmin)
@@ -484,6 +468,21 @@ contains
 
     end subroutine radial_distribution
 
+    !> Height of the body of the radial distribution section, as
+    !> draw_rdf_section lays it out: the width, the plot and the line
+    !> below it; the width alone if there is nothing to plot (a
+    !> dynamics run that started on another atom).
+    function rdf_body_height() result(h)
+      real(c_float) :: h
+
+      if (sysc(isys)%md_run .and. .not.allocated(w%env%ls%rr)) then
+         h = iw_calcheight(1,0)
+      else
+         h = iw_calcheight(rdf_nlines+1,1)
+      end if
+
+    end function rdf_body_height
+
     !> The radial distribution section (the section is open): the
     !> width of the gaussians, and the plot of the broadened count and
     !> the running coordination number, calculated again if the list
@@ -650,18 +649,37 @@ contains
 
     end subroutine coordination_set
 
-    !> The coordination section (the section is open): the rule, the
-    !> table of the coordination numbers and ECoN per species, and the
-    !> coordination polyhedron.
-    subroutine draw_coord_section()
+    !> The neighbors section (the section is open): how far the list
+    !> goes and its species, the coordination rule, and the table,
+    !> with one row per neighbor, per shell or per species.
+    subroutine draw_neigh_section()
       use crystalmod, only: econ_wmin
-      use gui_main, only: g
-      use utils, only: iw_window_width
-      integer :: j
-      integer(c_int) :: tflagsc
-      type(ImVec2) :: szc, pos, szav
-      real(c_float) :: xright, xover
-      character(len=:,kind=c_char), allocatable, target :: strc
+      integer :: i
+      logical :: changed
+      character(len=:), allocatable :: s
+
+      call iw_text("Up to",alignframe=.true.)
+      call iw_combo_simple("##environupmode","Distance (Å)" // c_null_char // "Shells" //&
+         c_null_char,w%env%upmode,sameline=.true.)
+      call iw_tooltip("List the neighbors up to a distance from the atom, or up to a number&
+         & of shells (atoms at the same distance)",ttshown)
+      if (w%env%upmode == 0) then
+         ldum = iw_dragfloat_real8("##environupdist",x1=w%env%updist,speed=0.02d0,min=0.1d0,&
+            max=50d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+         call iw_tooltip("Largest distance from the atom to the neighbors in the list",ttshown)
+      else
+         ldum = iw_intstepper("##environupshell",w%env%upshell,minval=1_c_int,maxval=100_c_int,&
+            sameline=.true.)
+         call iw_tooltip("Number of shells of neighbors in the list",ttshown)
+      end if
+
+      call iw_text("Species",alignframe=.true.,gap=.true.)
+      s = "All" // c_null_char
+      do i = 1, sys(isys)%c%nspc
+         s = s // trim(sys(isys)%c%spc(i)%name) // c_null_char
+      end do
+      call iw_combo_simple("##environspc",s,w%env%ispc,sameline=.true.)
+      call iw_tooltip("List only the neighbors of this species",ttshown)
 
       call iw_text("Coordinated",alignframe=.true.)
       call iw_combo_simple("##environcnrule","Bonded" // c_null_char // "Covalent radii" //&
@@ -673,7 +691,43 @@ contains
          string(econ_wmin,'f',decimal=1) // c_null_char,&
          ttshown=ttshown)
       call iw_tooltip("Which neighbors are coordinated to the atom: they count in the coordination&
-         & numbers, are marked in blue, and are the vertices of the polyhedron",ttshown)
+         & numbers, are marked in blue in the view, and are the vertices of the polyhedron",ttshown)
+
+      call iw_text("Rows",alignframe=.true.,gap=.true.)
+      call iw_combo_simple("##environrows","Atoms" // c_null_char // "Shells" // c_null_char //&
+         "Species" // c_null_char,w%env%rows,sameline=.true.,changed=changed,&
+         tooltips="One row per neighbor" // c_null_char //&
+         "One row per shell and atom (a shell may hold several kinds of atom), with the number&
+         & of atoms" // c_null_char //&
+         "One row per species, with its coordination number, ECoN, distances and geometry;&
+         & and the coordination polyhedron" // c_null_char,&
+         ttshown=ttshown)
+      call iw_tooltip("What a row of the table is. In the tables of atoms and shells, the&
+         & neighbors of the row under the mouse are marked in yellow in the view",ttshown)
+      ! a table waiting to be written to a file is not the one shown now
+      if (changed) call w%table_write_cancel()
+
+      ! the table
+      if (w%env%rows == rows_species) then
+         call draw_species_table()
+      else
+         call draw_table()
+      end if
+
+    end subroutine draw_neigh_section
+
+    !> The table of species (the section is open): the coordination
+    !> numbers, ECoN, distances and closest ideal shape per species,
+    !> and the coordination polyhedron.
+    subroutine draw_species_table()
+      use gui_main, only: g
+      use utils, only: iw_window_width
+      integer :: j
+      integer(c_int) :: tflagsc
+      type(ImVec2) :: szc, pos, szav
+      real(c_float) :: xright, xover
+      character(len=:,kind=c_char), allocatable, target :: strc
+
       if (.not.allocated(w%env%ls%econ)) return
 
       ! the table: all species, then each species in the environment
@@ -683,23 +737,22 @@ contains
         tflagsc = ior(tflagsc,ImGuiTableFlags_RowBg)
         tflagsc = ior(tflagsc,ImGuiTableFlags_Borders)
         tflagsc = ior(tflagsc,ImGuiTableFlags_SizingFixedFit)
-        strc = "##environcoordtable" // c_null_char
+        strc = "##environspeciestable" // c_null_char
         szc%x = 0._c_float
         szc%y = 0._c_float
         call igGetCursorScreenPos(pos)
         call igGetContentRegionAvail(szav)
         xright = pos%x + szav%x
         xover = -huge(1._c_float)
-        if (igBeginTable(c_loc(strc),7,tflagsc,szc,0._c_float)) then
+        if (igBeginTable(c_loc(strc),6,tflagsc,szc,0._c_float)) then
            call iw_table_column("Species",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
            call iw_table_column("CN",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
            call iw_table_column("ECoN",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-           call iw_table_column("ECoN (non-iter.)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-           call iw_table_column("Nearest (Å)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-           call iw_table_column("Mean (Å)",id=5_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-           call iw_table_column("Geometry",id=6_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+           call iw_table_column("Nearest (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+           call iw_table_column("Mean (Å)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+           call iw_table_column("Geometry",id=5_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
            call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown)
-           call w%table_write_begin(itable_coord,iwrite)
+           call w%table_write_begin(itable_species,iwrite)
            do j = 0, c%nspc
               if (j > 0 .and. ls%dmin(j) <= 0d0) cycle
               call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
@@ -712,12 +765,11 @@ contains
               end if
               if (igTableSetColumnIndex(1_c_int)) call iw_cell_right(string(ls%cn(j)))
               if (igTableSetColumnIndex(2_c_int)) call iw_cell_right(string(ls%econ(j),'f',decimal=4))
-              if (igTableSetColumnIndex(3_c_int)) call iw_cell_right(string(ls%econ1(j),'f',decimal=4))
-              if (igTableSetColumnIndex(4_c_int)) call iw_cell_right(string(ls%dmin(j)*bohrtoa,'f',decimal=5))
-              if (igTableSetColumnIndex(5_c_int)) call iw_cell_right(string(ls%nd(j)*bohrtoa,'f',decimal=5))
-              if (igTableSetColumnIndex(6_c_int)) xover = max(xover,geometry_cell(j) - xright)
+              if (igTableSetColumnIndex(3_c_int)) call iw_cell_right(string(ls%dmin(j)*bohrtoa,'f',decimal=5))
+              if (igTableSetColumnIndex(4_c_int)) call iw_cell_right(string(ls%nd(j)*bohrtoa,'f',decimal=5))
+              if (igTableSetColumnIndex(5_c_int)) xover = max(xover,geometry_cell(j) - xright)
            end do
-           call w%table_write_end(itable_coord,table_title("Coordination of atom " //&
+           call w%table_write_end(itable_species,table_title("Coordination of atom " //&
               string(w%env%idx(1)),isys))
            call igEndTable()
 
@@ -757,9 +809,9 @@ contains
         end if
       end associate
 
-    end subroutine draw_coord_section
+    end subroutine draw_species_table
 
-    !> The geometry cell of the coordination table for species j (0 =
+    !> The geometry cell of the table of species for species j (0 =
     !> all): the closest ideal shape and its deviation, and the second
     !> closest in the tooltip. Returns the right end of the text
     !> (screen coordinates), wherever the table clips it.
@@ -804,13 +856,13 @@ contains
     end function shape_label
 
     !> The table of neighbours (the section is open): one row per
-    !> neighbour, or one per group (shell and atom) if grouped. Sets
-    !> ihover to the hovered row.
+    !> neighbour, or one per group (shell and atom) if the rows are
+    !> shells. Sets ihover to the hovered row.
     subroutine draw_table()
       integer :: i, i1, i2
       logical :: grouped
 
-      grouped = w%env%groupshells
+      grouped = (w%env%rows == rows_shells)
       tflags = ImGuiTableFlags_None
       tflags = ior(tflags,ImGuiTableFlags_NoSavedSettings)
       tflags = ior(tflags,ImGuiTableFlags_RowBg)
@@ -845,11 +897,11 @@ contains
       call addcol(ic_coord)
       call addcol(ic_wecon)
 
-      ! the rest of the window, but at least a few rows (the stretch
-      ! beyond them is elastic)
+      ! the rest of the window above what is laid out below the table,
+      ! but at least a few rows (the stretch beyond them is elastic)
       call igGetContentRegionAvail(sz0)
       sz0%x = 0._c_float
-      sz0%y = sz0%y - iw_calcheight(1,0,.true.)
+      sz0%y = sz0%y - hbelow
       sz0%y = max(sz0%y,iw_calcheight(6,0,.false.))
       w%heightslack = sz0%y - iw_calcheight(6,0,.false.)
       if (.not.igBeginTable(c_loc(str1),ncol,tflags,sz0,0._c_float)) return
@@ -944,7 +996,7 @@ contains
       integer, intent(in) :: irow
       integer, intent(out) :: i1, i2
 
-      if (w%env%groupshells) then
+      if (w%env%rows == rows_shells) then
          i1 = w%env%ls%igroup(irow)
          i2 = w%env%ls%igroup(irow+1) - 1
       else
@@ -964,8 +1016,6 @@ contains
 
       if (.not.associated(win(iview)%sc)) return
       if (win(iview)%sc%isinit == 0) return
-      ! not armed this frame = not shown
-      if (.not.w%env%showview) return
 
       ! the atoms of the hovered row
       i1 = 1
