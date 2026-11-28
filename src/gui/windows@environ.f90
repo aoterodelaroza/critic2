@@ -34,7 +34,7 @@ submodule (windows) environ
   real*8, parameter :: halo_scale = 0.85d0
   real*8, parameter :: halo_radmin = 0.5d0
   ! opacity of the background of the rows with coordinated neighbours
-  ! in the table of shells (in the color of their halos)
+  ! in the table (in the color of their halos)
   real(c_float), parameter :: coord_bgalpha = 0.3_c_float
 
   ! the radial distribution: points of the curve, and height of the
@@ -56,9 +56,8 @@ submodule (windows) environ
   integer(c_int), parameter :: ic_lvec = 4
   integer(c_int), parameter :: ic_count = 5
   integer(c_int), parameter :: ic_dist = 6
-  integer(c_int), parameter :: ic_coord = 7
-  integer(c_int), parameter :: ic_wecon = 8
-  integer(c_int), parameter :: ic_geom = 9
+  integer(c_int), parameter :: ic_wecon = 7
+  integer(c_int), parameter :: ic_geom = 8
 
 contains
 
@@ -75,7 +74,7 @@ contains
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_close_event,&
        iw_setpos_bottomright, iw_table_column, iw_table_headers_row, iw_calcheight,&
        iw_separatortext, iw_separatortext_height, iw_highlight_selectable, iw_cell_right,&
-       iw_combo_simple, iw_intstepper
+       iw_combo_simple, iw_intstepper, iw_helpermark
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -87,7 +86,7 @@ contains
     real*8 :: rhover
     real(c_float) :: hbelow ! height of what is laid out below the table of neighbours
     integer :: atpick(4)
-    integer(c_int) :: icol(0:9) ! position of each column in the table (-1 = not shown)
+    integer(c_int) :: icol(0:8) ! position of each column in the table (-1 = not shown)
     integer(c_int) :: tflags
     real*8 :: xc(3)
     type(ImVec2) :: sz0
@@ -184,9 +183,9 @@ contains
 
        ! what is laid out below the table of neighbours, which takes
        ! the rest of the window: the radial distribution (its header
-       ! and, if open, its body) and the messages
-       hbelow = g%Style%ItemSpacing%y + iw_separatortext_height()
-       if (w%env%secrdf%open) hbelow = hbelow + g%Style%ItemSpacing%y + rdf_body_height()
+       ! and its body) and the messages
+       hbelow = g%Style%ItemSpacing%y + iw_separatortext_height(plain=.true.) +&
+          g%Style%ItemSpacing%y + rdf_body_height()
        if (sysc(isys)%md_run) hbelow = hbelow + g%Style%ItemSpacing%y + igGetTextLineHeight()
        if (len_trim(w%errmsg) > 0) hbelow = hbelow + g%Style%ItemSpacing%y + igGetTextLineHeight()
 
@@ -194,9 +193,9 @@ contains
        call iw_separatortext("Neighbors (" // string(w%env%ls%nat) // ")",w%env%secneigh)
        if (w%env%secneigh%open) call draw_neigh_section()
 
-       ! the radial distribution
-       call iw_separatortext("Radial distribution",w%env%secrdf)
-       if (w%env%secrdf%open) call draw_rdf_section()
+       ! the radial distribution, always shown
+       call iw_separatortext("Radial distribution")
+       call draw_rdf_section()
 
        ! the centre and its neighbours in the anchor view
        call draw_markers()
@@ -243,10 +242,10 @@ contains
       integer, allocatable :: iperm(:), eid(:), lvec(:,:)
       real*8, allocatable :: dist(:)
       logical, allocatable :: inec(:)
-      real*8, allocatable :: econ(:), econ1(:), nd(:), nd1(:) ! the ECoN per species: not shown
+      real*8, allocatable :: econ1(:), nd(:), nd1(:) ! the rest of the ECoN: not shown
       integer :: i, j, k, iat
       real*8 :: time
-      logical :: newcoord, newlist
+      logical :: newcoord, newlist, newsearch
 
       iat = w%env%idx(1)
       associate(c => sys(isys)%c, ls => w%env%ls)
@@ -262,18 +261,19 @@ contains
            ls%mdstale = .false.
         end if
 
-        ! the mean weighted distance of the ECoN of the atom (all
-        ! species), which gives the weights, and the neighbours with a
-        ! weight of at least econ_wmin (as the integer CN of ECON); the
-        ! other stages depend on the geometry too, so they follow when
-        ! it changes
+        ! the ECoN of the atom, per species, its mean weighted
+        ! distance (all species), which gives the weights, and the
+        ! neighbours with a weight of at least econ_wmin (as the
+        ! integer CN of ECON); the other stages depend on the geometry
+        ! too, so they follow when it changes
         time = sysc(isys)%timelastchange_geometry
         if (ls%ndkeysys /= w%env%sys%uid .or. ls%ndkeyiat /= iat .or. ls%ndkeytime /= time) then
            ls%ndkeysys = w%env%sys%uid
            ls%ndkeyiat = iat
            ls%ndkeytime = time
-           allocate(econ(0:c%nspc),econ1(0:c%nspc),nd(0:c%nspc),nd1(0:c%nspc))
-           call c%econ_atom(c%atcel(iat)%x,econ,econ1,nd,nd1,eid,dist,lvec)
+           if (allocated(ls%econ)) deallocate(ls%econ)
+           allocate(ls%econ(0:c%nspc),econ1(0:c%nspc),nd(0:c%nspc),nd1(0:c%nspc))
+           call c%econ_atom(c%atcel(iat)%x,ls%econ,econ1,nd,nd1,eid,dist,lvec)
            ls%dav = nd(0)
            allocate(inec(size(eid)))
            inec = .false.
@@ -302,9 +302,11 @@ contains
            call coordination_set(iat)
         end if
 
-        ! the neighbour list
-        newlist = .not.(ls%keysys == w%env%sys%uid .and. ls%keyiat == iat .and.&
-           ls%keymode == w%env%upmode .and. ls%keyspc == w%env%ispc .and. ls%keytime == time)
+        ! the neighbour list (newsearch: also the neighbours of the
+        ! radial distribution, which do not depend on how far it goes)
+        newsearch = (ls%keysys /= w%env%sys%uid .or. ls%keyiat /= iat .or.&
+           ls%keyspc /= w%env%ispc .or. ls%keytime /= time)
+        newlist = newsearch .or. (ls%keymode /= w%env%upmode)
         if (.not.newlist) then
            if (w%env%upmode == 0) newlist = (ls%keydist /= w%env%updist)
            if (w%env%upmode == 1) newlist = (ls%keyshell /= w%env%upshell)
@@ -371,12 +373,10 @@ contains
            if (ls%dav > 0d0) ls%wecon = econ_weight(ls%dist,ls%dav)
         end if
 
-        ! the radial distribution goes with the list (calculated in
-        ! its section)
-        if (newlist) then
-           ls%rkeysigma = -1d0
-           ls%rsearch = -1d0
-        end if
+        ! the radial distribution goes with the list (calculated
+        ! where it is drawn)
+        if (newlist) ls%rkeysigma = -1d0
+        if (newsearch) ls%rsearch = -1d0
 
         ! coordinated: in the coordination set; and the shapes of the
         ! coordinated neighbours of each shell
@@ -443,8 +443,8 @@ contains
     !> of the list (beyond its last shell by four widths, in shells
     !> mode). The neighbours are searched four widths further, for the
     !> gaussians that reach into the plot, plus a margin; they are
-    !> searched again only if the list changed or the plot needs them
-    !> further.
+    !> searched again only if the centre, the species, the geometry or
+    !> the bonds changed, or the plot needs them further.
     subroutine radial_distribution()
       use param, only: icrd_crys, pi
       integer, allocatable :: ispc0
@@ -525,12 +525,12 @@ contains
 
     end function rdf_body_height
 
-    !> The radial distribution section (the section is open): the
-    !> width of the gaussians, and the plot of the broadened count and
-    !> the running coordination number, calculated again if the list
-    !> or the width changed (not during a dynamics run). Sets rhover
-    !> to the distance under the mouse (Å), if it is on the plot, and
-    !> rj0:rj1 to the neighbours within two widths of it.
+    !> The radial distribution section: the width of the gaussians,
+    !> and the plot of the broadened count and the running
+    !> coordination number, calculated again if the list or the width
+    !> changed (not during a dynamics run). Sets rhover to the
+    !> distance under the mouse (Å), if it is on the plot, and rj0:rj1
+    !> to the neighbours within two widths of it.
     subroutine draw_rdf_section()
       character(kind=c_char,len=:), allocatable, target :: strp, strx, stry
       type(ImVec2) :: szp
@@ -575,10 +575,11 @@ contains
          call ipPlotStairs(c_loc(strp),c_loc(w%env%ls%sx),c_loc(w%env%ls%sy),int(n,c_int),&
             ImPlotStairsFlags_None,0_c_int)
 
-         ! the distance under the mouse
+         ! the distance under the mouse, within the range of the
+         ! curves (the plot can be zoomed out beyond it)
          if (ipIsPlotHovered()) then
             call ipGetPlotMousePos(xm,ym)
-            rhover = max(real(xm,8),0d0)
+            rhover = min(max(real(xm,8),0d0),w%env%ls%rmax)
          end if
          call ipEndPlot()
       end if
@@ -652,7 +653,8 @@ contains
     end subroutine coordination_set
 
     !> The neighbors section (the section is open): how far the list
-    !> goes and its species, the coordination rule, and the table,
+    !> goes and its species, the ECoN of the atom with that species,
+    !> the coordination rule, and the table,
     !> with one row per neighbor or per shell.
     subroutine draw_neigh_section()
       use crystalmod, only: econ_wmin
@@ -683,6 +685,18 @@ contains
       call iw_combo_simple("##environspc",s,w%env%ispc,sameline=.true.)
       call iw_tooltip("List only the neighbors of this species",ttshown)
 
+      ! the ECoN of the centre with the neighbors of that species
+      call iw_text("ECoN:",highlight=.true.,alignframe=.true.,gap=.true.)
+      s = "-"
+      if (allocated(w%env%ls%econ)) then
+         if (w%env%ispc <= ubound(w%env%ls%econ,1)) &
+            s = string(w%env%ls%econ(w%env%ispc),'f',decimal=4)
+      end if
+      call iw_text(s,sameline=.true.)
+      call iw_tooltip("Effective coordination number of the atom with the neighbors of the&
+         & species in 'Species' (all of them, or one): each counts with a weight that decays&
+         & with its distance relative to their mean weighted distance (iterated, as ECON)",ttshown)
+
       call iw_text("Coordinated",alignframe=.true.)
       call iw_combo_simple("##environcnrule","Bonded" // c_null_char // "Covalent radii" //&
          c_null_char // "ECoN weight" // c_null_char,w%env%cnrule,sameline=.true.,&
@@ -693,18 +707,20 @@ contains
          string(econ_wmin,'f',decimal=1) // c_null_char,&
          ttshown=ttshown)
       call iw_tooltip("Which neighbors are coordinated to the atom: they are marked in blue in&
-         & the view and, with shells as rows, in the table, which gives their geometry",ttshown)
+         & the view and in the table, which gives their geometry with shells as rows",ttshown)
 
       call iw_text("Rows",alignframe=.true.,gap=.true.)
       call iw_combo_simple("##environrows","Atoms" // c_null_char // "Shells" // c_null_char,&
          w%env%rows,sameline=.true.,changed=changed,&
          tooltips="One row per neighbor" // c_null_char //&
          "One row per shell and atom (a shell may hold several kinds of atom), with the number&
-         & of atoms; the rows with coordinated neighbors are colored, and give the geometry of&
-         & those in the shell" // c_null_char,&
+         & of atoms and the geometry of the coordinated neighbors in the shell" // c_null_char,&
          ttshown=ttshown)
       call iw_tooltip("What a row of the table is. The neighbors of the row under the mouse are&
          & marked in yellow in the view",ttshown)
+      call iw_helpermark("The rows with a blue background are the neighbors coordinated to the&
+         & atom, by the rule in 'Coordinated'; they have blue halos in the view. With shells as&
+         & rows, a row is blue if any of its atoms is coordinated.")
       ! a table waiting to be written to a file is not the one shown now
       if (changed) call w%table_write_cancel()
 
@@ -758,12 +774,13 @@ contains
 
     !> The table of neighbours (the section is open): one row per
     !> neighbour, or one per group (shell and atom) if the rows are
-    !> shells; then the groups with coordinated neighbours have a
-    !> background and the geometry of their shell. Sets ihover to the
-    !> hovered row.
+    !> shells. The rows with coordinated neighbours have a background
+    !> and, if they are groups, the geometry of their shell. Sets
+    !> ihover to the hovered row.
     subroutine draw_table()
       use utils, only: iw_window_width
-      integer :: i, i1, i2, nc
+      integer :: i, i1, i2
+      logical :: hascoord
       logical :: grouped
       integer(c_int) :: coordbg
       type(ImVec2) :: pos
@@ -801,7 +818,6 @@ contains
          end if
       end if
       call addcol(ic_dist)
-      call addcol(ic_coord)
       call addcol(ic_wecon)
       if (grouped) call addcol(ic_geom)
 
@@ -828,7 +844,6 @@ contains
       call column(ic_lvec,"Lattice vector")
       call column(ic_count,"Count")
       call column(ic_dist,"Distance (Å)")
-      call column(ic_coord,"Coordinated")
       call column(ic_wecon,"ECoN weight")
       call column(ic_geom,"Geometry")
       call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
@@ -841,10 +856,10 @@ contains
          do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
             ! the neighbours in this row: one, or the atoms of a group
             call row_range(i,i1,i2)
-            nc = count(w%env%ls%iscoord(i1:i2))
+            hascoord = any(w%env%ls%iscoord(i1:i2))
 
             call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-            if (grouped .and. nc > 0) call igTableSetBgColor(ImGuiTableBgTarget_RowBg0,coordbg,-1_c_int)
+            if (hascoord) call igTableSetBgColor(ImGuiTableBgTarget_RowBg0,coordbg,-1_c_int)
             associate(c => sys(isys)%c, ls => w%env%ls, j => w%env%ls%eid(i1))
               if (setcol(ic_shell)) &
                  call iw_cell_right(string(ls%ishell(i1)))
@@ -862,16 +877,9 @@ contains
                  call iw_text(lvec_string(ls%lvec(:,i1)+w%env%idx(2:4)))
               if (setcol(ic_dist)) &
                  call iw_cell_right(string(ls%dist(i1)*bohrtoa,'f',decimal=5))
-              if (setcol(ic_coord)) then
-                 if (grouped) then
-                    call iw_cell_right(string(nc))
-                 elseif (nc > 0) then
-                    call iw_text("yes")
-                 end if
-              end if
               if (setcol(ic_wecon)) &
                  call iw_cell_right(string(ls%wecon(i1),'f',decimal=4))
-              if (nc > 0) then
+              if (hascoord) then
                  if (setcol(ic_geom)) xover = max(xover,geometry_cell(ls%ishell(i1)) - xright)
               end if
             end associate

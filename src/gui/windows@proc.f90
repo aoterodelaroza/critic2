@@ -1062,9 +1062,6 @@ contains
        if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
        if (allocated(w%vd%iso_lbl)) deallocate(w%vd%iso_lbl)
        if (allocated(w%vd%pck_rnn2)) deallocate(w%vd%pck_rnn2)
-    elseif (w%type == wintype_environ) then
-       ! the neighbour list; without its keys, it is calculated again
-       w%env%ls = environ_list()
     elseif (w%type == wintype_point) then
        ! the report at the point; without its key, it is calculated again
        if (allocated(w%pt%item)) deallocate(w%pt%item)
@@ -1395,6 +1392,7 @@ contains
     w%mo_diag = mo_diagram_state()
     w%vd = voids_state() ! the sampled grid and its labels, one per point of it
     w%cp = cp_state() ! the seed list and the pending job
+    w%env = environ_state() ! the neighbour lists
     w%mt = melting_state() ! the per-atom order and the history of the run
     w%geometry_cell = cellform_state() ! the supercell search results
 
@@ -1969,7 +1967,7 @@ contains
        elseif (w%type == wintype_kpoints) then
           call init_window("K-Point Grid",50,30)
        elseif (w%type == wintype_environ) then
-          call init_window("Atomic Environments",80,30,grow=.true.)
+          call init_window("Atomic Environments",80,46,grow=.true.)
        elseif (w%type == wintype_cp) then
           call init_window("Critical Points",70,30,grow=.true.)
        elseif (w%type == wintype_gpaths) then

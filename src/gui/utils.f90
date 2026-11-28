@@ -496,7 +496,8 @@ module utils
        type(iw_section), intent(inout), optional :: sec
        logical, intent(in), optional :: hasmore
      end subroutine iw_separatortext
-     module function iw_separatortext_height()
+     module function iw_separatortext_height(plain)
+       logical, intent(in), optional :: plain
        real(c_float) :: iw_separatortext_height
      end function iw_separatortext_height
      module function iw_menuitem(label,keybind,selected,enabled,shortcut_text,danger)

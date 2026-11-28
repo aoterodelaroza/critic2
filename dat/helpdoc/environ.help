@@ -25,6 +25,10 @@ has an orange halo and its coordinated neighbors have blue halos.
   shells. A shell is the group of neighbors at the same distance, which may be of different
   kinds.
 - "Species": list only the neighbors of one species.
+- "ECoN": the effective coordination number of the atom with the neighbors of the species in
+  "Species" (all of them, or one), as ECON calculates it: the sum of the weights
+  exp(1 - (d/d_av)^6) of the neighbors at distances d, where d_av is their mean weighted
+  distance (Hoppe's formula, iterated). It does not depend on "Up to".
 - "Coordinated": which neighbors are coordinated to the atom. "Bonded": the atoms bonded to it
   in the bond list of the system (which the bonds objects draw unless they use their own
   criteria; it includes the bonds added or removed by hand). "Covalent radii": the atoms closer
@@ -40,14 +44,15 @@ console.
 
 With "Atoms" the table has one row per neighbor, sorted by distance: its shell, name, index in
 the list of non-equivalent atoms ("Id") and in the unit cell ("Cell id"), the lattice vector of
-its image next to the marked atom (crystals), the distance, whether it is coordinated, and its
-ECoN weight. The ECoN weight of an atom at distance d is exp(1 - (d/d_av)^6), where d_av is the
-mean weighted distance to the neighbors of all species (Hoppe's formula, iterated as in ECON).
-With "Shells" there is one row per shell and atom (the atoms of a shell that are images of the
-same non-equivalent atom), with their number ("Count"), how many of them are coordinated, and
-the geometry of the shell; the rows with coordinated neighbors have a blue background, the
-color of their halos in the view. The neighbors of the row under the mouse are marked in
-yellow in the view, with a line from the atom.
+its image next to the marked atom (crystals), the distance, and its ECoN weight. The weights are
+always those of the ECoN with all species (d_av is the mean weighted distance to the neighbors
+of all species), also when "Species" lists only one. With "Shells" there is one row per shell
+and atom (the atoms of a shell that are images of the same non-equivalent atom), with their
+number ("Count") and the geometry of the shell. In both tables, the rows of the coordinated
+neighbors have a blue background, the color of their halos in the view; a row of the table of
+shells is blue if any of its atoms is coordinated. The color is not written with the table. The
+neighbors of the row under the mouse are marked in yellow in the view, with a line from the
+atom.
 
 # Geometry
 
@@ -77,4 +82,4 @@ and the plot goes as far as the list (in shells mode, four widths beyond the las
 Hover the plot to mark in the view, in yellow, the neighbors within two widths of the distance
 under the mouse; the line below the plot gives their number and the coordination number at
 that distance. Unlike the RDF keyword, this is the distribution around one atom, not normalized
-by the density or by 4πr². The section is closed when the window opens.
+by the density or by 4πr².

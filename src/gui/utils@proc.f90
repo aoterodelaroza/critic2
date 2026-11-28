@@ -2127,13 +2127,24 @@ contains
   !> Height taken in a layout by the title of a section that opens
   !> and closes (iw_separatortext with sec): the spacing above it,
   !> the line, as tall as the button on its triangle (a frame), and
-  !> the spacing below.
-  module function iw_separatortext_height()
+  !> the spacing below. If plain, the title of a section that does
+  !> not (iw_separatortext without sec), whose line is as tall as the
+  !> text.
+  module function iw_separatortext_height(plain)
     use interfaces_cimgui
     use gui_main, only: g
+    logical, intent(in), optional :: plain
     real(c_float) :: iw_separatortext_height
 
-    iw_separatortext_height = iw_calcheight(1,0) + 2._c_float * g%Style%ItemSpacing%y
+    logical :: plain_
+
+    plain_ = .false.
+    if (present(plain)) plain_ = plain
+    if (plain_) then
+       iw_separatortext_height = igGetTextLineHeight() + 2._c_float * g%Style%ItemSpacing%y
+    else
+       iw_separatortext_height = iw_calcheight(1,0) + 2._c_float * g%Style%ItemSpacing%y
+    end if
 
   end function iw_separatortext_height
 

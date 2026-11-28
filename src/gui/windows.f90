@@ -1103,19 +1103,21 @@ module windows
   !> igroup(i+1)-1. Each shell has the closest ideal shapes to its
   !> coordinated neighbours in the list (none if it has no shape or
   !> no such neighbours). Also cached, each with its own key: the
-  !> ECoN of the centre (the mean weighted distance of all species,
-  !> bohr, zero if there is none; and the neighbours with a weight of
-  !> at least econ_wmin: cell atom, lattice vector); the coordination
-  !> set of the centre by the rule of the form (ncoord atoms: cell
-  !> atom, lattice vector); the radial distribution, calculated only
-  !> while its section is open (the neighbours of the species of the
-  !> list up to rsearch, at least rmax plus four widths, whose
+  !> ECoN of the centre (per species, 0 = all; the mean weighted
+  !> distance of all species, bohr, zero if there is none; and the
+  !> neighbours with a weight of at least econ_wmin: cell atom,
+  !> lattice vector); the coordination set of the centre by the rule
+  !> of the form (ncoord atoms: cell atom, lattice vector); the
+  !> radial distribution (the neighbours of the species of the list
+  !> up to rsearch, at least rmax plus four widths, whose
   !> gaussians reach into the plot: cell atom, lattice vector,
   !> distance in Å; the broadened neighbour count on a grid, in Å and
   !> 1/Å; and the running coordination number as a staircase, in Å;
   !> rrefit = fit the axes of the plot to them). mdstale: the values
   !> were kept through a dynamics run (calculate them again when it
-  !> ends).
+  !> ends). The list is not among the caches released when the window
+  !> stack grows (window_drop_caches): nothing can calculate it again
+  !> during a dynamics run, and the plot would lose its zoom.
   type environ_list
      integer :: nat = 0
      integer, allocatable :: eid(:)
@@ -1135,6 +1137,7 @@ module windows
      integer :: keyspc = -1
      real*8 :: keydist = -1d0
      real*8 :: keytime = -1d0
+     real*8, allocatable :: econ(:)
      real*8 :: dav = 0d0
      integer, allocatable :: ecid(:)
      integer, allocatable :: eclvec(:,:)
@@ -1181,8 +1184,7 @@ module windows
      integer :: rows = 0 ! a row of the table: 0 = a neighbour, 1 = a group (shell and atom)
      integer :: cnrule = 0 ! coordinated: 0 = bonded, 1 = covalent radii, 2 = ECoN weight
      real*8 :: rdfsigma = 0.05d0 ! width of the gaussians of the radial distribution (Å)
-     type(iw_section) :: secneigh ! the sections of the window
-     type(iw_section) :: secrdf = iw_section(open=.false.) ! (closed to begin with)
+     type(iw_section) :: secneigh ! the neighbors section
      real(c_float) :: widthreq = 0._c_float ! window width already asked for, so it is asked once
      ! pending pick in the view
      logical :: picking = .false.
