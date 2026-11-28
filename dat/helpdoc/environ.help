@@ -3,14 +3,13 @@ keyword: ENVIRON
 manual: structure/#c2-environ
 cite: econ_1979 econ_2016
 
-Shows the environment of one atom of the system in the "System" line: which neighbors are
-coordinated to it, its coordination numbers and effective coordination numbers (ECoN) per
-species, its coordination polyhedron, its radial distribution, and the list of its neighbors
-with their distances and ECoN weights. It brings together, for one atom at a time, what the
-ENVIRON, ECON, COORD, POLYHEDRA and RDF keywords calculate for all of them. The atom and its
-coordinated neighbors are marked in the view while the window is open, and everything is
-recalculated whenever the atom, the options, the bonds or the geometry change. During a
-dynamics run the window keeps the last values, and updates when the run stops.
+Shows the environment of one atom of the system in the "System" line: the list of its neighbors
+with their distances and ECoN weights, which of them are coordinated to it, the geometry of each
+shell of coordinated neighbors (with shells as rows), and its radial distribution. It brings
+together, for one atom at a time, what the ENVIRON, ECON, COORD and RDF keywords calculate for
+all of them. The atom and its coordinated neighbors are marked in the view while the window is
+open, and everything is recalculated whenever the atom, the options, the bonds or the geometry
+change. During a dynamics run the window keeps the last values, and updates when the run stops.
 
 # Center
 
@@ -32,46 +31,40 @@ has an orange halo and its coordinated neighbors have blue halos.
   than the bond factor times the sum of the covalent radii, with the radii and bond factor of
   the system (those used to calculate its bonds), as COORD does. "ECoN weight": the atoms whose
   weight in the ECoN is at least 0.5, as ECON counts its integer coordination number.
-- "Rows": what a row of the table is: a neighbor ("Atoms"), a shell ("Shells") or a species
-  ("Species").
+- "Rows": what a row of the table is: a neighbor ("Atoms") or a shell ("Shells").
 
-Right-click the header of a table to write it to the output, to a text file or to the console.
+Right-click the header of the table to write it to the output, to a text file or to the
+console.
 
 # Atoms and shells
 
 With "Atoms" the table has one row per neighbor, sorted by distance: its shell, name, index in
 the list of non-equivalent atoms ("Id") and in the unit cell ("Cell id"), the lattice vector of
 its image next to the marked atom (crystals), the distance, whether it is coordinated, and its
-ECoN weight (with the mean weighted distance of all species). With "Shells" there is one row
-per shell and atom (the atoms of a shell that are images of the same non-equivalent atom), with
-their number ("Count") and how many of them are coordinated. The neighbors of the row under
-the mouse are marked in yellow in the view, with a line from the atom.
+ECoN weight. The ECoN weight of an atom at distance d is exp(1 - (d/d_av)^6), where d_av is the
+mean weighted distance to the neighbors of all species (Hoppe's formula, iterated as in ECON).
+With "Shells" there is one row per shell and atom (the atoms of a shell that are images of the
+same non-equivalent atom), with their number ("Count"), how many of them are coordinated, and
+the geometry of the shell; the rows with coordinated neighbors have a blue background, the
+color of their halos in the view. The neighbors of the row under the mouse are marked in
+yellow in the view, with a line from the atom.
 
-# Species
+# Geometry
 
-With "Species" the table has a row for all species and one for each species in the environment
-of the atom: the coordination number ("CN", the coordinated neighbors of that species), the
-ECoN, the distance to the nearest atom of that species, the mean weighted distance of the ECoN
-("Mean"), and the geometry of the coordinated neighbors. The ECoN weight of an atom at distance
-d is exp(1 - (d/d_av)^6), where d_av is the mean weighted distance (Hoppe's formula, iterated
-as in ECON). This table does not depend on "Up to" or "Species".
-
-"Geometry" is the closest ideal shape with the same number of vertices (linear, trigonal
-planar, tetrahedral, square planar, octahedral, trigonal prismatic, cuboctahedral, and so on),
-of all the coordinated neighbors in the first row and of those of one species in the others.
-The angles between the neighbors at the atom are sorted and compared with those of the shape;
-the number in parentheses is the root mean square difference, in degrees, zero for a perfect
-match. Only the angles count, not the distances, so a Jahn-Teller octahedron is a perfect
-octahedron. The tooltip gives the next closest shape: two close numbers mean the environment
+"Geometry", in the table of shells, is the closest ideal shape to the coordinated neighbors of
+the shell, among those with the same number of vertices (linear, trigonal planar, tetrahedral,
+square planar, octahedral, trigonal prismatic, cuboctahedral, and so on). All the coordinated
+neighbors listed in the shell count, so the rows of a shell with several kinds of atom give the
+same shape, and choosing a species in "Species" leaves only that species in the shells and in
+their shapes. The rows with no coordinated neighbors give none, and a shell with no ideal shape
+for its number of neighbors (one, for instance) gives a dash. The angles between the neighbors
+at the atom are sorted and compared with those of the shape; the number in parentheses is the
+root mean square difference, in degrees, zero for a perfect match. Only the angles count, not
+the distances. The tooltip gives the next closest shape: two close numbers mean the environment
 is halfway between them. There are shapes for 2 to 10, 12 and 14 neighbors. The ideal square
-pyramid has the atom above the base (100° from the apex to the base atoms), so an octahedron
-with a missing vertex is a square pyramid 11° off.
-
-"Polyhedron", below the table, gives the coordination polyhedron, the convex hull of the
-coordinated neighbors: its numbers of vertices and faces, its volume, the shortest and longest
-distance from the atom to the vertices, and its planarity, the largest distance from a vertex
-to the plane that best fits all of them (zero for a flat polyhedron). A polyhedron needs at
-least four vertices.
+pyramid has the atom above the base (100° from the apex to the base atoms). Each shell has its
+own shape: the six neighbors of a distorted octahedron that fall in two shells, four and two,
+are a square planar and a linear arrangement, not an octahedron.
 
 # Radial distribution
 

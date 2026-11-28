@@ -820,7 +820,7 @@ module crystalmod
        integer, intent(in), optional :: ispc0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
-     module subroutine econ_atom(c,x0,econ,econ1,nd,nd1,eid,dist,lvec,dmin)
+     module subroutine econ_atom(c,x0,econ,econ1,nd,nd1,eid,dist,lvec)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x0(3)
        real*8, intent(out) :: econ(0:c%nspc)
@@ -830,7 +830,6 @@ module crystalmod
        integer, allocatable, intent(inout), optional :: eid(:)
        real*8, allocatable, intent(inout), optional :: dist(:)
        integer, allocatable, intent(inout), optional :: lvec(:,:)
-       real*8, intent(out), optional :: dmin(0:c%nspc)
      end subroutine econ_atom
      module function get_rnn2(c,ineq)
        class(crystal), intent(inout) :: c

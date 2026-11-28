@@ -1098,25 +1098,24 @@ module windows
   !> by distance and, within a shell, by non-equivalent atom: cell
   !> atom, lattice vector, shell, distance (bohr), ECoN weight, and
   !> whether it is coordinated to the centre (in the coordination
-  !> set). The
-  !> groups (ngroup) are the runs of neighbours in the same shell and
-  !> non-equivalent atom: group i is igroup(i) to igroup(i+1)-1. Also
-  !> cached, each with its own key: the ECoN of the centre (per
-  !> species, 0 = all: iterative ECoN, mean weighted distance, and
-  !> the nearest distance; bohr; and the neighbours
-  !> with a weight of at least econ_wmin: cell atom, lattice vector,
-  !> distance); the coordination set of the centre by the rule of the
-  !> form (ncoord atoms: cell atom, lattice vector, distance, sorted
-  !> by distance; cn = how many of each species, 0 = all), with the
-  !> coordination polyhedron (faces, volume in bohr^3, planarity, and
-  !> qhull error); the radial distribution, calculated only while its
-  !> section is open (the neighbours of the species of the list up to
-  !> rsearch, at least rmax plus four widths, whose gaussians reach
-  !> into the plot: cell atom, lattice vector, distance in Å; the
-  !> broadened neighbour count on a grid, in Å and 1/Å; and the
-  !> running coordination number as a staircase, in Å; rrefit = fit
-  !> the axes of the plot to them). mdstale: the values were kept
-  !> through a dynamics run (calculate them again when it ends).
+  !> set). The groups (ngroup) are the runs of neighbours in the same
+  !> shell and non-equivalent atom: group i is igroup(i) to
+  !> igroup(i+1)-1. Each shell has the closest ideal shapes to its
+  !> coordinated neighbours in the list (none if it has no shape or
+  !> no such neighbours). Also cached, each with its own key: the
+  !> ECoN of the centre (the mean weighted distance of all species,
+  !> bohr, zero if there is none; and the neighbours with a weight of
+  !> at least econ_wmin: cell atom, lattice vector); the coordination
+  !> set of the centre by the rule of the form (ncoord atoms: cell
+  !> atom, lattice vector); the radial distribution, calculated only
+  !> while its section is open (the neighbours of the species of the
+  !> list up to rsearch, at least rmax plus four widths, whose
+  !> gaussians reach into the plot: cell atom, lattice vector,
+  !> distance in Å; the broadened neighbour count on a grid, in Å and
+  !> 1/Å; and the running coordination number as a staircase, in Å;
+  !> rrefit = fit the axes of the plot to them). mdstale: the values
+  !> were kept through a dynamics run (calculate them again when it
+  !> ends).
   type environ_list
      integer :: nat = 0
      integer, allocatable :: eid(:)
@@ -1127,6 +1126,8 @@ module windows
      logical, allocatable :: iscoord(:)
      integer :: ngroup = 0
      integer, allocatable :: igroup(:)
+     integer, allocatable :: cshape(:,:) ! closest ideal shapes (2,shell), coordination_shape
+     real*8, allocatable :: cshdev(:,:) ! their angle deviations (2,shell), degrees
      integer*8 :: keysys = 0
      integer :: keyiat = 0
      integer :: keymode = -1
@@ -1134,26 +1135,15 @@ module windows
      integer :: keyspc = -1
      real*8 :: keydist = -1d0
      real*8 :: keytime = -1d0
-     real*8, allocatable :: econ(:)
-     real*8, allocatable :: nd(:)
-     real*8, allocatable :: dmin(:)
+     real*8 :: dav = 0d0
      integer, allocatable :: ecid(:)
      integer, allocatable :: eclvec(:,:)
-     real*8, allocatable :: ecdist(:)
      integer*8 :: ndkeysys = 0
      integer :: ndkeyiat = 0
      real*8 :: ndkeytime = -1d0
      integer :: ncoord = 0
      integer, allocatable :: cid(:)
      integer, allocatable :: clvec(:,:)
-     real*8, allocatable :: cdist(:)
-     integer, allocatable :: cn(:)
-     integer :: pnf = 0
-     real*8 :: pvol = 0d0
-     real*8 :: pdev = 0d0
-     integer :: pier = 0
-     integer, allocatable :: cshape(:,:) ! closest ideal shapes (2,0:nspc), coordination_shape
-     real*8, allocatable :: cshdev(:,:) ! their angle deviations (2,0:nspc), degrees
      integer*8 :: ckeysys = 0
      integer :: ckeyiat = 0
      integer :: ckeyrule = -1
@@ -1188,7 +1178,7 @@ module windows
      real*8 :: updist = 5d0 ! up to this distance (Å)
      integer(c_int) :: upshell = 3 ! up to this number of shells
      integer :: ispc = 0 ! only the neighbours of this species (0 = all)
-     integer :: rows = 0 ! a row of the table: 0 = a neighbour, 1 = a group (shell and atom), 2 = a species
+     integer :: rows = 0 ! a row of the table: 0 = a neighbour, 1 = a group (shell and atom)
      integer :: cnrule = 0 ! coordinated: 0 = bonded, 1 = covalent radii, 2 = ECoN weight
      real*8 :: rdfsigma = 0.05d0 ! width of the gaussians of the radial distribution (Å)
      type(iw_section) :: secneigh ! the sections of the window
